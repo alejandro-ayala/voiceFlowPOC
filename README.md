@@ -2,7 +2,31 @@
 
 Este proyecto implementa un agente de Speech-to-Text (STT) como parte de un sistema multiagente para planificación de rutas de ocio accesibles.
 
-## 🏗️ Arquitectura
+## 🏗️ Ar## 🚀 Guía de Inicio Rápido
+
+**¿Primera vez usando el proyecto?** Sigue esta guía paso a paso:
+
+- **[AZURE_SETUP_GUIDE.md](AZURE_SETUP_GUIDE.md)** - 📋 **EMPEZAR AQUÍ**: Configuración completa de Azure Speech Services desde cero
+
+**Tests de verificación:**
+```bash
+# 1. Test de conexión Azure
+python test_azure_connection.py
+
+# 2. Test completo con audio  
+python test_complete.py
+
+# 3. Demo principal
+python main.py
+```
+
+## 📚 Documentación Adicional
+
+Para desarrolladores y futuros mantenedores del proyecto:
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Decisiones de arquitectura, patrones SOLID, y contexto técnico detallado
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Guía completa de desarrollo, testing, y workflows
+- **[API_REFERENCE.md](API_REFERENCE.md)** - Documentación completa de todas las clases, métodos y ejemplos de usoura
 
 El proyecto sigue los principios SOLID y está diseñado para ser:
 - **Escalable**: Fácil agregar nuevos servicios STT
