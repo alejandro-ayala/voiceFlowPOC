@@ -14,7 +14,7 @@ async def test_stt_complete():
     print("🎯 === TEST COMPLETO STT AGENT ===")
     
     try:
-        from voiceflow_stt_agent import VoiceflowSTTAgent
+        from src.voiceflow_stt_agent import VoiceflowSTTAgent
         
         # 1. Crear agente
         print("\n1. Creando agente STT...")

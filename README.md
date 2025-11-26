@@ -1,5 +1,11 @@
 # VoiceFlow STT Agent - Prueba de Concepto
 
+> **🔄 FOR NEW DEVELOPERS**: Start with **[HANDOVER.md](HANDOVER.md)** for complete project handover  
+> **⚡ QUICK START**: See **[QUICK_START.md](QUICK_START.md)** for 5-minute setup  
+> **📊 CURRENT STATUS**: Check **[CURRENT_STATUS.md](CURRENT_STATUS.md)** for latest system status
+
+**System Status (Nov 27, 2025)**: ✅ FULLY OPERATIONAL - Complete voice workflow tested and working
+
 Este proyecto implementa un agente de Speech-to-Text (STT) como parte de un sistema multiagente para planificación de rutas de ocio accesibles.
 
 ## 🏗️ Ar## 🚀 Guía de Inicio Rápido
@@ -249,3 +255,38 @@ Para agregar nuevas funcionalidades:
 2. Implementa tests unitarios (ver [DEVELOPMENT.md](DEVELOPMENT.md))
 3. Actualiza la documentación correspondiente
 4. Usa type hints y docstrings (ver [API_REFERENCE.md](API_REFERENCE.md))
+
+# VoiceFlow STT Agent - Accessible Tourism PoC
+
+> **🎉 INTEGRATION COMPLETE**: Full workflow operational - record audio → transcribe → multi-agent processing
+
+A production-ready **Speech-to-Text Agent** for accessible tourism applications, implementing SOLID principles and supporting multiple STT services (Azure Speech Services, OpenAI Whisper).
+
+## 🚀 Quick Start - Complete Workflow
+
+```bash
+# 1. Setup environment
+cp .env.example .env
+# Configure your Azure Speech Services or OpenAI API keys
+
+# 2. Install dependencies  
+pip install -r requirements.txt
+
+# 3. Run complete accessible tourism workflow
+python main.py
+```
+
+**What it does:**
+1. 🎙️ Records your voice input about tourism accessibility needs
+2. 🤖 Transcribes speech using Azure Speech Services  
+3. 🏛️ Processes request through simulated multi-agent system
+4. 📋 Provides accessible tourism route recommendations
+
+## ✅ Integration Status
+
+- ✅ **Audio Recording**: Real-time microphone input with Azure-optimized settings
+- ✅ **Speech-to-Text**: Azure Speech Services with Whisper fallback options
+- ✅ **Multi-Agent System**: NLU, accessibility analysis, and route planning agents
+- ✅ **English Interface**: Complete localization to English  
+- ✅ **SOLID Architecture**: Scalable, testable, and maintainable design
+- ✅ **Comprehensive Testing**: Multiple test scripts validate all functionality

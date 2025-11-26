@@ -1,6 +1,3 @@
-"""
-Test básico de conexión con Azure Speech Services
-"""
 import asyncio
 import os
 import sys
@@ -47,12 +44,11 @@ async def test_azure_connection():
     # 3. Crear servicio Azure
     print("\n3. Creando servicio Azure...")
     try:
-        from src.services.azure_speech_service import AzureSpeechService
+        from services.azure_speech_service import AzureSpeechService
         service = AzureSpeechService(azure_key, azure_region)
         print("   ✅ Servicio Azure creado")
     except Exception as e:
         print(f"   ❌ ERROR creando servicio: {e}")
-        print(f"   Debug: {type(e).__name__}")
         return False
     
     # 4. Verificar disponibilidad
@@ -77,8 +73,6 @@ if __name__ == "__main__":
     if success:
         print("\n🎉 ¡CONEXIÓN EXITOSA!")
         print("   Puedes proceder a probar con audio")
-        print("   Ejecuta: python test_complete.py")
     else:
         print("\n💥 HAY PROBLEMAS EN LA CONFIGURACIÓN")
         print("   Revisa los errores anteriores")
-        print("   Consulta: AZURE_SETUP_GUIDE.md")

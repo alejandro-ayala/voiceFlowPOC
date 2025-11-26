@@ -55,15 +55,26 @@ Esta guía te llevará paso a paso desde la creación de la cuenta Azure hasta l
 2. **Configurar el recurso:**
    - **Suscripción:** Azure for Students (o tu suscripción)
    - **Grupo de recursos:** Crear nuevo → Nombre: `rg-voiceflow-poc`
-   - **Región:** `East US` (recomendado para latencia)
+   - **Región:** Ver **🚨 IMPORTANTE** abajo para elegir región correcta
    - **Nombre:** `speech-voiceflow-poc-[tu-nombre]`
    - **Plan de tarifa:** `F0 (Free)` - **¡IMPORTANTE!**
+
+   **🚨 IMPORTANTE - Regiones para Azure for Students:**
+   
+   Azure for Students tiene restricciones de región. Prueba estas regiones **EN ESTE ORDEN**:
+   
+   1. **`West Europe`** (recomendada para España/Europa)
+   2. **`West US 2`** (alternativa confiable)
+   3. **`Central US`** (si las anteriores fallan)
+   4. **`South Central US`** (última opción)
+   
+   **⚠️ NO uses `East US` con Azure for Students - causará el error que experimentaste**
 
 3. **Verificar configuración:**
    ```
    Suscripción: Azure for Students
    Grupo de recursos: rg-voiceflow-poc
-   Región: East US
+   Región: West Europe (o alguna de las alternativas arriba)
    Nombre: speech-voiceflow-poc-[tu-nombre]
    Plan de tarifa: F0 (Free) ← 5 horas/mes gratis
    ```
@@ -83,12 +94,9 @@ Esta guía te llevará paso a paso desde la creación de la cuenta Azure hasta l
    - En el menú izquierdo: `Administración de recursos` → `Claves y punto de conexión`
    - Anotar los siguientes valores:
 
-   ```
-   CLAVE 1: [tu-clave-aquí]
-   REGIÓN: eastus
-   PUNTO DE CONEXIÓN: https://eastus.api.cognitive.microsoft.com/
-   ```
 
+   **📝 NOTA:** La región en el `.env` debe coincidir EXACTAMENTE con la región donde creaste el recurso.
+   
    **⚠️ IMPORTANTE:** Guarda estas credenciales de forma segura.
 
 ## 🔧 Paso 3: Configurar el Proyecto
@@ -132,7 +140,7 @@ Esta guía te llevará paso a paso desde la creación de la cuenta Azure hasta l
    ```env
    # Azure Speech Services Configuration
    AZURE_SPEECH_KEY=TU_CLAVE_AQUI
-   AZURE_SPEECH_REGION=eastus
+   AZURE_SPEECH_REGION=westeurope
    
    # STT Service Configuration
    STT_SERVICE=azure
@@ -146,7 +154,9 @@ Esta guía te llevará paso a paso desde la creación de la cuenta Azure hasta l
    LOG_LEVEL=INFO
    ```
 
-   **⚠️ Reemplazar `TU_CLAVE_AQUI` con tu CLAVE 1 de Azure**
+   **⚠️ IMPORTANTE:**
+   - Reemplazar `TU_CLAVE_AQUI` con tu CLAVE 1 de Azure
+   - Reemplazar `westeurope` con la región exacta donde creaste tu recurso
 
 ## 🎵 Paso 4: Preparar Audio de Prueba
 
@@ -416,9 +426,20 @@ python main.py
 ### Error: "Region is not supported"
 ```bash
 # Verificar región en Azure Portal
-# Regiones comunes: eastus, westus2, westeurope
+# Para Azure for Students, regiones válidas: westeurope, westus2, centralus
 # Debe coincidir exactamente con la región del recurso
 ```
+
+### Error: "RequestDisallowedByAzure" al crear recurso
+Este error ocurre cuando intentas usar una región no disponible para Azure for Students.
+
+**Solución:**
+1. **Eliminar el recurso fallido** (si se creó parcialmente)
+2. **Crear nuevo recurso** con una de estas regiones:
+   - `West Europe` (recomendada para España)
+   - `West US 2`
+   - `Central US`
+3. **Actualizar tu `.env`** con la región correcta
 
 ### Error: "Import azure.cognitiveservices.speech could not be resolved"
 ```bash
@@ -477,3 +498,59 @@ Una vez que todo funcione:
    - Fácil de integrar
 
 ¡Ya tienes tu agente STT funcionando con Azure Speech Services! 🚀
+
+## 🚨 SOLUCIÓN RÁPIDA - Error de Región
+
+**¿Tienes el error "RequestDisallowedByAzure" como el usuario?** Sigue estos pasos:
+
+### Paso 1: Limpiar Recursos Fallidos
+
+1. **Ir al Portal Azure:** https://portal.azure.com
+2. **Buscar recursos fallidos:**
+   - Ir a "Todos los recursos"
+   - Buscar `speech-voiceflow-poc-adab` (o tu nombre)
+   - Si aparece, eliminarlo
+3. **Limpiar grupo de recursos:**
+   - Ir a "Grupos de recursos"  
+   - Buscar `rg-voiceflow-poc`
+   - Si está vacío o con recursos fallidos, eliminarlo
+
+### Paso 2: Crear Recurso con Región Correcta
+
+1. **Crear nuevo recurso Speech Services:**
+   ```
+   Portal Azure → "Crear un recurso" → Buscar "Speech Services"
+   ```
+
+2. **Configurar con región válida:**
+   - **Suscripción:** Azure for Students
+   - **Grupo de recursos:** Crear nuevo → `rg-voiceflow-poc`
+   - **Región:** `West Europe` ← **USAR ESTA**
+   - **Nombre:** `speech-poc-[tu-nombre]` (más corto)
+   - **Plan de tarifa:** `F0 (Free)`
+
+3. **Si West Europe también falla, probar:**
+   - `West US 2`
+   - `Central US`
+   - `South Central US`
+
+### Paso 3: Actualizar Configuración
+
+Una vez creado exitosamente:
+
+1. **Obtener credenciales:**
+   - Ir al recurso → "Claves y punto de conexión"
+   - Copiar CLAVE 1 y REGIÓN
+
+2. **Actualizar `.env`:**
+   ```env
+   AZURE_SPEECH_KEY=tu_clave_real_aqui
+   AZURE_SPEECH_REGION=westeurope  # o la región que funcionó
+   STT_SERVICE=azure
+   ```
+
+### Paso 4: Probar Conexión
+
+```bash
+python test_azure_connection.py
+```
