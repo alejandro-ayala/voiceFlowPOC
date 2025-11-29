@@ -17,26 +17,29 @@ copy .env.example .env
 
 ### 3. Test System
 ```bash
-# Test Azure connection
-py test_azure_connection.py
+# Quick validation without consuming credits
+./venv/Scripts/python.exe test_voiceflow.py --test
 
-# Run complete workflow
-py main.py
+# Full system test with production APIs
+./venv/Scripts/python.exe test_voiceflow.py --prod
+
+# Run complete workflow with real audio
+./venv/Scripts/python.exe main.py
 ```
 
 ## 🎯 Main Entry Points
 
 ### Primary Workflow
 ```bash
-py main.py
+./venv/Scripts/python.exe main.py
 ```
 **What it does**: Complete voice workflow (record Spanish audio → transcribe → multi-agent processing)
 
 ### Testing Scripts
 ```bash
-py test_full_workflow.py    # Test with pre-recorded audio
-py test_azure_connection.py # Verify Azure connectivity
-py test_complete.py         # STT transcription test
+./venv/Scripts/python.exe test_voiceflow.py --test    # Quick validation (no credits consumed)
+./venv/Scripts/python.exe test_voiceflow.py --prod    # Complete production test
+./venv/Scripts/python.exe production_test.py          # Advanced testing with real audio
 ```
 
 ## 📋 Current System Capabilities

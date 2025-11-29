@@ -1,0 +1,19 @@
+{
+  "env_openai_api_key": true,
+  "env_azure_speech_key": true,
+  "env_azure_speech_region": true,
+  "openai_connection": true,
+  "azure_speech_connection": true,
+  "langchain_tools": [
+    "tourism_nlu",
+    "accessibility_analysis",
+    "route_planning",
+    "tourism_info"
+  ],
+  "langchain_connection": true,
+  "audio_devices_count": 29,
+  "audio_system_ready": true,
+  "mode": "test",
+  "all_systems_ready": true,
+  "timestamp": "2025-11-29T13:04:58.369430"
+}

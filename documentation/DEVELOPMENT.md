@@ -35,24 +35,30 @@
 ### Estructura de Desarrollo
 ```
 VoiceFlowPOC/
-├── src/                         # Código fuente
-│   ├── interfaces/              # Contratos/Abstracciones
-│   ├── services/                # Implementaciones STT
-│   ├── factory.py               # Factory pattern
-│   └── voiceflow_stt_agent.py  # Agente principal
-├── tests/                       # Tests (crear cuando sea necesario)
-├── ejemplos/                    # Audio de prueba
-├── docs/                        # Documentación adicional
-├── main.py                      # Demo/Entrypoint
-└── requirements.txt             # Dependencias
+├── main.py                      # 🎯 Aplicación principal
+├── langchain_agents.py          # 🤖 Sistema multi-agente LangChain
+├── test_voiceflow.py           # 🔧 Sistema principal de testing
+├── production_test.py          # 🚀 Testing avanzado con audio real
+├── src/                        # Código fuente (legacy)
+├── examples/                   # Audio de prueba
+├── documentation/              # Documentación completa
+├── requirements.txt            # Dependencias consolidadas
+├── .env                        # Variables de entorno
+└── venv/                       # Entorno virtual activado
 ```
 
 ## 🔨 Comandos de Desarrollo
 
 ### Testing Rápido
 ```bash
-# Ejecutar demo principal
-python main.py
+# Test sin consumir créditos (validación diaria)
+./venv/Scripts/python.exe test_voiceflow.py --test
+
+# Test completo de producción  
+./venv/Scripts/python.exe test_voiceflow.py --prod
+
+# Ejecutar aplicación principal
+./venv/Scripts/python.exe main.py
 
 # Probar servicio específico
 python -c "

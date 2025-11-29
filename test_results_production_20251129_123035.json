@@ -1,0 +1,38 @@
+{
+  "env_openai_api_key": true,
+  "env_azure_speech_key": true,
+  "env_azure_speech_region": true,
+  "openai_response": "Prueba exitosa",
+  "openai_connection": true,
+  "azure_speech_connection": true,
+  "langchain_full_response": "El Museo del Prado es completamente accesible para usuarios de sillas de ruedas. Tiene instalaciones como rampas para sillas de ruedas, baños adaptados, guías de audio, senderos táctiles e intérpretes",
+  "langchain_tools": [
+    "tourism_nlu",
+    "accessibility_analysis",
+    "route_planning",
+    "tourism_info"
+  ],
+  "langchain_connection": true,
+  "audio_devices_count": 29,
+  "audio_system_ready": true,
+  "production_scenarios": [
+    {
+      "scenario": "Necesito ir al Museo del Prado en silla de ruedas",
+      "success": true,
+      "response_length": 1605
+    },
+    {
+      "scenario": "¿Cómo visitar el Parque del Retiro con problemas de visión?",
+      "success": true,
+      "response_length": 1363
+    },
+    {
+      "scenario": "Restaurantes accesibles cerca de Gran Vía",
+      "success": true,
+      "response_length": 1338
+    }
+  ],
+  "mode": "production",
+  "all_systems_ready": true,
+  "timestamp": "2025-11-29T12:30:35.478334"
+}

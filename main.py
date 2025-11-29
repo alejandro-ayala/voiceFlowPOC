@@ -21,6 +21,7 @@ try:
     from src.voiceflow_stt_agent import VoiceflowSTTAgent
     from src.factory import STTServiceFactory
     from src.interfaces.stt_interface import STTServiceError, AudioFormatError
+    from langchain_agents import TourismMultiAgent
 except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Make sure to install dependencies: pip install -r requirements.txt")
@@ -198,213 +199,91 @@ async def transcribe_user_input(audio_file: str) -> Optional[str]:
 
 
 class AccessibleTourismMultiAgent:
-    """Multi-agent system for accessible tourism route planning"""
+    """Multi-agent system for accessible tourism route planning using real AI"""
     
     def __init__(self):
         self.stt_agent = None
-        self.agents = {}
+        self.langchain_system = None
         self.conversation_history = []
     
     async def initialize(self):
-        """Initialize the multi-agent system"""
+        """Initialize the multi-agent system with real AI"""
         try:
             # Initialize STT agent
             self.stt_agent = VoiceflowSTTAgent.create_from_config("stt_agent")
-            self.agents["stt"] = self.stt_agent
             
-            print("✅ Multi-agent system initialized")
+            # Initialize LangChain real AI system
+            print("🤖 Initializing LangChain Multi-Agent AI System...")
+            self.langchain_system = TourismMultiAgent()
+            
+            print("✅ Multi-agent system with real AI initialized")
             return True
             
         except Exception as e:
             print(f"❌ Error initializing multi-agent system: {e}")
+            print(f"   Error details: {str(e)}")
             return False
     
     async def process_user_request(self, transcription: str) -> Dict[str, Any]:
-        """Process user tourism request through multi-agent system"""
+        """Process user tourism request through real AI multi-agent system"""
         
-        print("\n🏛️  === ACCESSIBLE TOURISM MULTI-AGENT PROCESSING ===")
+        print("\n🏛️  === ACCESSIBLE TOURISM AI PROCESSING ===")
+        print(f"🎯 Processing request: '{transcription}'")
         
-        # Simulate multi-agent processing
-        result = {
-            "user_input": transcription,
-            "timestamp": time.time(),
-            "agents_involved": ["stt_agent", "nlu_agent", "planning_agent", "accessibility_agent"],
-            "processing_steps": [],
-            "recommendations": []
-        }
-        
-        # Step 1: Natural Language Understanding (simulated)
-        print("🧠 Step 1: Natural Language Understanding...")
-        nlu_result = self._simulate_nlu_processing(transcription)
-        result["processing_steps"].append({
-            "agent": "nlu_agent",
-            "task": "Extract intent and entities from user speech",
-            "result": nlu_result
-        })
-        
-        # Step 2: Accessibility Requirements Analysis (simulated)
-        print("♿ Step 2: Accessibility Requirements Analysis...")
-        accessibility_analysis = self._simulate_accessibility_analysis(nlu_result)
-        result["processing_steps"].append({
-            "agent": "accessibility_agent", 
-            "task": "Analyze accessibility needs",
-            "result": accessibility_analysis
-        })
-        
-        # Step 3: Route Planning (simulated)
-        print("🗺️  Step 3: Accessible Route Planning...")
-        route_plan = self._simulate_route_planning(nlu_result, accessibility_analysis)
-        result["processing_steps"].append({
-            "agent": "planning_agent",
-            "task": "Generate accessible tourism routes",
-            "result": route_plan
-        })
-        
-        # Generate final recommendations
-        result["recommendations"] = self._generate_recommendations(route_plan)
-        
-        # Store in conversation history
-        self.conversation_history.append(result)
-        
-        return result
-    
-    def _simulate_nlu_processing(self, text: str) -> Dict[str, Any]:
-        """Simulate Natural Language Understanding processing"""
-        
-        # Simple keyword-based intent detection (in real system, use ML models)
-        intent = "unknown"
-        entities = []
-        
-        text_lower = text.lower()
-        
-        if any(word in text_lower for word in ["route", "path", "way", "direction"]):
-            intent = "route_planning"
-        elif any(word in text_lower for word in ["museum", "restaurant", "hotel", "attraction"]):
-            intent = "poi_information"
-        elif any(word in text_lower for word in ["accessible", "wheelchair", "disability"]):
-            intent = "accessibility_request"
-        
-        # Extract location entities (simplified)
-        locations = ["museum", "restaurant", "hotel", "park", "station", "airport"]
-        for location in locations:
-            if location in text_lower:
-                entities.append({"type": "location", "value": location})
-        
-        return {
-            "intent": intent,
-            "confidence": 0.85,
-            "entities": entities,
-            "processed_text": text
-        }
-    
-    def _simulate_accessibility_analysis(self, nlu_result: Dict[str, Any]) -> Dict[str, Any]:
-        """Simulate accessibility requirements analysis"""
-        
-        # Default accessibility features
-        accessibility_needs = {
-            "wheelchair_accessible": True,
-            "audio_guidance": False,
-            "visual_assistance": False,
-            "cognitive_support": False
-        }
-        
-        # Analyze based on user input
-        text = nlu_result.get("processed_text", "").lower()
-        
-        if "wheelchair" in text or "mobility" in text:
-            accessibility_needs["wheelchair_accessible"] = True
-        if "blind" in text or "visual" in text:
-            accessibility_needs["visual_assistance"] = True
-        if "deaf" in text or "hearing" in text:
-            accessibility_needs["audio_guidance"] = True
-        
-        return {
-            "accessibility_profile": accessibility_needs,
-            "priority_features": ["wheelchair_accessible"],
-            "special_requirements": []
-        }
-    
-    def _simulate_route_planning(self, nlu_result: Dict[str, Any], accessibility: Dict[str, Any]) -> Dict[str, Any]:
-        """Simulate accessible route planning"""
-        
-        intent = nlu_result.get("intent", "unknown")
-        entities = nlu_result.get("entities", [])
-        
-        # Generate sample accessible routes
-        routes = []
-        
-        if intent == "route_planning" or intent == "poi_information":
-            routes = [
-                {
-                    "id": "route_001",
-                    "name": "Accessible City Center Tour",
-                    "duration": "2 hours",
-                    "accessibility_score": 9.2,
-                    "waypoints": [
-                        {"name": "Accessible Metro Station", "type": "transport", "accessibility": "full"},
-                        {"name": "Museum of Modern Art", "type": "attraction", "accessibility": "wheelchair_friendly"},
-                        {"name": "Inclusive Café", "type": "restaurant", "accessibility": "full"},
-                        {"name": "Accessible Park", "type": "recreation", "accessibility": "partial"}
-                    ]
-                },
-                {
-                    "id": "route_002", 
-                    "name": "Cultural Heritage Accessible Route",
-                    "duration": "3 hours",
-                    "accessibility_score": 8.7,
-                    "waypoints": [
-                        {"name": "Historic Cathedral", "type": "attraction", "accessibility": "partial"},
-                        {"name": "Accessible Restaurant", "type": "dining", "accessibility": "full"},
-                        {"name": "Art Gallery", "type": "culture", "accessibility": "wheelchair_friendly"}
-                    ]
-                }
-            ]
-        
-        return {
-            "routes_found": len(routes),
-            "recommended_routes": routes,
-            "filters_applied": accessibility["accessibility_profile"]
-        }
-    
-    def _generate_recommendations(self, route_plan: Dict[str, Any]) -> list:
-        """Generate final recommendations for the user"""
-        
-        recommendations = []
-        
-        for route in route_plan.get("recommended_routes", []):
-            recommendation = {
-                "type": "accessible_route",
-                "title": route["name"],
-                "description": f"A {route['duration']} accessible tour with {len(route['waypoints'])} stops",
-                "accessibility_score": route["accessibility_score"],
-                "highlights": [wp["name"] for wp in route["waypoints"][:3]]
+        try:
+            # Process through real LangChain AI system
+            print("🤖 Sending request to LangChain Multi-Agent AI...")
+            ai_response = await self.langchain_system.process_request(transcription)
+            
+            # Create structured result for display
+            result = {
+                "user_input": transcription,
+                "timestamp": time.time(),
+                "system_type": "real_ai",
+                "ai_response": ai_response,
+                "agents_involved": ["langchain_orchestrator", "tourism_nlu", "accessibility_analysis", "route_planning", "tourism_info"],
+                "processing_summary": "Processed through LangChain + OpenAI GPT-4"
             }
-            recommendations.append(recommendation)
-        
-        # Add general accessibility tips
-        recommendations.append({
-            "type": "accessibility_tip",
-            "title": "Accessibility Information",
-            "description": "All recommended routes include wheelchair accessible paths and facilities",
-            "additional_info": "Contact venues in advance to confirm current accessibility status"
-        })
-        
-        return recommendations
+            
+            # Store in conversation history
+            self.conversation_history.append(result)
+            
+            print("✅ AI processing completed successfully")
+            return result
+            
+        except Exception as e:
+            print(f"❌ Error in AI processing: {e}")
+            # Fallback to basic response if AI fails
+            return {
+                "user_input": transcription,
+                "timestamp": time.time(),
+                "system_type": "fallback",
+                "ai_response": f"I apologize, but there was an error processing your request with the AI system: {str(e)}. Please try again.",
+                "error": str(e)
+            }
     
     async def get_system_status(self) -> Dict[str, Any]:
-        """Get status of all agents in the system"""
-        status = {}
+        """Get status of all systems"""
+        status = {
+            "stt_agent": "unknown",
+            "langchain_ai": "unknown"
+        }
         
-        for name, agent in self.agents.items():
-            if hasattr(agent, 'health_check'):
-                health = await agent.health_check()
-                status[name] = health["status"]
-            else:
-                status[name] = "active"
+        # Check STT agent
+        if self.stt_agent:
+            try:
+                health = await self.stt_agent.health_check()
+                status["stt_agent"] = health["status"]
+            except:
+                status["stt_agent"] = "error"
+        
+        # Check LangChain system
+        if self.langchain_system:
+            status["langchain_ai"] = "operational"
         
         return {
-            "system_status": "operational",
-            "agents_status": status,
+            "system_status": "operational" if all(s in ["healthy", "operational"] for s in status.values()) else "partial",
+            "components_status": status,
             "total_conversations": len(self.conversation_history)
         }
 
@@ -456,54 +335,45 @@ async def run_complete_workflow():
     
     # Step 4: Display results
     print()
-    print("STEP 4: Results and Recommendations")
-    print("-" * 30)
+    print("STEP 4: AI Results and Recommendations")
+    print("-" * 40)
     print()
     print("🎯 PROCESSING RESULTS:")
     print(f"   User Input: '{result['user_input']}'")
-    print(f"   Agents Involved: {', '.join(result['agents_involved'])}")
+    print(f"   System Type: {result.get('system_type', 'unknown')}")
+    print(f"   Agents Involved: {', '.join(result.get('agents_involved', []))}")
     print()
     
-    print("📋 PROCESSING STEPS:")
-    for i, step in enumerate(result['processing_steps'], 1):
-        print(f"   {i}. {step['agent']}: {step['task']}")
-        if step['agent'] == 'nlu_agent':
-            nlu = step['result']
-            print(f"      → Intent: {nlu['intent']} (confidence: {nlu['confidence']})")
-            print(f"      → Entities: {len(nlu['entities'])} found")
-        elif step['agent'] == 'accessibility_agent':
-            acc = step['result']
-            features = [k for k, v in acc['accessibility_profile'].items() if v]
-            print(f"      → Accessibility needs: {', '.join(features)}")
-        elif step['agent'] == 'planning_agent':
-            plan = step['result']
-            print(f"      → Routes found: {plan['routes_found']}")
-    print()
+    # Show AI response
+    if 'ai_response' in result:
+        print("🤖 AI RESPONSE:")
+        print("-" * 20)
+        print(f"{result['ai_response']}")
+        print()
     
-    print("🏆 RECOMMENDATIONS:")
-    for i, rec in enumerate(result['recommendations'], 1):
-        print(f"   {i}. {rec['title']}")
-        print(f"      {rec['description']}")
-        if 'accessibility_score' in rec:
-            print(f"      Accessibility Score: {rec['accessibility_score']}/10")
-        if 'highlights' in rec:
-            print(f"      Highlights: {', '.join(rec['highlights'])}")
+    # Show error if any
+    if 'error' in result:
+        print(f"⚠️  Note: {result.get('processing_summary', 'System processed request with fallback')}")
         print()
     
     # System status
     status = await multi_agent_system.get_system_status()
     print("🔧 SYSTEM STATUS:")
     print(f"   Overall: {status['system_status']}")
+    print(f"   Components: {status['components_status']}")
     print(f"   Total conversations: {status['total_conversations']}")
     print()
     
-    print("✅ WORKFLOW COMPLETED SUCCESSFULLY!")
+    print("✅ VOICE-TO-AI WORKFLOW COMPLETED SUCCESSFULLY!")
+    print()
+    print("🎉 You just experienced the complete voice-to-AI pipeline:")
+    print("   🎙️ Voice recording → 🗣️ Speech transcription → 🤖 GPT-4 AI processing")
     print()
     print("💡 Next Steps:")
     print("   • Run the workflow again with different voice inputs")
-    print("   • Modify accessibility requirements in your speech")
-    print("   • Integrate with real tourism databases")
-    print("   • Add more specialized agents (weather, transport, etc.)")
+    print("   • Try different accessibility requirements in Spanish")
+    print("   • Ask about different tourist destinations")
+    print("   • The AI will provide personalized accessible tourism recommendations")
     
     return True
 
