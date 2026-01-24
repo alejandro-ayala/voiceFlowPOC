@@ -1,0 +1,40 @@
+# VoiceFlow PoC Web UI Dependencies
+# Core FastAPI dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Pydantic for data validation
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# CORS middleware
+python-jose[cryptography]==3.3.0
+
+# Structured logging
+structlog==23.2.0
+
+# File handling and utilities
+aiofiles==23.2.1
+python-magic==0.4.27
+
+# Audio processing (lightweight)
+wave==0.0.2
+
+# Environment variable management
+python-dotenv==1.0.0
+
+# HTTP client for backend communication
+httpx==0.25.2
+
+# JSON handling
+orjson==3.9.10
+
+# Existing project dependencies (already installed)
+# langchain==0.0.350
+# langchain-openai==0.0.2
+# openai==1.3.7
+# azure-cognitiveservices-speech==1.34.0
+# sounddevice==0.4.6
+# scipy==1.11.4
+# numpy==1.25.2

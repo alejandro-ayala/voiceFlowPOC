@@ -203,3 +203,17 @@ class VoiceflowSTTAgent:
         """
         stt_service = STTServiceFactory.create_from_config(config_path)
         return cls(stt_service, agent_id)
+
+
+def create_stt_agent(config_path: str = None, agent_id: str = "stt_agent_001") -> VoiceflowSTTAgent:
+    """
+    Convenience function to create an STT agent instance.
+    
+    Args:
+        config_path: Path to configuration file
+        agent_id: Agent identifier
+        
+    Returns:
+        VoiceflowSTTAgent: Configured STT agent instance
+    """
+    return VoiceflowSTTAgent.create_from_config(config_path, agent_id)

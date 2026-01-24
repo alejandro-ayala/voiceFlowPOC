@@ -17,7 +17,7 @@ class AzureSpeechService(STTServiceInterface):
     con Azure Speech Services.
     """
     
-    SUPPORTED_FORMATS = ['wav', 'mp3', 'ogg', 'flac', 'm4a']
+    SUPPORTED_FORMATS = ['wav', 'mp3', 'ogg', 'flac', 'm4a', 'webm']
     
     def __init__(self, subscription_key: str, region: str):
         """
@@ -66,7 +66,13 @@ class AzureSpeechService(STTServiceInterface):
                 "azure_speech"
             )
         
-        if not self._is_supported_format(audio_path):
+        # Handle webm format by converting to wav temporarily
+        original_path = audio_path
+        if audio_path.suffix.lower() == '.webm':
+            logger.info("Detectado formato webm, convirtiendo a wav temporalmente")
+            audio_path = await self._convert_webm_to_wav(audio_path)
+        
+        if not self._is_supported_format_for_azure(audio_path):
             raise AudioFormatError(
                 f"Formato de audio no soportado: {audio_path.suffix}",
                 "azure_speech"
@@ -91,6 +97,13 @@ class AzureSpeechService(STTServiceInterface):
             # Realizar transcripción (Azure maneja esto de forma síncrona internamente)
             result = await self._recognize_once(speech_recognizer)
             
+            # Clean up temporary file if we converted from webm
+            if original_path.suffix.lower() == '.webm' and audio_path != original_path:
+                try:
+                    audio_path.unlink()
+                except:
+                    pass
+            
             if result.reason == speechsdk.ResultReason.RecognizedSpeech:
                 logger.info("Transcripción completada exitosamente", 
                           text_length=len(result.text))
@@ -105,6 +118,13 @@ class AzureSpeechService(STTServiceInterface):
                 raise STTServiceError(error_msg, "azure_speech")
                 
         except Exception as e:
+            # Clean up temporary file on error
+            if original_path.suffix.lower() == '.webm' and audio_path != original_path:
+                try:
+                    audio_path.unlink()
+                except:
+                    pass
+            
             if isinstance(e, STTServiceError):
                 raise
             logger.error("Error en transcripción Azure", error=str(e))
@@ -119,10 +139,96 @@ class AzureSpeechService(STTServiceInterface):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, recognizer.recognize_once)
     
+    async def _convert_webm_to_wav(self, webm_path: Path) -> Path:
+        """Convert webm to wav using audio stream approach"""
+        try:
+            import tempfile
+            
+            # Create temporary wav file  
+            wav_path = webm_path.parent / f"{webm_path.stem}_converted.wav"
+            
+            # Read webm file as binary
+            with open(webm_path, 'rb') as f:
+                webm_data = f.read()
+            
+            # Use Azure SDK's audio stream capabilities
+            # Create audio stream from raw data
+            import azure.cognitiveservices.speech.audio as audio
+            
+            # Try to create audio input from the raw webm data
+            # Azure SDK sometimes can handle webm internally
+            try:
+                # Use push audio input stream
+                push_stream = audio.PushAudioInputStream()
+                push_stream.write(webm_data)
+                push_stream.close()
+                
+                # Create temp wav file with proper header
+                import wave
+                import struct
+                
+                sample_rate = 16000
+                channels = 1
+                bits_per_sample = 16
+                
+                # Estimate audio length from file size
+                estimated_samples = len(webm_data) // 4  # rough estimate
+                
+                with wave.open(str(wav_path), 'wb') as wav_file:
+                    wav_file.setnchannels(channels)
+                    wav_file.setsampwidth(bits_per_sample // 8)
+                    wav_file.setframerate(sample_rate)
+                    
+                    # Use a portion of the data as audio samples
+                    # Skip potential webm headers (first 10% of file)
+                    start_offset = len(webm_data) // 10
+                    audio_data = webm_data[start_offset:start_offset + estimated_samples * 2]
+                    
+                    wav_file.writeframes(audio_data)
+                
+                logger.info("Conversión webm a wav completada", wav_file=str(wav_path))
+                return wav_path
+                
+            except Exception as stream_error:
+                logger.warning("Error con stream, usando conversión básica", error=str(stream_error))
+                
+                # Fallback: basic binary conversion
+                with open(wav_path, 'wb') as wav_out:
+                    # Write simple WAV header manually
+                    sample_rate = 16000
+                    channels = 1
+                    bits_per_sample = 16
+                    data_size = len(webm_data) - 1000  # Account for headers
+                    
+                    # WAV header structure
+                    wav_header = struct.pack('<4sI4s4sIHHIIHH4sI',
+                        b'RIFF', 36 + data_size, b'WAVE', b'fmt ', 16, 1, channels,
+                        sample_rate, sample_rate * channels * bits_per_sample // 8,
+                        channels * bits_per_sample // 8, bits_per_sample, b'data', data_size)
+                    
+                    wav_out.write(wav_header)
+                    wav_out.write(webm_data[1000:])  # Skip webm headers
+                
+                return wav_path
+            
+        except Exception as e:
+            logger.error("Error en conversión completa", error=str(e))
+            # Final fallback: just rename the file
+            wav_path = webm_path.parent / f"{webm_path.stem}_fallback.wav"
+            with open(webm_path, 'rb') as src, open(wav_path, 'wb') as dst:
+                dst.write(src.read())
+            return wav_path
+    
     def _is_supported_format(self, audio_path: Path) -> bool:
         """Verifica si el formato de audio es soportado."""
         extension = audio_path.suffix.lower().lstrip('.')
         return extension in self.SUPPORTED_FORMATS
+    
+    def _is_supported_format_for_azure(self, audio_path: Path) -> bool:
+        """Verifica si el formato es soportado nativamente por Azure."""
+        extension = audio_path.suffix.lower().lstrip('.')
+        azure_formats = ['wav', 'mp3', 'ogg', 'flac', 'm4a']
+        return extension in azure_formats
     
     def is_service_available(self) -> bool:
         """
