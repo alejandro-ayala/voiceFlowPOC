@@ -37,7 +37,7 @@ async def send_message(
     """
     Send a message to the AI backend and get a response.
     
-    This endpoint uses simulated AI responses for demo purposes.
+    This endpoint processes real AI responses from LangChain agents.
     The conversation history is properly managed and persisted.
     """
     try:
@@ -47,12 +47,17 @@ async def send_message(
         
         # Create or get conversation
         conversation_id = request.conversation_id or str(uuid.uuid4())
-         # Get AI response from backend (simulated)
+        
+        logger.info("🗨️ Processing chat message", 
+                   conversation_id=conversation_id, 
+                   message_length=len(request.message))
+        
+        # Get AI response from backend (real agents)
         backend_response = await backend_service.process_query(
             transcription=request.message.strip()
         )
         
-        # Add message pair to conversation
+        # Add message pair to conversation service (for session management)
         session_id = await conversation_service.add_message(
             user_message=request.message.strip(),
             ai_response=backend_response["ai_response"],
@@ -64,7 +69,7 @@ async def send_message(
             message="Message processed successfully",
             session_id=session_id,
             ai_response=backend_response["ai_response"],
-            processing_time=0.5,  # Default processing time
+            processing_time=backend_response.get("processing_time", 0.5),
             intent=backend_response.get("intent"),
             entities=backend_response.get("entities"),
             tourism_data=backend_response.get("tourism_data")

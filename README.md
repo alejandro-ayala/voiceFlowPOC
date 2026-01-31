@@ -71,10 +71,10 @@ cd VoiceFlowPOC
 ### Variables de Entorno (.env)
 ```properties
 # OpenAI API (GPT-4)
-OPENAI_API_KEY=sk-proj-...
+OPENAI_API_KEY=your_openai_key_here
 
 # Azure Speech Services  
-AZURE_SPEECH_KEY=...
+AZURE_SPEECH_KEY=your_azure_speech_key_here
 AZURE_SPEECH_REGION=italynorth
 
 # Configuración STT

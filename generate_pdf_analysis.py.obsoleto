@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""
+Script para generar PDF del análisis arquitectónico
+Convierte el archivo Markdown a PDF usando reportlab
+"""
+
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+
+def create_pdf_analysis():
+    """Crea PDF del análisis usando reportlab si está disponible"""
+    
+    try:
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+    except ImportError:
+        print("❌ ReportLab no está instalado.")
+        print("💡 Instalar con: pip install reportlab")
+        return False
+    
+    # Configurar archivo de salida
+    output_file = "ANALISIS_ARQUITECTONICO_VOICEFLOW_POC.pdf"
+    
+    # Leer contenido del análisis
+    try:
+        with open("ANALISIS_ARQUITECTONICO_COMPLETO.md", "r", encoding="utf-8") as f:
+            content = f.read()
+    except FileNotFoundError:
+        print("❌ No se encontró el archivo ANALISIS_ARQUITECTONICO_COMPLETO.md")
+        return False
+    
+    # Crear documento PDF
+    doc = SimpleDocTemplate(output_file, pagesize=A4,
+                          rightMargin=72, leftMargin=72,
+                          topMargin=72, bottomMargin=18)
+    
+    # Configurar estilos
+    styles = getSampleStyleSheet()
+    
+    # Estilo personalizado para títulos
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        textColor='#2c3e50'
+    )
+    
+    # Estilo para subtítulos
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceAfter=20,
+        textColor='#34495e'
+    )
+    
+    # Estilo para texto normal
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=TA_JUSTIFY,
+        spaceAfter=12
+    )
+    
+    # Crear lista de elementos para el PDF
+    story = []
+    
+    # Procesar contenido línea por línea
+    lines = content.split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        
+        if not line:  # Línea vacía
+            story.append(Spacer(1, 6))
+            continue
+            
+        # Títulos principales (# )
+        if line.startswith('# '):
+            title_text = line[2:].strip()
+            story.append(Paragraph(title_text, title_style))
+            story.append(Spacer(1, 12))
+            
+        # Subtítulos (## )
+        elif line.startswith('## '):
+            subtitle_text = line[3:].strip()
+            story.append(Paragraph(subtitle_text, subtitle_style))
+            story.append(Spacer(1, 8))
+            
+        # Subtítulos menores (### )
+        elif line.startswith('### '):
+            subsubtitle_text = line[4:].strip()
+            story.append(Paragraph(f"<b>{subsubtitle_text}</b>", normal_style))
+            story.append(Spacer(1, 6))
+            
+        # Listas con viñetas (- )
+        elif line.startswith('- ') or line.startswith('* '):
+            list_text = line[2:].strip()
+            story.append(Paragraph(f"• {list_text}", normal_style))
+            
+        # Código o comandos (`...`)
+        elif '`' in line:
+            # Simple handling for inline code
+            clean_text = line.replace('`', '')
+            story.append(Paragraph(f"<font name='Courier'>{clean_text}</font>", normal_style))
+            
+        # Separadores (---)
+        elif line.startswith('---'):
+            story.append(Spacer(1, 20))
+            story.append(Paragraph("_" * 50, normal_style))
+            story.append(Spacer(1, 20))
+            
+        # Texto normal
+        else:
+            if line:  # Solo si no está vacía
+                # Limpiar emojis y caracteres especiales para PDF
+                clean_line = line.replace('✅', '[OK]').replace('❌', '[ERROR]').replace('⚠️', '[WARNING]')
+                clean_line = clean_line.replace('🔴', '[HIGH]').replace('🟡', '[MEDIUM]').replace('🟢', '[LOW]')
+                clean_line = clean_line.replace('📊', '[CHART]').replace('🎯', '[TARGET]').replace('🚀', '[ACTION]')
+                story.append(Paragraph(clean_line, normal_style))
+    
+    # Agregar footer con fecha
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        alignment=TA_CENTER,
+        textColor='#7f8c8d'
+    )
+    
+    story.append(PageBreak())
+    story.append(Spacer(1, 200))
+    story.append(Paragraph("---", footer_style))
+    story.append(Paragraph(f"Análisis generado el {datetime.now().strftime('%d/%m/%Y %H:%M')}", footer_style))
+    story.append(Paragraph("VoiceFlow PoC - Análisis Arquitectónico", footer_style))
+    story.append(Paragraph("GitHub Copilot Assistant - Arquitecto de Software", footer_style))
+    
+    try:
+        # Construir PDF
+        doc.build(story)
+        print(f"✅ PDF generado exitosamente: {output_file}")
+        print(f"📄 Tamaño del archivo: {os.path.getsize(output_file) / 1024:.1f} KB")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error generando PDF: {e}")
+        return False
+
+def main():
+    print("🔄 Generando PDF del análisis arquitectónico...")
+    
+    if create_pdf_analysis():
+        print("🎉 PDF creado exitosamente!")
+        print("\n📖 Para ver el PDF:")
+        print("   • Windows: start ANALISIS_ARQUITECTONICO_VOICEFLOW_POC.pdf")
+        print("   • macOS: open ANALISIS_ARQUITECTONICO_VOICEFLOW_POC.pdf") 
+        print("   • Linux: xdg-open ANALISIS_ARQUITECTONICO_VOICEFLOW_POC.pdf")
+    else:
+        print("❌ No se pudo generar el PDF")
+        print("\n📋 Alternativas:")
+        print("   • El análisis está disponible en: ANALISIS_ARQUITECTONICO_COMPLETO.md")
+        print("   • Usar herramientas online: markdown-pdf.com")
+        print("   • Instalar pandoc: pandoc ANALISIS_ARQUITECTONICO_COMPLETO.md -o analysis.pdf")
+
+if __name__ == "__main__":
+    main()

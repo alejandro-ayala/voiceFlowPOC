@@ -80,7 +80,7 @@ agent = VoiceflowSTTAgent(service)  # Mismo comportamiento
 **Configuración:**
 ```env
 STT_SERVICE=azure
-AZURE_SPEECH_KEY=your_key
+AZURE_SPEECH_KEY=your_azure_speech_key_here
 AZURE_SPEECH_REGION=eastus
 ```
 

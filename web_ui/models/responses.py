@@ -86,48 +86,23 @@ class ConversationHistoryResponse(BaseResponse):
     session_start: Optional[datetime] = Field(default=None, description="Session start time")
 
 
-class TourismInfoCard(BaseModel):
-    """Model for structured tourism information display"""
-    
-    title: str = Field(..., description="Card title")
-    subtitle: Optional[str] = Field(default=None, description="Card subtitle")
-    content: Dict[str, Any] = Field(..., description="Card content")
-    card_type: str = Field(..., description="Card type: venue, route, accessibility")
-    icon: Optional[str] = Field(default=None, description="Icon identifier")
-    
-    class Config:
-        schema_extra = {
-            "example": {
-                "title": "Museo del Prado",
-                "subtitle": "Accessible Museum",
-                "content": {
-                    "accessibility_score": 9.2,
-                    "opening_hours": "10:00-20:00",
-                    "pricing": "15€ general, free for disabled visitors"
-                },
-                "card_type": "venue",
-                "icon": "museum"
-            }
-        }
-
-
 class ConversationResponse(BaseResponse):
-    """Response model for conversation data"""
+    """Response model for individual conversation data"""
     
-    conversation_id: str = Field(..., description="Conversation ID")
-    messages: List[Dict[str, Any]] = Field(..., description="List of messages in conversation")
-    created_at: datetime = Field(..., description="Conversation creation time")
-    updated_at: datetime = Field(..., description="Last update time")
-    message_count: int = Field(..., description="Total number of messages")
+    conversation_id: str = Field(..., description="Conversation identifier")
+    messages: List[Dict[str, Any]] = Field(..., description="Conversation messages")
+    created_at: Optional[str] = Field(default=None, description="Conversation creation time")
+    updated_at: Optional[str] = Field(default=None, description="Last update time")
+    message_count: int = Field(..., description="Number of messages in conversation")
 
 
 class ConversationListResponse(BaseResponse):
-    """Response model for list of conversations"""
+    """Response model for conversation listing"""
     
     conversations: List[Dict[str, Any]] = Field(..., description="List of conversations")
     total_count: int = Field(..., description="Total number of conversations")
-    limit: int = Field(..., description="Limit applied to query")
-    offset: int = Field(..., description="Offset applied to query")
+    limit: int = Field(..., description="Applied limit")
+    offset: int = Field(..., description="Applied offset")
 
 
 class ErrorResponse(BaseResponse):

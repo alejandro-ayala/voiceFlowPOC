@@ -93,3 +93,11 @@ class ChatHistoryRequest(BaseModel):
         if v < 1 or v > 1000:
             raise ValueError("Limit must be between 1 and 1000")
         return v
+
+
+class ConversationCreateRequest(BaseModel):
+    """Request model for creating a new conversation"""
+    
+    topic: str = Field(..., description="Topic of the conversation")
+    user_id: Optional[str] = Field(default="default", description="User identifier")
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional metadata")
