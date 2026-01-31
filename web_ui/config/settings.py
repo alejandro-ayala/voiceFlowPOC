@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     backend_timeout: int = Field(default=30, description="Backend request timeout in seconds")
     max_audio_duration: int = Field(default=30, description="Maximum audio recording duration in seconds")
     max_audio_size_mb: int = Field(default=10, description="Maximum audio file size in MB")
+    use_real_agents: bool = Field(default=True, description="Use real LangChain agents (True) or simulation (False)")
     
     # Audio processing settings
     azure_speech_key: Optional[str] = Field(default=None, description="Azure Speech Services API key")

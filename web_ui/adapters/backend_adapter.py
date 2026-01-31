@@ -62,17 +62,22 @@ class LocalBackendAdapter(BackendInterface):
     
     async def process_query(self, transcription: str) -> Dict[str, Any]:
         """
-        Process user query through SIMULATED multi-agent system for demo.
+        Process user query through REAL multi-agent system or SIMULATED for demo.
         Returns structured response with tourism information.
         """
         try:
-            logger.info("🚀 Processing query through SIMULATED backend", query=transcription)
+            # Check if we should use real agents or simulation
+            use_real_agents = getattr(self.settings, 'use_real_agents', True)
+            
+            if use_real_agents:
+                logger.info("🚀 Processing query through REAL backend", query=transcription)
+                ai_response = await self._process_real_query(transcription)
+            else:
+                logger.info("🚀 Processing query through SIMULATED backend", query=transcription)
+                ai_response = await self._simulate_ai_response(transcription)
             
             # Increment conversation counter
             self._conversation_count += 1
-            
-            # SIMULATED PROCESSING - No OpenAI calls for demo
-            ai_response = await self._simulate_ai_response(transcription)
             
             # Structure the response for the UI
             structured_response = {
@@ -87,17 +92,18 @@ class LocalBackendAdapter(BackendInterface):
                         "route_planning",
                         "tourism_info"
                     ],
-                    "backend_type": "simulated_demo",
-                    "model": "demo_simulation"
+                    "backend_type": "real_langchain" if use_real_agents else "simulated_demo",
+                    "model": "gpt-4" if use_real_agents else "demo_simulation"
                 },
                 "metadata": {
                     "timestamp": datetime.now().isoformat(),
-                    "session_type": "demo",
+                    "session_type": "production" if use_real_agents else "demo",
                     "language": "es-ES"
                 }
             }
             
-            logger.info("✅ Query processed successfully (SIMULATED)", response_length=len(ai_response))
+            backend_type = "REAL" if use_real_agents else "SIMULATED"
+            logger.info(f"✅ Query processed successfully ({backend_type})", response_length=len(ai_response))
             return structured_response
             
         except Exception as e:
@@ -112,6 +118,43 @@ class LocalBackendAdapter(BackendInterface):
                 }
             )
     
+    async def _process_real_query(self, transcription: str) -> str:
+        """
+        Process query through REAL LangChain agents with OpenAI.
+        """
+        try:
+            logger.info("🤖 Initializing REAL backend agents")
+            
+            # Get the backend instance (TourismMultiAgent)
+            backend = await self._get_backend_instance()
+            
+            logger.info("🔗 Calling REAL TourismMultiAgent", query=transcription)
+            
+            # Call the real backend with the transcription
+            # This will use OpenAI and consume tokens
+            if hasattr(backend, 'process_request_sync'):
+                response = await asyncio.to_thread(backend.process_request_sync, transcription)
+            elif hasattr(backend, 'process_request'):
+                response = await asyncio.to_thread(backend.process_request, transcription)
+            elif hasattr(backend, 'process_query'):
+                response = await asyncio.to_thread(backend.process_query, transcription)
+            elif hasattr(backend, 'process'):
+                response = await asyncio.to_thread(backend.process, transcription)
+            elif hasattr(backend, 'run'):
+                response = await asyncio.to_thread(backend.run, transcription)
+            else:
+                # Final fallback - try to get a method that might work
+                raise AttributeError(f"TourismMultiAgent has no compatible method. Available methods: {[m for m in dir(backend) if not m.startswith('_')]}")
+            
+            logger.info("✅ REAL backend processing completed", response_length=len(str(response)))
+            return str(response)
+            
+        except Exception as e:
+            logger.error("❌ Error in real backend processing", error=str(e))
+            # Fall back to simulation if real backend fails
+            logger.warning("🔄 Falling back to simulation due to backend error")
+            return await self._simulate_ai_response(transcription)
+
     async def _simulate_ai_response(self, transcription: str) -> str:
         """
         Simulate AI response based on transcription for demo purposes.

@@ -14,12 +14,9 @@ import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-# LangChain imports
-from langchain.agents import initialize_agent, AgentType
-from langchain.memory import ConversationBufferWindowMemory
+# LangChain imports  
 from langchain.tools import BaseTool
 from langchain_openai import ChatOpenAI
-from langchain.schema import HumanMessage
 
 # Core dependencies
 from pydantic import BaseModel, Field
@@ -398,11 +395,7 @@ class TourismMultiAgent:
         )
         
         # Initialize conversation memory
-        self.memory = ConversationBufferWindowMemory(
-            k=10,
-            memory_key="chat_history",
-            return_messages=True
-        )
+        self.conversation_history = []
         
         # Initialize specialized tools
         self.tools = [
@@ -412,19 +405,32 @@ class TourismMultiAgent:
             TourismInfoTool()
         ]
         
-        # Initialize agent
-        self.agent = initialize_agent(
-            tools=self.tools,
-            llm=self.llm,
-            agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
-            memory=self.memory,
-            verbose=True,
-            handle_parsing_errors=True,
-            max_iterations=5
-        )
+        # Initialize agent with simplified approach
+        self.system_prompt = """You are an expert accessible tourism assistant for Spanish-speaking users. 
+Your goal is to help users plan accessible tourism experiences using specialized tools.
+
+Available tools:
+- tourism_nlu: Analyzes user intent and extracts entities
+- accessibility_analysis: Analyzes accessibility requirements  
+- route_planning: Plans accessible routes
+- tourism_info: Gets current venue information
+
+Always provide responses in Spanish, be helpful, and focus on accessibility features.
+Include practical details like timing, costs, and accessibility features.
+"""
         
         logger.info("🤖 Tourism Multi-Agent System initialized successfully")
     
+    def process_request_sync(self, user_input: str) -> str:
+        """
+        Synchronous wrapper for process_request - for compatibility with backend_adapter
+        """
+        try:
+            return asyncio.run(self.process_request(user_input))
+        except Exception as e:
+            logger.error("❌ Error in synchronous wrapper", error=str(e))
+            return f"Error procesando la consulta: {str(e)}"
+
     async def process_request(self, user_input: str) -> str:
         """
         Process user request through intelligent tool orchestration
@@ -453,11 +459,37 @@ class TourismMultiAgent:
             Include practical details like timing, costs, and accessibility features.
             """
             
-            # Process through LangChain agent
-            response = self.agent.run(f"{system_context}\n\nUser request: {user_input}")
+            # Create tools description manually
+            tools_description = "\n".join([
+                f"- {tool.name}: {tool.description}" for tool in self.tools
+            ])
             
-            logger.info("✅ Request processed successfully", response=response)
-            return response
+            full_prompt = f"""{system_context}
+
+Available tools:
+{tools_description}
+
+Previous conversation:
+{chr(10).join([f"User: {msg['user']}, Assistant: {msg['assistant']}" for msg in self.conversation_history[-5:]]) if self.conversation_history else "No previous conversation"}
+
+User request: {user_input}
+
+Please provide a helpful response about accessible tourism in Spanish. Use the available tools if needed to provide accurate information."""
+
+            # Process through LLM directly  
+            response = self.llm.invoke(full_prompt)
+            
+            # Extract text content from response
+            result_text = response.content if hasattr(response, 'content') else str(response)
+            
+            # Save to conversation history
+            self.conversation_history.append({
+                "user": user_input,
+                "assistant": result_text
+            })
+            
+            logger.info("✅ Request processed successfully", response=result_text)
+            return result_text
             
         except Exception as e:
             logger.error("❌ Error processing request", error=str(e))
@@ -465,11 +497,11 @@ class TourismMultiAgent:
     
     def get_conversation_history(self) -> List[Dict[str, Any]]:
         """Get current conversation history"""
-        return self.memory.chat_memory.messages
+        return [{"user": msg["user"], "assistant": msg["assistant"]} for msg in self.conversation_history]
     
     def clear_conversation(self) -> None:
         """Clear conversation history"""
-        self.memory.clear()
+        self.conversation_history = []
         logger.info("🧹 Conversation history cleared")
 
 
