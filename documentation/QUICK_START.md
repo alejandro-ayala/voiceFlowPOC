@@ -1,136 +1,118 @@
-# 🚀 QUICK START GUIDE - VoiceFlow STT Agent
+# Quick Start - VoiceFlow Tourism PoC
 
-## ⚡ 5-Minute Setup
-
-### 1. Dependencies
-```bash
-py -m pip install -r requirements.txt
-```
-
-### 2. Configuration
-```bash
-copy .env.example .env
-# Edit .env with your Azure Speech Services credentials:
-# AZURE_SPEECH_KEY=your_key_here
-# AZURE_SPEECH_REGION=italynorth
-```
-
-### 3. Test System
-```bash
-# Quick validation without consuming credits
-./venv/Scripts/python.exe test_voiceflow.py --test
-
-# Full system test with production APIs
-./venv/Scripts/python.exe test_voiceflow.py --prod
-
-# Run complete workflow with real audio
-./venv/Scripts/python.exe main.py
-```
-
-## 🎯 Main Entry Points
-
-### Primary Workflow
-```bash
-./venv/Scripts/python.exe main.py
-```
-**What it does**: Complete voice workflow (record Spanish audio → transcribe → multi-agent processing)
-
-### Testing Scripts
-```bash
-./venv/Scripts/python.exe test_voiceflow.py --test    # Quick validation (no credits consumed)
-./venv/Scripts/python.exe test_voiceflow.py --prod    # Complete production test
-./venv/Scripts/python.exe production_test.py          # Advanced testing with real audio
-```
-
-## 📋 Current System Capabilities
-
-- ✅ **Records Spanish voice** from microphone
-- ✅ **Transcribes with Azure STT** (es-ES language)
-- ✅ **Processes through multi-agent system** (simulated)
-- ✅ **Generates accessibility recommendations**
-- ✅ **Handles errors gracefully**
-- ✅ **Supports multiple STT services** (Azure, Whisper)
-
-## 🔧 Architecture Quick Reference
-
-```
-main.py → VoiceflowSTTAgent → STTServiceFactory → AzureSpeechService
-    ↓
-AccessibleTourismMultiAgent → NLU + Accessibility + Planning
-    ↓
-Recommendations Output
-```
-
-## 📁 Key Files
-
-| File | Purpose |
-|------|---------|
-| `main.py` | 🎯 Main workflow entry point |
-| `src/voiceflow_stt_agent.py` | Core STT agent class |
-| `src/factory.py` | Service factory (SOLID pattern) |
-| `src/services/azure_speech_service.py` | Azure integration |
-| `.env` | Configuration (Azure credentials) |
-
-## 🐛 Common Issues & Solutions
-
-### Import Errors
-```python
-# If you see import errors, check Python path
-import sys
-sys.path.append('src')
-```
-
-### Azure Connection Issues
-- Check `.env` file exists and has correct credentials
-- Verify region is `italynorth` (for student accounts)
-- Test with `py test_azure_connection.py`
-
-### Audio Recording Issues
-- Ensure microphone permissions are granted
-- Check microphone is not used by other applications
-- Verify `sounddevice` and `scipy` are installed
-
-## 🎯 Example Usage
-
-### Record and Process Spanish Audio
-```python
-# Run main.py and speak in Spanish:
-# "Necesito una ruta accesible al museo"
-# 
-# System will:
-# 1. Record your voice
-# 2. Transcribe to text
-# 3. Process through multi-agent system
-# 4. Generate accessibility recommendations
-```
-
-### Test with Pre-recorded Audio
-```python
-# Use existing test audio
-py test_full_workflow.py
-```
-
-## 🚀 Development Next Steps
-
-### Immediate (Easy wins)
-1. **Enhanced NLU**: Replace keyword matching with ML models
-2. **Real Tourism APIs**: Connect to actual tourism databases
-3. **Better Entity Extraction**: Implement proper NER
-
-### Advanced (Bigger features)
-1. **Database Integration**: Persistent conversation history
-2. **Web API**: REST endpoints for web/mobile apps
-3. **Multi-language**: Add English, French, etc.
-
-## 📚 Documentation
-
-- **[HANDOVER.md](HANDOVER.md)** - Complete project handover
-- **[CURRENT_STATUS.md](CURRENT_STATUS.md)** - Current system status
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture
-- **[API_REFERENCE.md](API_REFERENCE.md)** - API documentation
+**Actualizado**: 4 de Febrero de 2026
 
 ---
 
-**System Status**: ✅ FULLY OPERATIONAL  
-**Last Tested**: November 27, 2025  
-**Ready For**: Production development or feature expansion
+## Setup en 5 minutos
+
+### 1. Instalar dependencias
+
+```bash
+python -m venv venv
+source venv/bin/activate          # Linux/Mac
+# venv\Scripts\activate           # Windows
+
+pip install -r requirements.txt -r requirements-ui.txt
+```
+
+### 2. Configurar credenciales
+
+```bash
+cp .env.example .env
+# Editar .env con tus credenciales:
+# AZURE_SPEECH_KEY=tu_key
+# AZURE_SPEECH_REGION=tu_region
+# OPENAI_API_KEY=tu_key (solo si use_real_agents=true)
+```
+
+### 3. Ejecutar la aplicacion
+
+```bash
+python run-ui.py
+```
+
+Acceder a:
+- **Aplicacion**: http://localhost:8000
+- **API Docs** (Swagger): http://localhost:8000/api/docs
+- **Health check**: http://localhost:8000/api/v1/health/
+
+### 4. Modo demo (sin API keys)
+
+Si no tienes credenciales de Azure u OpenAI, la aplicacion funciona en modo simulacion:
+
+```bash
+# Editar .env
+VOICEFLOW_USE_REAL_AGENTS=false
+```
+
+El chat respondera con respuestas hardcodeadas sobre turismo accesible en Madrid y la transcripcion de audio retornara texto simulado.
+
+## Arquitectura
+
+```
+Browser (index.html)
+    |
+    +-- Audio: POST /api/v1/audio/transcribe
+    |       +-- AudioService -> STTFactory -> Azure/Whisper/Simulacion
+    |
+    +-- Chat: POST /api/v1/chat/message
+            +-- LocalBackendAdapter -> TourismMultiAgent (LangChain + GPT-4)
+                    +-- TourismNLUTool
+                    +-- AccessibilityAnalysisTool
+                    +-- RoutePlanningTool
+                    +-- TourismInfoTool
+```
+
+## Archivos clave
+
+| Archivo | Descripcion |
+|---------|-------------|
+| `run-ui.py` | Entry point principal |
+| `presentation/fastapi_factory.py` | Fabrica FastAPI (create_application) |
+| `application/api/v1/` | Endpoints REST (health, audio, chat) |
+| `application/orchestration/backend_adapter.py` | Adapter a business layer |
+| `business/ai_agents/langchain_agents.py` | Multi-agent LangChain |
+| `integration/configuration/settings.py` | Configuracion centralizada |
+| `integration/external_apis/stt_factory.py` | Factory de servicios STT |
+| `.env` | Variables de entorno (credenciales) |
+
+## Verificar que todo funciona
+
+```bash
+# Health check
+curl http://localhost:8000/api/v1/health/
+
+# Enviar mensaje de chat
+curl -X POST http://localhost:8000/api/v1/chat/message \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Como llego al Museo del Prado en silla de ruedas?"}'
+
+# Respuestas demo
+curl http://localhost:8000/api/v1/chat/demo/responses
+```
+
+## Problemas comunes
+
+### Import errors
+```bash
+# Verificar que PYTHONPATH incluye la raiz del proyecto
+export PYTHONPATH=$(pwd)
+python -c "from presentation.fastapi_factory import app; print('OK')"
+```
+
+### Azure no conecta
+- Verificar que `.env` tiene `AZURE_SPEECH_KEY` y `AZURE_SPEECH_REGION` correctos
+- Probar con `VOICEFLOW_USE_REAL_AGENTS=false` para modo simulacion
+
+### Puerto ocupado
+```bash
+python run-ui.py --port 9000
+```
+
+## Documentacion
+
+- [DEVELOPMENT.md](DEVELOPMENT.md) - Guia completa de desarrollo
+- [AZURE_SETUP_GUIDE.md](AZURE_SETUP_GUIDE.md) - Configuracion de Azure Speech
+- [ROADMAP.md](ROADMAP.md) - Plan de evolucion del proyecto
+- [design/](design/) - Documentos de diseno por capa

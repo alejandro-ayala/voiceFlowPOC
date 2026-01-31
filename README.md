@@ -2,7 +2,15 @@
 
 **Sistema completo de Speech-to-Text y Multi-Agentes IA para Turismo Accesible**
 
-[![Status](https://img.shields.io/badge/status-production_ready-green.svg)](https://github.com/your-repo/voiceflow-poc)
+[![Status](https://img# Validación básica (testing)
+./venv/Scripts/python.exe test_voiceflow.py --test
+
+# Validación completa (pre-release)  
+./venv/Scripts/python.exe test_voiceflow.py --prod
+
+# Aplicación web principal (usuarios finales)
+python run-ui.py
+```badge/status-production_ready-green.svg)](https://github.com/your-repo/voiceflow-poc)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)
 [![Azure](https://img.shields.io/badge/azure-speech_services-blue.svg)](https://azure.microsoft.com/en-us/services/cognitive-services/)
 [![OpenAI](https://img.shields.io/badge/openai-gpt4-green.svg)](https://openai.com)
@@ -58,11 +66,15 @@ cd VoiceFlowPOC
 ```
 **Resultado**: Grabación → Transcripción → Multi-Agente → Respuesta inteligente.
 
-#### 🎯 Aplicación Principal (Usuario Final)
+#### 🎯 Aplicación Principal (Web UI Moderna)
 ```bash
-./venv/Scripts/python.exe main.py
+# Iniciar servidor web
+python run-ui.py
+
+# El servidor estará disponible en:
+# http://localhost:8000
 ```
-**Resultado**: Workflow completo de turismo accesible con interface interactiva.
+**Resultado**: Interfaz web moderna con workflow completo de turismo accesible.
 
 ---
 
@@ -71,10 +83,10 @@ cd VoiceFlowPOC
 ### Variables de Entorno (.env)
 ```properties
 # OpenAI API (GPT-4)
-OPENAI_API_KEY=sk-proj-...
+OPENAI_API_KEY=your_openai_key_here
 
 # Azure Speech Services  
-AZURE_SPEECH_KEY=...
+AZURE_SPEECH_KEY=your_azure_speech_key_here
 AZURE_SPEECH_REGION=italynorth
 
 # Configuración STT
@@ -118,10 +130,13 @@ pip install -r requirements.txt
 
 ```
 VoiceFlowPOC/
-├── test_voiceflow.py          # 🔧 Sistema principal de testing
-├── production_test.py         # 🚀 Testing avanzado con audio real
-├── main.py                    # 🎯 Aplicación principal
+├── test_voiceflow.py          # 🔧 Sistema principal de testing  
+├── run-ui.py                  # 🎯 Entry point - Servidor Web UI
 ├── langchain_agents.py        # 🤖 Sistema multi-agente LangChain
+├── web_ui/                    # � Aplicación web FastAPI
+│   ├── app.py                # FastAPI application
+│   ├── api/v1/               # REST API endpoints
+│   └── static/               # Frontend assets
 ├── requirements.txt           # 📦 Dependencias del proyecto
 ├── .env                       # ⚙️ Configuración y API keys
 ├── README.md                  # 📖 Este archivo

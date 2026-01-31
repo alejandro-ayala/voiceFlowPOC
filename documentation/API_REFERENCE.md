@@ -1,710 +1,314 @@
-# API Reference - VoiceflowSTTAgent
+# API Reference - VoiceFlow Tourism PoC
 
-## 📋 Índice
+**Actualizado**: 4 de Febrero de 2026
+**Base URL**: `http://localhost:8000/api/v1`
 
-- [Interfaces](#interfaces)
-- [Servicios STT](#servicios-stt)
-- [Factory](#factory)
-- [Agente Principal](#agente-principal)
-- [Excepciones](#excepciones)
-- [Ejemplos de Uso](#ejemplos-de-uso)
+---
 
-## Interfaces
+## Endpoints REST
 
-### STTServiceInterface
+### Health
 
-Interfaz base para todos los servicios de Speech-to-Text.
+#### `GET /api/v1/health/`
+Estado general del sistema.
 
-```python
-from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
-from pathlib import Path
-
-class STTServiceInterface(ABC):
+**Response** (200):
+```json
+{
+  "status": "success",
+  "message": "System operational",
+  "system_health": "healthy",
+  "components": {
+    "backend_adapter": { "status": "operational" },
+    "audio_service": { "status": "healthy" },
+    "api_server": { "status": "healthy", "version": "1.0.0" }
+  },
+  "version": "1.0.0"
+}
 ```
 
-#### Métodos Abstractos
+#### `GET /api/v1/health/backend`
+Health check detallado del backend (LangChain agents).
 
-##### `transcribe_audio(audio_path: Path, **kwargs) -> str`
+#### `GET /api/v1/health/audio`
+Health check detallado del servicio de audio (STT).
+
+---
+
+### Audio
+
+#### `POST /api/v1/audio/transcribe`
 Transcribe un archivo de audio a texto.
 
-**Parámetros:**
-- `audio_path` (Path): Ruta al archivo de audio
-- `**kwargs`: Parámetros específicos del servicio
-  - `language` (str, opcional): Código de idioma (ej: "es-ES", "en-US")
-  - `task` (str, opcional): "transcribe" o "translate" (solo Whisper)
-  - `verbose` (bool, opcional): Logs detallados (solo Whisper)
+**Request**: `multipart/form-data`
+- `audio_file` (UploadFile, requerido): Archivo de audio (WAV, MP3, M4A, WebM, OGG)
+- `language` (string, opcional): Codigo de idioma. Default: `es-ES`
 
-**Retorna:**
-- `str`: Texto transcrito
-
-**Excepciones:**
-- `STTServiceError`: Error general en transcripción
-- `AudioFormatError`: Formato de audio no soportado
-
-**Ejemplo:**
-```python
-text = await service.transcribe_audio(
-    Path("audio.wav"), 
-    language="es-ES"
-)
+**Response** (200):
+```json
+{
+  "success": true,
+  "status": "success",
+  "transcription": "Necesito una ruta accesible al museo",
+  "confidence": 0.92,
+  "language": "es-ES",
+  "duration": 3.5,
+  "processing_time": 1.2,
+  "is_simulation": false
+}
 ```
 
-##### `is_service_available() -> bool`
-Verifica si el servicio está disponible y configurado.
+**Errores**:
+- `400`: Archivo vacio o no proporcionado
+- `422`: Error de procesamiento de audio
+- `500`: Error interno
 
-**Retorna:**
-- `bool`: True si disponible
+#### `POST /api/v1/audio/transcribe-async`
+Inicia transcripcion asincrona.
 
-**Ejemplo:**
-```python
-if service.is_service_available():
-    # Proceder con transcripción
-    pass
+**Request**: Igual que `/transcribe`
+
+**Response** (200):
+```json
+{
+  "success": true,
+  "processing_id": "uuid",
+  "status": "processing",
+  "progress": 0.0,
+  "estimated_time": 10.0
+}
 ```
 
-##### `get_supported_formats() -> list[str]`
-Obtiene formatos de audio soportados.
+#### `GET /api/v1/audio/transcribe-status/{processing_id}`
+Estado de transcripcion asincrona.
 
-**Retorna:**
-- `list[str]`: Lista de extensiones (sin punto)
-
-**Ejemplo:**
-```python
-formats = service.get_supported_formats()
-# ['wav', 'mp3', 'm4a', 'flac']
+**Response** (200):
+```json
+{
+  "success": true,
+  "processing_id": "uuid",
+  "status": "completed",
+  "progress": 1.0,
+  "result": {
+    "transcription": "...",
+    "confidence": 0.92,
+    "language": "es-ES"
+  }
+}
 ```
 
-##### `get_service_info() -> Dict[str, Any]`
-Información detallada del servicio.
+#### `POST /api/v1/audio/validate`
+Valida un archivo de audio sin transcribirlo.
 
-**Retorna:**
-- `Dict[str, Any]`: Información del servicio
+**Request**: `multipart/form-data` con `audio_file`
 
-**Ejemplo:**
-```python
-info = service.get_service_info()
-print(info["service_name"])  # "Azure Cognitive Services Speech"
+**Response** (200):
+```json
+{
+  "success": true,
+  "valid": true,
+  "format": "audio/wav",
+  "duration": 3.5,
+  "file_size": 112000,
+  "sample_rate": 16000,
+  "channels": 1
+}
 ```
 
-## Servicios STT
+#### `POST /api/v1/audio/stream-config`
+Configuracion para streaming de audio (futuro).
 
-### AzureSpeechService
+---
 
-Implementación para Azure Cognitive Services Speech.
+### Chat
 
-```python
-from src.services.azure_speech_service import AzureSpeechService
+#### `POST /api/v1/chat/message`
+Envia un mensaje y obtiene respuesta del asistente de turismo.
 
-service = AzureSpeechService(
-    subscription_key="your_key",
-    region="eastus"
-)
+**Request** (JSON):
+```json
+{
+  "message": "Como llego al Museo del Prado en silla de ruedas?",
+  "conversation_id": "conv_123",
+  "session_id": "session_abc"
+}
 ```
 
-#### Constructor
+**Validaciones**:
+- `message`: no vacio, max 1000 caracteres
 
-**Parámetros:**
-- `subscription_key` (str): Clave de suscripción Azure
-- `region` (str): Región Azure (ej: "eastus", "westeurope")
-
-#### Características Específicas
-
-**Formatos soportados:**
-- WAV, MP3, OGG, FLAC, M4A
-
-**Idiomas por defecto:**
-- Español: "es-ES"
-- Configurable via parámetro `language`
-
-**Ejemplo de uso:**
-```python
-service = AzureSpeechService("key", "region")
-text = await service.transcribe_audio(
-    Path("audio.wav"),
-    language="en-US"  # Cambiar idioma
-)
+**Response** (200):
+```json
+{
+  "status": "success",
+  "ai_response": "El Museo del Prado tiene acceso completo para sillas de ruedas...",
+  "session_id": "session_abc",
+  "processing_time": 2.3,
+  "intent": "route_planning",
+  "entities": {}
+}
 ```
 
-### WhisperLocalService
+#### `GET /api/v1/chat/conversation/{conversation_id}`
+Obtiene historial de una conversacion.
 
-Implementación para OpenAI Whisper local.
+#### `GET /api/v1/chat/conversations`
+Lista todas las conversaciones (paginado).
 
-```python
-from src.services.whisper_services import WhisperLocalService
+**Query params**: `limit` (default 10), `offset` (default 0)
 
-service = WhisperLocalService(model_name="base")
-```
+#### `DELETE /api/v1/chat/conversation/{conversation_id}`
+Elimina una conversacion.
 
-#### Constructor
+#### `POST /api/v1/chat/conversation/{conversation_id}/clear`
+Limpia los mensajes de una conversacion sin eliminarla.
 
-**Parámetros:**
-- `model_name` (str): Modelo Whisper a usar
-  - Opciones: "tiny", "base", "small", "medium", "large", "large-v2", "large-v3"
-  - Por defecto: "base"
+#### `POST /api/v1/chat/analyze-transcription`
+Analiza un texto transcrito (delegado internamente a `/message`).
 
-#### Características Específicas
+#### `GET /api/v1/chat/demo/responses`
+Respuestas de ejemplo para testing del frontend.
 
-**Formatos soportados:**
-- WAV, MP3, OGG, FLAC, M4A, WEBM
+---
 
-**Modelos disponibles:**
-```python
-# Velocidad vs Precisión
-"tiny"     # Más rápido, menos preciso
-"base"     # Balance recomendado
-"small"    # Buena precisión
-"medium"   # Mejor precisión
-"large"    # Máxima precisión
-"large-v2" # Versión mejorada
-"large-v3" # Última versión
-```
+## Pipeline STT (Speech-to-Text)
 
-**Ejemplo de uso:**
-```python
-service = WhisperLocalService("large-v2")
-text = await service.transcribe_audio(
-    Path("audio.wav"),
-    language="es",      # Idioma esperado
-    task="transcribe",  # o "translate"
-    verbose=True        # Logs detallados
-)
-```
+### Interfaces
 
-### WhisperAPIService
-
-Implementación para OpenAI Whisper API.
+Definidas en `shared/interfaces/stt_interface.py`:
 
 ```python
-from src.services.whisper_services import WhisperAPIService
-
-service = WhisperAPIService(api_key="your_openai_key")
+class STTServiceInterface(ABC):
+    async def transcribe_audio(self, audio_path: Path, **kwargs) -> str
+    def is_service_available(self) -> bool
+    def get_supported_formats(self) -> list[str]
+    def get_service_info(self) -> Dict[str, Any]
 ```
 
-#### Constructor
+### Implementaciones
 
-**Parámetros:**
-- `api_key` (str): Clave API de OpenAI
+| Clase | Ubicacion | Descripcion |
+|-------|-----------|-------------|
+| `AzureSpeechService` | `integration/external_apis/azure_stt_client.py` | Azure Cognitive Services Speech |
+| `WhisperLocalService` | `integration/external_apis/whisper_services.py` | Whisper local (modelo descargado) |
+| `WhisperAPIService` | `integration/external_apis/whisper_services.py` | Whisper via API REST de OpenAI |
 
-#### Características Específicas
+### Factory
 
-**Limitaciones:**
-- Tamaño máximo: 25MB por archivo
-- Costo: ~$0.006 por minuto de audio
-
-**Formatos soportados:**
-- WAV, MP3, OGG, FLAC, M4A, WEBM
-
-**Ejemplo de uso:**
-```python
-service = WhisperAPIService("sk-...")
-text = await service.transcribe_audio(
-    Path("audio.wav"),
-    language="es"  # Idioma esperado
-)
-```
-
-## Factory
-
-### STTServiceFactory
-
-Factory para crear servicios STT basado en configuración.
+Ubicacion: `integration/external_apis/stt_factory.py`
 
 ```python
-from src.factory import STTServiceFactory
-```
+from integration.external_apis.stt_factory import STTServiceFactory
 
-#### Métodos de Clase
-
-##### `create_service(service_type: str, **kwargs) -> STTServiceInterface`
-Crea un servicio específico.
-
-**Parámetros:**
-- `service_type` (str): Tipo de servicio
-  - "azure": Azure Speech Services
-  - "whisper_local": Whisper local
-  - "whisper_api": Whisper API
-- `**kwargs`: Parámetros específicos del servicio
-
-**Ejemplo:**
-```python
-# Azure
-service = STTServiceFactory.create_service(
-    "azure",
-    subscription_key="key",
-    region="eastus"
-)
-
-# Whisper Local
-service = STTServiceFactory.create_service(
-    "whisper_local",
-    model_name="base"
-)
-
-# Whisper API
-service = STTServiceFactory.create_service(
-    "whisper_api",
-    api_key="sk-..."
-)
-```
-
-##### `create_from_config(config_path: str = None) -> STTServiceInterface`
-Crea servicio desde configuración (.env).
-
-**Parámetros:**
-- `config_path` (str, opcional): Ruta a archivo de configuración
-
-**Variables de entorno requeridas:**
-```env
-# Servicio a usar
-STT_SERVICE=azure  # o whisper_local, whisper_api
-
-# Azure
-AZURE_SPEECH_KEY=your_key
-AZURE_SPEECH_REGION=eastus
-
-# Whisper Local
-WHISPER_MODEL=base
-
-# Whisper API
-OPENAI_API_KEY=sk-...
-```
-
-**Ejemplo:**
-```python
-# Lee .env automáticamente
+# Crear desde configuracion (.env)
 service = STTServiceFactory.create_from_config()
 
-# Archivo específico
-service = STTServiceFactory.create_from_config("config/prod.env")
-```
+# Crear servicio especifico
+service = STTServiceFactory.create_service("azure", subscription_key="key", region="westeurope")
 
-##### `register_service(name: str, service_class: Type[STTServiceInterface])`
-Registra nuevo tipo de servicio.
+# Registrar nuevo servicio
+STTServiceFactory.register_service("custom_stt", MiServicioSTT)
 
-**Parámetros:**
-- `name` (str): Nombre del servicio
-- `service_class` (Type): Clase que implementa STTServiceInterface
-
-**Ejemplo:**
-```python
-class MiServicioSTT(STTServiceInterface):
-    # ... implementación
-
-STTServiceFactory.register_service("mi_servicio", MiServicioSTT)
-
-# Ahora disponible
-service = STTServiceFactory.create_service("mi_servicio", param="value")
-```
-
-##### `get_available_services() -> list[str]`
-Lista servicios disponibles.
-
-**Retorna:**
-- `list[str]`: Nombres de servicios registrados
-
-**Ejemplo:**
-```python
+# Listar servicios disponibles
 services = STTServiceFactory.get_available_services()
 # ['azure', 'whisper_local', 'whisper_api']
 ```
 
-## Agente Principal
+### Agent STT
 
-### VoiceflowSTTAgent
-
-Agente principal que coordina la transcripción STT.
+Ubicacion: `integration/external_apis/stt_agent.py`
 
 ```python
-from src.voiceflow_stt_agent import VoiceflowSTTAgent
-```
+from integration.external_apis.stt_agent import VoiceflowSTTAgent, create_stt_agent
 
-#### Constructor
+# Crear agente (usa STTServiceFactory internamente)
+agent = create_stt_agent()
 
-```python
-def __init__(self, stt_service: STTServiceInterface, agent_id: str = "stt_agent_001")
-```
+# Transcribir
+text = await agent.transcribe_audio("audio.wav", language="es-ES")
 
-**Parámetros:**
-- `stt_service` (STTServiceInterface): Servicio STT a usar
-- `agent_id` (str): Identificador único del agente
-
-#### Métodos Principales
-
-##### `transcribe_audio(audio_path: str | Path, **kwargs) -> str`
-Método principal de transcripción.
-
-**Parámetros:**
-- `audio_path` (str | Path): Ruta al archivo de audio
-- `**kwargs`: Parámetros para el servicio STT
-
-**Retorna:**
-- `str`: Texto transcrito
-
-**Excepciones:**
-- `STTServiceError`: Error en transcripción
-- `AudioFormatError`: Formato no soportado
-
-**Ejemplo:**
-```python
-agent = VoiceflowSTTAgent(service)
-text = await agent.transcribe_audio(
-    "audio.wav",
-    language="es-ES"
-)
-```
-
-##### `health_check() -> Dict[str, Any]`
-Verificación de salud del agente.
-
-**Retorna:**
-- `Dict[str, Any]`: Estado del agente
-
-**Campos del resultado:**
-- `agent_id` (str): ID del agente
-- `status` (str): "healthy", "unhealthy", "error"
-- `service_available` (bool): Si el servicio está disponible
-- `service_info` (dict): Información del servicio
-- `transcription_count` (int): Número de transcripciones realizadas
-- `timestamp` (float): Timestamp de la verificación
-
-**Ejemplo:**
-```python
+# Health check
 health = await agent.health_check()
-if health["status"] == "healthy":
-    # Agente operativo
-    pass
-```
 
-##### `get_service_info() -> Dict[str, Any]`
-Información completa del agente.
-
-**Retorna:**
-- `Dict[str, Any]`: Información del agente y servicio
-
-**Ejemplo:**
-```python
-info = agent.get_service_info()
-print(f"Agente: {info['agent_id']}")
-print(f"Servicio: {info['service_info']['service_name']}")
-print(f"Transcripciones: {info['transcription_count']}")
-```
-
-##### `get_transcription_history() -> list[Dict[str, Any]]`
-Historial de transcripciones.
-
-**Retorna:**
-- `list[Dict[str, Any]]`: Lista de registros de transcripción
-
-**Campos por registro:**
-- `audio_file` (str): Ruta del archivo procesado
-- `transcribed_text` (str): Texto resultado (si exitoso)
-- `error` (str): Mensaje de error (si falló)
-- `service_used` (str): Servicio usado
-- `parameters` (dict): Parámetros usados
-- `timestamp` (float): Timestamp de la operación
-- `success` (bool): Si fue exitosa
-
-**Ejemplo:**
-```python
+# Historial de transcripciones
 history = agent.get_transcription_history()
-for record in history:
-    if record["success"]:
-        print(f"✅ {record['audio_file']}: {record['transcribed_text'][:50]}...")
-    else:
-        print(f"❌ {record['audio_file']}: {record['error']}")
 ```
 
-##### `clear_history()`
-Limpia el historial de transcripciones.
-
-**Ejemplo:**
-```python
-agent.clear_history()
-```
-
-##### `get_supported_formats() -> list[str]`
-Formatos soportados por el servicio actual.
-
-**Retorna:**
-- `list[str]`: Lista de extensiones
-
-**Ejemplo:**
-```python
-formats = agent.get_supported_formats()
-print(f"Formatos: {', '.join(formats)}")
-```
-
-#### Métodos de Clase
-
-##### `create_from_config(config_path: str = None, agent_id: str = "stt_agent_001") -> VoiceflowSTTAgent`
-Factory method para crear agente desde configuración.
-
-**Parámetros:**
-- `config_path` (str, opcional): Ruta a configuración
-- `agent_id` (str): ID del agente
-
-**Ejemplo:**
-```python
-# Configuración por defecto (.env)
-agent = VoiceflowSTTAgent.create_from_config()
-
-# Configuración específica
-agent = VoiceflowSTTAgent.create_from_config(
-    "config/prod.env",
-    "prod_agent_001"
-)
-```
+---
 
 ## Excepciones
 
-### STTServiceError
+Definidas en `shared/exceptions/exceptions.py`:
 
-Excepción base para errores en servicios STT.
+| Excepcion | HTTP Status | Uso |
+|-----------|-------------|-----|
+| `AudioProcessingException` | 422 | Error al procesar audio |
+| `BackendCommunicationException` | 503 | Error comunicando con LangChain/OpenAI |
+| `ValidationException` | 400 | Validacion de input fallida |
+| `ConfigurationException` | 500 | Configuracion incorrecta |
+| `AuthenticationException` | 401 | Autenticacion fallida (futuro) |
 
-```python
-class STTServiceError(Exception):
-    def __init__(self, message: str, service_name: str, original_error: Optional[Exception] = None)
-```
+Excepciones STT (en `shared/interfaces/stt_interface.py`):
 
-**Atributos:**
-- `message` (str): Mensaje descriptivo
-- `service_name` (str): Nombre del servicio que causó el error
-- `original_error` (Exception, opcional): Excepción original
+| Excepcion | Uso |
+|-----------|-----|
+| `STTServiceError` | Error base de servicios STT |
+| `AudioFormatError` | Formato de audio no soportado |
+| `ServiceConfigurationError` | Configuracion incorrecta del servicio STT |
 
-**Ejemplo de manejo:**
-```python
-try:
-    text = await agent.transcribe_audio("audio.wav")
-except STTServiceError as e:
-    print(f"Error en {e.service_name}: {e.message}")
-    if e.original_error:
-        print(f"Error original: {e.original_error}")
-```
+---
 
-### AudioFormatError
+## Interfaces de aplicacion
 
-Excepción para formatos de audio no soportados.
+Definidas en `shared/interfaces/interfaces.py`:
 
-```python
-class AudioFormatError(STTServiceError):
-    # Hereda de STTServiceError
-```
-
-**Ejemplo de manejo:**
-```python
-try:
-    text = await agent.transcribe_audio("audio.xyz")
-except AudioFormatError as e:
-    print(f"Formato no soportado: {e.message}")
-    print(f"Formatos válidos: {agent.get_supported_formats()}")
-```
-
-### ServiceConfigurationError
-
-Excepción para errores de configuración.
+### `AudioProcessorInterface`
+Implementada por: `application/services/audio_service.py::AudioService`
 
 ```python
-class ServiceConfigurationError(STTServiceError):
-    # Hereda de STTServiceError
+async def validate_audio(self, audio_data: bytes, filename: str) -> bool
+async def process_audio_file(self, audio_path: Path) -> str
+async def get_supported_formats(self) -> List[str]
 ```
 
-**Ejemplo de manejo:**
-```python
-try:
-    agent = VoiceflowSTTAgent.create_from_config()
-except ServiceConfigurationError as e:
-    print(f"Error de configuración: {e.message}")
-    print("Verifica tu archivo .env")
-```
-
-## Ejemplos de Uso
-
-### Uso Básico
+### `BackendInterface`
+Implementada por: `application/orchestration/backend_adapter.py::LocalBackendAdapter`
 
 ```python
-import asyncio
-from src.voiceflow_stt_agent import VoiceflowSTTAgent
-
-async def main():
-    # Crear agente desde configuración
-    agent = VoiceflowSTTAgent.create_from_config()
-    
-    # Verificar estado
-    health = await agent.health_check()
-    print(f"Estado: {health['status']}")
-    
-    # Transcribir audio
-    try:
-        text = await agent.transcribe_audio("audio.wav")
-        print(f"Transcripción: {text}")
-    except Exception as e:
-        print(f"Error: {e}")
-
-asyncio.run(main())
+async def process_query(self, transcription: str) -> Dict[str, Any]
+async def get_system_status(self) -> Dict[str, Any]
+async def clear_conversation(self) -> bool
 ```
 
-### Uso Avanzado con Múltiples Servicios
+### `ConversationInterface`
+Implementada por: `integration/data_persistence/conversation_repository.py::ConversationService`
 
 ```python
-import asyncio
-from src.factory import STTServiceFactory
-from src.voiceflow_stt_agent import VoiceflowSTTAgent
-
-async def compare_services():
-    """Comparar precisión entre servicios STT."""
-    audio_file = "test_audio.wav"
-    
-    # Crear servicios
-    services = {
-        "Azure": STTServiceFactory.create_service(
-            "azure", 
-            subscription_key="key", 
-            region="eastus"
-        ),
-        "Whisper Local": STTServiceFactory.create_service(
-            "whisper_local", 
-            model_name="base"
-        )
-    }
-    
-    results = {}
-    for name, service in services.items():
-        if service.is_service_available():
-            agent = VoiceflowSTTAgent(service, f"agent_{name}")
-            try:
-                text = await agent.transcribe_audio(audio_file)
-                results[name] = text
-            except Exception as e:
-                results[name] = f"Error: {e}"
-    
-    # Mostrar resultados
-    for service, result in results.items():
-        print(f"{service}: {result}")
-
-asyncio.run(compare_services())
+async def add_message(self, user_message: str, ai_response: str) -> str
+async def get_conversation_history(self, session_id: Optional[str] = None) -> List[Dict]
+async def clear_conversation(self, session_id: Optional[str] = None) -> bool
 ```
 
-### Manejo de Errores Completo
+---
+
+## Dependency Injection
+
+Ubicacion: `shared/utils/dependencies.py`
+
+Las funciones DI se usan con `fastapi.Depends()` en los endpoints:
 
 ```python
-import asyncio
-from pathlib import Path
-from src.voiceflow_stt_agent import VoiceflowSTTAgent
-from src.interfaces.stt_interface import STTServiceError, AudioFormatError, ServiceConfigurationError
+from shared.utils.dependencies import get_audio_processor, get_backend_adapter, get_conversation_service
 
-async def robust_transcription(audio_path: str):
-    """Transcripción con manejo robusto de errores."""
-    
-    try:
-        # Crear agente
-        agent = VoiceflowSTTAgent.create_from_config()
-        
-        # Verificar archivo
-        path = Path(audio_path)
-        if not path.exists():
-            print(f"❌ Archivo no existe: {audio_path}")
-            return None
-        
-        # Verificar formato
-        if path.suffix.lower().lstrip('.') not in agent.get_supported_formats():
-            print(f"❌ Formato no soportado: {path.suffix}")
-            print(f"Formatos válidos: {agent.get_supported_formats()}")
-            return None
-        
-        # Verificar servicio
-        health = await agent.health_check()
-        if health["status"] != "healthy":
-            print(f"❌ Servicio no disponible: {health}")
-            return None
-        
-        # Transcribir
-        print(f"🎵 Transcribiendo: {audio_path}")
-        text = await agent.transcribe_audio(audio_path, language="es-ES")
-        print(f"✅ Resultado: {text}")
-        return text
-        
-    except ServiceConfigurationError as e:
-        print(f"❌ Error de configuración: {e.message}")
-        print("Verifica tu archivo .env")
-        
-    except AudioFormatError as e:
-        print(f"❌ Error de formato: {e.message}")
-        
-    except STTServiceError as e:
-        print(f"❌ Error del servicio {e.service_name}: {e.message}")
-        
-    except Exception as e:
-        print(f"❌ Error inesperado: {e}")
-    
-    return None
-
-# Uso
-asyncio.run(robust_transcription("ejemplos/audio_prueba.wav"))
+@router.post("/transcribe")
+async def transcribe(
+    audio_service: AudioProcessorInterface = Depends(get_audio_processor)
+):
+    ...
 ```
 
-### Integración con Sistema Multiagente
-
-```python
-import asyncio
-from typing import Dict, Any
-from src.voiceflow_stt_agent import VoiceflowSTTAgent
-
-class MultiAgentSystem:
-    """Ejemplo de integración en sistema multiagente."""
-    
-    def __init__(self):
-        self.stt_agent = VoiceflowSTTAgent.create_from_config("stt_agent")
-        self.agents = {"stt": self.stt_agent}
-    
-    async def process_voice_input(self, audio_path: str) -> Dict[str, Any]:
-        """Procesar entrada de voz en el sistema multiagente."""
-        
-        # 1. Verificar agente STT
-        health = await self.stt_agent.health_check()
-        if health["status"] != "healthy":
-            return {"error": "STT agent no disponible"}
-        
-        # 2. Transcribir audio
-        try:
-            transcription = await self.stt_agent.transcribe_audio(audio_path)
-        except Exception as e:
-            return {"error": f"Error en transcripción: {e}"}
-        
-        # 3. Enviar a otros agentes del sistema
-        result = {
-            "transcription": transcription,
-            "audio_file": audio_path,
-            "agent_used": self.stt_agent.agent_id,
-            "next_agents": ["nlu_agent", "planning_agent"]  # Ejemplo
-        }
-        
-        return result
-    
-    async def get_system_status(self) -> Dict[str, Any]:
-        """Estado de todos los agentes del sistema."""
-        status = {}
-        
-        for name, agent in self.agents.items():
-            if hasattr(agent, 'health_check'):
-                health = await agent.health_check()
-                status[name] = health["status"]
-            else:
-                status[name] = "unknown"
-        
-        return status
-
-# Uso en sistema multiagente
-async def main():
-    system = MultiAgentSystem()
-    
-    # Verificar sistema
-    status = await system.get_system_status()
-    print(f"Estado del sistema: {status}")
-    
-    # Procesar entrada de voz
-    result = await system.process_voice_input("user_input.wav")
-    print(f"Resultado: {result}")
-
-asyncio.run(main())
-```
+| Funcion DI | Retorna | Implementacion |
+|------------|---------|----------------|
+| `get_audio_processor()` | `AudioProcessorInterface` | `AudioService` |
+| `get_backend_adapter()` | `BackendInterface` | `LocalBackendAdapter` |
+| `get_conversation_service()` | `ConversationInterface` | `ConversationService` |
