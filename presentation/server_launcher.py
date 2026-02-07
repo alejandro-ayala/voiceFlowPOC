@@ -10,7 +10,8 @@ import argparse
 from pathlib import Path
 
 # Add the project directory to Python path
-project_dir = Path(__file__).parent
+# Since this script is in presentation/, go up one level to project root
+project_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(project_dir))
 
 def setup_environment():
@@ -64,7 +65,7 @@ def check_dependencies():
         print("\nInstall them with:")
         print(f"   pip install {' '.join(missing_packages)}")
         print("\nOr install all UI requirements:")
-        print(f"   pip install -r {project_dir}/web_ui/requirements-ui.txt")
+        print(f"   pip install -r {project_dir}/requirements-ui.txt")
         return False
     
     print("All required packages are installed")

@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./:/app:cached
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    environment:
+      - VOICEFLOW_HOST=0.0.0.0
+      - HOST=0.0.0.0
+    command: ["python", "presentation/server_launcher.py", "--host", "0.0.0.0"]

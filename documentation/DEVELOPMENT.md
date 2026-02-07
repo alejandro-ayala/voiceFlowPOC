@@ -38,9 +38,17 @@
    # Editar .env con tus credenciales (Azure Speech, OpenAI)
    ```
 
-5. **Ejecutar la aplicacion:**
+5. **Ejecutar la aplicacion con Docker (recomendado):**
    ```bash
-   python run-ui.py
+   docker compose up --build
+   # Acceder a http://localhost:8000
+   # API docs en http://localhost:8000/api/docs (modo debug)
+   # Hot-reload automatico al editar archivos
+   ```
+   
+   **Alternativa local (sin Docker):**
+   ```bash
+   python presentation/server_launcher.py
    # Acceder a http://localhost:8000
    # API docs en http://localhost:8000/api/docs (modo debug)
    ```
@@ -109,7 +117,8 @@ voiceFlowPOC-refactor-baseline/
 ├── documentation/                   # Documentacion del proyecto
 │   └── design/                      #   SDDs por capa (01-05)
 │
-├── run-ui.py                        # Entry point principal
+├── presentation/
+│   ├── server_launcher.py           # Entry point principal
 ├── requirements.txt                 # Dependencias core (Azure, LangChain, audio)
 ├── requirements-ui.txt              # Dependencias web (FastAPI, uvicorn, etc.)
 ├── .env.example                     # Template de configuracion
@@ -122,14 +131,14 @@ voiceFlowPOC-refactor-baseline/
 
 ```bash
 # Modo desarrollo (con hot-reload si DEBUG=true en .env)
-python run-ui.py
+python presentation/server_launcher.py
 
 # Especificar host y puerto
-python run-ui.py --host 0.0.0.0 --port 9000
+python presentation/server_launcher.py --host 0.0.0.0 --port 9000
 
 # Modo simulacion (sin API keys de OpenAI)
 # Editar .env: VOICEFLOW_USE_REAL_AGENTS=false
-python run-ui.py
+python presentation/server_launcher.py
 ```
 
 ### Verificar imports por capa

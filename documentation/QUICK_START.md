@@ -29,7 +29,7 @@ cp .env.example .env
 ### 3. Ejecutar la aplicacion
 
 ```bash
-python run-ui.py
+python presentation/server_launcher.py
 ```
 
 Acceder a:
@@ -68,7 +68,7 @@ Browser (index.html)
 
 | Archivo | Descripcion |
 |---------|-------------|
-| `run-ui.py` | Entry point principal |
+| `presentation/server_launcher.py` | Entry point principal |
 | `presentation/fastapi_factory.py` | Fabrica FastAPI (create_application) |
 | `application/api/v1/` | Endpoints REST (health, audio, chat) |
 | `application/orchestration/backend_adapter.py` | Adapter a business layer |
@@ -107,7 +107,7 @@ python -c "from presentation.fastapi_factory import app; print('OK')"
 
 ### Puerto ocupado
 ```bash
-python run-ui.py --port 9000
+python presentation/server_launcher.py --port 9000
 ```
 
 ## Documentacion

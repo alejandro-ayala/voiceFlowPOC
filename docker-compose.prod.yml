@@ -1,0 +1,43 @@
+version: "3.9"
+
+# Production Docker Compose configuration with Nginx reverse proxy
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+services:
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+      # Uncomment for HTTPS
+      # - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./presentation/static:/app/presentation/static:ro
+      # Uncomment for HTTPS certificates
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - voiceflow-net
+
+  # VoiceFlow application (override development settings)
+  app:
+    environment:
+      - VOICEFLOW_DEBUG=false
+      - VOICEFLOW_USE_REAL_AGENTS=true
+      - VOICEFLOW_LOG_LEVEL=INFO
+    # Don't mount source code in production
+    volumes: []
+    # Use production command (no reload)
+    command: ["python", "presentation/server_launcher.py", "--host", "0.0.0.0"]
+    # Don't expose port directly (nginx handles it)
+    ports: []
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+networks:
+  voiceflow-net:
+    driver: bridge

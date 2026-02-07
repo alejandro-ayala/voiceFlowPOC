@@ -1,6 +1,6 @@
 # API Reference - VoiceFlow Tourism PoC
 
-**Actualizado**: 4 de Febrero de 2026
+**Actualizado**: 9 de Febrero de 2026
 **Base URL**: `http://localhost:8000/api/v1`
 
 ---
