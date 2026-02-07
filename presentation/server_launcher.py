@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """
-VoiceFlow PoC Web UI Runner - TEMPORARY COMPATIBILITY WRAPPER
+VoiceFlow PoC Web UI Runner
 Simple script to run the web interface with proper environment setup.
-
-TODO: This is a temporary wrapper during architectural migration.
-The actual implementation is now in presentation/server_launcher.py
 """
 
 import os

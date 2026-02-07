@@ -21,13 +21,11 @@ pytest==7.4.3
 pytest-mock==3.12.0
 pytest-asyncio==0.21.1
 
-# Audio processing
+# Audio processing (server-side)
 pydub==0.25.1
 librosa==0.10.1
 
-# Audio Recording & Processing
-sounddevice==0.5.3
-scipy>=1.10.0
+# NOTE: sounddevice & scipy removed - now using Web Audio API
 numpy>=1.20.0
 wave==0.0.2
 pyaudio==0.2.11

@@ -1,113 +1,54 @@
-# 📚 VoiceFlow PoC Project Documentation
+# Documentacion del Proyecto - VoiceFlow Tourism PoC
 
-**Status**: Consolidated system ready for production  
-**Date**: November 29, 2025
-
----
-
-## 📖 Main Documentation
-
-### 🏠 Getting Started Documents
-- **[README.md](../README.md)** - Main project guide and quick start
-- **[QUICK_START.md](QUICK_START.md)** - Step-by-step configuration guide
-- **[AZURE_SETUP_GUIDE.md](AZURE_SETUP_GUIDE.md)** - Azure Speech Services configuration
-
-### 🏗️ Architecture and Design
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - General system architecture
-- **[ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md)** - LangChain multi-agent system design
-- **[API_REFERENCE.md](API_REFERENCE.md)** - APIs and components reference
-
-### 🧪 Testing and Validation
-- **[TESTING_SYSTEM_README.md](TESTING_SYSTEM_README.md)** - Consolidated testing system
-- **[FINAL_CONSOLIDATED_SYSTEM.md](FINAL_CONSOLIDATED_SYSTEM.md)** - Final system status and results
-
-### 🛠️ Implementation
-- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development and contribution guide
-- **[HANDOVER.md](HANDOVER.md)** - Project handover for new developers
-
-### 📋 Status and History
-- **[README_OLD.md](README_OLD.md)** - Previous README (historical)
-- **[DOCUMENTATION_CONSOLIDATED.md](DOCUMENTATION_CONSOLIDATED.md)** - Documentation consolidation summary
+**Actualizado**: 4 de Febrero de 2026
 
 ---
 
-## 🗂️ Documentation Organization
+## Documentacion principal
 
-### By Audience
+### Para empezar
+- **[QUICK_START.md](QUICK_START.md)** - Setup en 5 minutos y primeros pasos
+- **[AZURE_SETUP_GUIDE.md](AZURE_SETUP_GUIDE.md)** - Configuracion de Azure Speech Services
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Guia completa de desarrollo
 
-#### 👤 **End User**
-1. [README.md](../README.md) - Quick start
-2. [TESTING_SYSTEM_README.md](TESTING_SYSTEM_README.md) - Testing system usage
+### Arquitectura y diseno
+- **[INFORME_FINAL_ARQUITECTONICO.md](../INFORME_FINAL_ARQUITECTONICO.md)** - Estado general de la arquitectura (4 capas)
+- **[ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md)** - Diseno del sistema multi-agente LangChain + STT
+- **[API_REFERENCE.md](API_REFERENCE.md)** - Referencia de endpoints REST, interfaces y servicios STT
 
-#### 🧑‍💻 **New Developer**
-1. [HANDOVER.md](HANDOVER.md) - Complete handover
-2. [QUICK_START.md](QUICK_START.md) - Initial configuration
-3. [AZURE_SETUP_GUIDE.md](AZURE_SETUP_GUIDE.md) - Services setup
-4. [ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md) - Architecture
+### Documentos de diseno por capa (SDDs)
+- **[01_shared_layer_design.md](design/01_shared_layer_design.md)** - Interfaces, excepciones, DI
+- **[02_integration_layer_design.md](design/02_integration_layer_design.md)** - STT services, settings, persistencia
+- **[03_business_layer_design.md](design/03_business_layer_design.md)** - LangChain multi-agent
+- **[04_application_layer_design.md](design/04_application_layer_design.md)** - API endpoints, servicios, orquestacion
+- **[05_presentation_layer_design.md](design/05_presentation_layer_design.md)** - FastAPI factory, templates, frontend
 
-#### 🔧 **Experienced Developer**
-1. [ARCHITECTURE.md](ARCHITECTURE.md) - Detailed architecture
-2. [API_REFERENCE.md](API_REFERENCE.md) - Technical reference
-3. [DEVELOPMENT.md](DEVELOPMENT.md) - Implementation guide
+### Evolucion del proyecto
+- **[ROADMAP.md](ROADMAP.md)** - Plan de accion: refactor, Docker, testing, persistencia, CI/CD
 
-#### 📊 **Project Manager / Stakeholder**
-1. [FINAL_CONSOLIDATED_SYSTEM.md](FINAL_CONSOLIDATED_SYSTEM.md) - Status and results
-2. [README.md](../README.md) - Executive summary
-3. [ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md) - Technical vision
-
----
-
-## 🎯 Documents by Use Case
-
-### 🚀 **I want to test the system quickly**
-- [README.md](../README.md) → "Quick Start" section
-- [TESTING_SYSTEM_README.md](TESTING_SYSTEM_README.md) → Testing commands
-
-### 🔧 **I want to configure the environment from scratch**
-- [QUICK_START.md](QUICK_START.md) → Step-by-step configuration
-- [AZURE_SETUP_GUIDE.md](AZURE_SETUP_GUIDE.md) → Azure setup
-
-### 🏗️ **I want to understand the architecture**
-- [ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md) → Multi-agent system
-- [ARCHITECTURE.md](ARCHITECTURE.md) → General architecture
-
-### 🧪 **I want to validate that everything works**
-- [TESTING_SYSTEM_README.md](TESTING_SYSTEM_README.md) → Testing system
-- [FINAL_CONSOLIDATED_SYSTEM.md](FINAL_CONSOLIDATED_SYSTEM.md) → Status and results
-
-### 🛠️ **I want to develop new functionalities**
-- [DEVELOPMENT.md](DEVELOPMENT.md) → Development guides
-- [API_REFERENCE.md](API_REFERENCE.md) → Technical references
+### Recursos adicionales
+- **[Viability_Analysis_Iteration_2.pdf](Viability_Analysis_Iteration_2.pdf)** - Analisis de viabilidad del proyecto
 
 ---
 
-## 📊 Documentation Status
+## Por audiencia
 
-### ✅ Updated Documentation (Nov 29, 2025)
-- **README.md** - ✅ Completely rewritten for consolidated system
-- **TESTING_SYSTEM_README.md** - ✅ Updated with consolidated testing system
-- **FINAL_CONSOLIDATED_SYSTEM.md** - ✅ Final status and consolidation
-- **ARCHITECTURE_MULTIAGENT.md** - ✅ Updated with operational LangChain system
+| Audiencia | Documentos recomendados |
+|-----------|------------------------|
+| **Nuevo en el proyecto** | QUICK_START -> DEVELOPMENT -> ARCHITECTURE_MULTIAGENT |
+| **Desarrollador** | DEVELOPMENT -> API_REFERENCE -> SDDs (design/) -> ROADMAP |
+| **Arquitecto** | INFORME_FINAL -> SDDs (design/) -> ROADMAP -> ARCHITECTURE_MULTIAGENT |
+| **Project Manager** | INFORME_FINAL -> ROADMAP -> Viability Analysis PDF |
 
-### ⚠️ Documentation to Review (If necessary)
-- **HANDOVER.md** - May need update with consolidated system
-- **QUICK_START.md** - Review updated commands
-- **DEVELOPMENT.md** - Update workflows
+## Por caso de uso
 
-### ❌ Deleted Documentation (Obsolete)
-- ~~IMPLEMENTATION_READY.md~~ - No longer relevant
-- ~~INTEGRATION_COMPLETE.md~~ - No longer relevant  
-- ~~LANGCHAIN_INTEGRATION_PLAN.md~~ - Plan completed
-- ~~CURRENT_STATUS.md~~ - Replaced by FINAL_CONSOLIDATED_SYSTEM.md
-- ~~PROJECT_COMPLETION.md~~ - Information moved to README
-
----
-
-## 🗃️ Additional Files
-
-### 📄 PDFs and Resources
-- **Viability_Analysis_Iteration_2.pdf** - Original project analysis
-
----
-
-*Documentation organized and updated for the consolidated VoiceFlow PoC system*
+| Necesito... | Documento |
+|-------------|-----------|
+| Arrancar la app rapidamente | [QUICK_START.md](QUICK_START.md) |
+| Configurar Azure Speech | [AZURE_SETUP_GUIDE.md](AZURE_SETUP_GUIDE.md) |
+| Entender la arquitectura | [INFORME_FINAL_ARQUITECTONICO.md](../INFORME_FINAL_ARQUITECTONICO.md) |
+| Ver los endpoints disponibles | [API_REFERENCE.md](API_REFERENCE.md) |
+| Entender una capa especifica | [design/](design/) (SDDs 01-05) |
+| Saber que viene despues | [ROADMAP.md](ROADMAP.md) |
+| Agregar un nuevo servicio STT | [DEVELOPMENT.md](DEVELOPMENT.md) |
+| Entender el multi-agente | [ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md) |
