@@ -1,7 +1,7 @@
 # Guia de Desarrollo - VoiceFlow Tourism PoC
 
-**Actualizado**: 4 de Febrero de 2026
-**Arquitectura**: 4 capas (shared, integration, business, application) + presentation
+**Actualizado**: 11 de Febrero de 2026
+**Arquitectura**: 4 capas (shared, integration, business, application) + presentation + CI/CD Pipeline
 
 ---
 
@@ -162,6 +162,90 @@ python -c "from application.orchestration.backend_adapter import LocalBackendAda
 # Presentation (depende de todo)
 python -c "from presentation.fastapi_factory import create_application; print('OK')"
 ```
+
+### Verificaciones de Linting y Formato (CI/CD Local)
+
+**Antes de hacer push**, ejecuta las mismas verificaciones que el CI/CD pipeline:
+
+#### 1. **Instalar herramientas de linting**
+
+```bash
+# Instalar ruff (linter y formatter) y mypy (type checker)
+pip install ruff mypy
+
+# Nota: Asegúrate de instalar en el venv del proyecto, no global
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate    # Windows
+```
+
+#### 2. **Ejecutar verificaciones**
+
+```bash
+# Check linting (detectar errores de estilo, imports no usados, etc.)
+ruff check .
+
+# Check de formato (verificar que el código siga el estándar)
+ruff format --check .
+
+# Type checking (información sobre tipos - no bloquea, solo informativo)
+mypy application/ business/ shared/ integration/ presentation/ --ignore-missing-imports --no-error-summary
+```
+
+#### 3. **Auto-fix automático**
+
+Si hay errores, ruff puede arreglar muchos automáticamente:
+
+```bash
+# Auto-fix errores que se pueden arreglar automáticamente
+ruff check . --fix
+
+# Auto-format todo el código al estándar
+ruff format .
+
+# Luego verifica que todo pasó
+ruff check . && ruff format --check .
+```
+
+#### 4. **Errores comunes** que mira ruff:
+
+- **E722**: `except:` sin especificar excepción → `except Exception:`
+- **F401**: Imports no usados → remover o agregar a `__all__`
+- **F841**: Variables asignadas pero no usadas → remover
+- **F811**: Función redefinida → remover duplicada
+- **E501**: Línea muy larga → dividir o reformatear
+- **Formato**: Indentación, espacios, saltos de línea inconsistentes
+
+#### 5. **Flujo antes de hacer commit/push**
+
+```bash
+# 1. Verificar que el código pasa linting
+ruff check .
+
+# 2. Si hay errores, auto-fixear
+ruff check . --fix
+ruff format .
+
+# 3. Verificar de nuevo
+ruff check . && ruff format --check .
+
+# 4. Si todo pasa, hacer commit
+git add -A
+git commit -m "fix: linting and format issues"
+git push
+```
+
+#### 6. **CI/CD Pipeline Automático**
+
+El proyecto tiene un pipeline en `.github/workflows/ci.yml` que:
+- ✅ Ejecuta `ruff check .` en cada push/PR
+- ✅ Ejecuta `ruff format --check .` en cada push/PR
+- ✅ Ejecuta `mypy` (informativo, no bloquea)
+- ✅ Construye Docker image
+- ✅ Valida health checks
+
+Si alguna verificación falla localmente, fallará también en el CI/CD y bloqueará el merge.
+
+---
 
 ### Testing
 

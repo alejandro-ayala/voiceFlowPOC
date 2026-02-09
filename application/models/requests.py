@@ -10,17 +10,19 @@ from datetime import datetime
 
 class AudioUploadRequest(BaseModel):
     """Request model for audio upload"""
-    
+
     audio_data: str = Field(..., description="Base64 encoded audio data")
     filename: str = Field(..., description="Original filename")
-    content_type: str = Field(default="audio/wav", description="MIME type of audio file")
-    
+    content_type: str = Field(
+        default="audio/wav", description="MIME type of audio file"
+    )
+
     @validator("filename")
     def validate_filename(cls, v):
         if not v or not v.strip():
             raise ValueError("Filename cannot be empty")
         return v.strip()
-    
+
     @validator("audio_data")
     def validate_audio_data(cls, v):
         if not v or len(v) < 100:  # Basic check for minimum data
@@ -30,11 +32,13 @@ class AudioUploadRequest(BaseModel):
 
 class AudioTranscriptionRequest(BaseModel):
     """Request model for audio transcription"""
-    
+
     audio_data: str = Field(..., description="Base64 encoded audio data")
-    language: str = Field(default="es-ES", description="Language code for transcription")
+    language: str = Field(
+        default="es-ES", description="Language code for transcription"
+    )
     format: str = Field(default="wav", description="Audio format")
-    
+
     @validator("audio_data")
     def validate_audio_data(cls, v):
         if not v or len(v) < 100:  # Basic check for minimum data
@@ -44,13 +48,19 @@ class AudioTranscriptionRequest(BaseModel):
 
 class ChatMessageRequest(BaseModel):
     """Request model for chat messages"""
-    
+
     message: str = Field(..., description="User message or transcription")
-    conversation_id: Optional[str] = Field(default=None, description="Conversation ID for chat tracking")
-    session_id: Optional[str] = Field(default=None, description="Legacy field - use conversation_id instead")
+    conversation_id: Optional[str] = Field(
+        default=None, description="Conversation ID for chat tracking"
+    )
+    session_id: Optional[str] = Field(
+        default=None, description="Legacy field - use conversation_id instead"
+    )
     timestamp: Optional[datetime] = Field(default=None, description="Message timestamp")
-    context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context data")
-    
+    context: Optional[Dict[str, Any]] = Field(
+        default=None, description="Additional context data"
+    )
+
     @validator("message")
     def validate_message(cls, v):
         if not v or not v.strip():
@@ -62,17 +72,21 @@ class ChatMessageRequest(BaseModel):
 
 class SystemStatusRequest(BaseModel):
     """Request model for system status check"""
-    
-    check_backend: bool = Field(default=True, description="Include backend system check")
-    check_services: bool = Field(default=True, description="Include services health check")
+
+    check_backend: bool = Field(
+        default=True, description="Include backend system check"
+    )
+    check_services: bool = Field(
+        default=True, description="Include services health check"
+    )
 
 
 class ConversationRequest(BaseModel):
     """Request model for conversation operations"""
-    
+
     session_id: Optional[str] = Field(default=None, description="Session ID")
     action: str = Field(..., description="Action: 'get', 'clear', 'export'")
-    
+
     @validator("action")
     def validate_action(cls, v):
         allowed_actions = ["get", "clear", "export"]
@@ -83,11 +97,13 @@ class ConversationRequest(BaseModel):
 
 class ChatHistoryRequest(BaseModel):
     """Request model for chat history operations"""
-    
-    conversation_id: Optional[str] = Field(default=None, description="Conversation ID to retrieve")
+
+    conversation_id: Optional[str] = Field(
+        default=None, description="Conversation ID to retrieve"
+    )
     limit: int = Field(default=50, description="Maximum number of messages to retrieve")
     offset: int = Field(default=0, description="Offset for pagination")
-    
+
     @validator("limit")
     def validate_limit(cls, v):
         if v < 1 or v > 1000:
@@ -97,7 +113,9 @@ class ChatHistoryRequest(BaseModel):
 
 class ConversationCreateRequest(BaseModel):
     """Request model for creating a new conversation"""
-    
+
     topic: str = Field(..., description="Topic of the conversation")
     user_id: Optional[str] = Field(default="default", description="User identifier")
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional metadata")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="Additional metadata"
+    )

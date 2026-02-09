@@ -1,12 +1,17 @@
-from typing import Dict, Any, Type
-from pathlib import Path
+from typing import Dict, Type
 import os
 from dotenv import load_dotenv
 import structlog
 
-from shared.interfaces.stt_interface import STTServiceInterface, ServiceConfigurationError
+from shared.interfaces.stt_interface import (
+    STTServiceInterface,
+    ServiceConfigurationError,
+)
 from integration.external_apis.azure_stt_client import AzureSpeechService
-from integration.external_apis.whisper_services import WhisperLocalService, WhisperAPIService
+from integration.external_apis.whisper_services import (
+    WhisperLocalService,
+    WhisperAPIService,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -20,9 +25,9 @@ class STTServiceFactory:
     """
 
     _service_registry: Dict[str, Type[STTServiceInterface]] = {
-        'azure': AzureSpeechService,
-        'whisper_local': WhisperLocalService,
-        'whisper_api': WhisperAPIService
+        "azure": AzureSpeechService,
+        "whisper_local": WhisperLocalService,
+        "whisper_api": WhisperAPIService,
     }
 
     @classmethod
@@ -41,10 +46,10 @@ class STTServiceFactory:
             ServiceConfigurationError: Si el servicio no está disponible o mal configurado
         """
         if service_type not in cls._service_registry:
-            available = ', '.join(cls._service_registry.keys())
+            available = ", ".join(cls._service_registry.keys())
             raise ServiceConfigurationError(
                 f"Servicio STT no soportado: {service_type}. Disponibles: {available}",
-                "factory"
+                "factory",
             )
 
         service_class = cls._service_registry[service_type]
@@ -53,11 +58,11 @@ class STTServiceFactory:
             logger.info("Creando servicio STT", service_type=service_type)
             return service_class(**kwargs)
         except Exception as e:
-            logger.error("Error creando servicio STT", service_type=service_type, error=str(e))
+            logger.error(
+                "Error creando servicio STT", service_type=service_type, error=str(e)
+            )
             raise ServiceConfigurationError(
-                f"Error creando servicio {service_type}: {str(e)}",
-                "factory",
-                e
+                f"Error creando servicio {service_type}: {str(e)}", "factory", e
             )
 
     @classmethod
@@ -77,58 +82,60 @@ class STTServiceFactory:
         else:
             load_dotenv()
 
-        service_type = os.getenv('STT_SERVICE', 'azure').lower()
+        service_type = os.getenv("STT_SERVICE", "azure").lower()
 
         # Configurar parámetros según el tipo de servicio
-        if service_type == 'azure':
+        if service_type == "azure":
             return cls._create_azure_service()
-        elif service_type == 'whisper_local':
+        elif service_type == "whisper_local":
             return cls._create_whisper_local_service()
-        elif service_type == 'whisper_api':
+        elif service_type == "whisper_api":
             return cls._create_whisper_api_service()
         else:
             raise ServiceConfigurationError(
                 f"Tipo de servicio no reconocido en configuración: {service_type}",
-                "factory"
+                "factory",
             )
 
     @classmethod
     def _create_azure_service(cls) -> AzureSpeechService:
         """Crea servicio Azure Speech desde variables de entorno."""
-        subscription_key = os.getenv('AZURE_SPEECH_KEY')
-        region = os.getenv('AZURE_SPEECH_REGION')
+        subscription_key = os.getenv("AZURE_SPEECH_KEY")
+        region = os.getenv("AZURE_SPEECH_REGION")
 
         if not subscription_key or not region:
             raise ServiceConfigurationError(
                 "Configuración Azure incompleta. Necesita AZURE_SPEECH_KEY y AZURE_SPEECH_REGION",
-                "azure"
+                "azure",
             )
 
-        return cls.create_service('azure',
-                                subscription_key=subscription_key,
-                                region=region)
+        return cls.create_service(
+            "azure", subscription_key=subscription_key, region=region
+        )
 
     @classmethod
     def _create_whisper_local_service(cls) -> WhisperLocalService:
         """Crea servicio Whisper local desde variables de entorno."""
-        model_name = os.getenv('WHISPER_MODEL', 'base')
-        return cls.create_service('whisper_local', model_name=model_name)
+        model_name = os.getenv("WHISPER_MODEL", "base")
+        return cls.create_service("whisper_local", model_name=model_name)
 
     @classmethod
     def _create_whisper_api_service(cls) -> WhisperAPIService:
         """Crea servicio Whisper API desde variables de entorno."""
-        api_key = os.getenv('OPENAI_API_KEY')
+        api_key = os.getenv("OPENAI_API_KEY")
 
         if not api_key:
             raise ServiceConfigurationError(
                 "Configuración OpenAI incompleta. Necesita OPENAI_API_KEY",
-                "whisper_api"
+                "whisper_api",
             )
 
-        return cls.create_service('whisper_api', api_key=api_key)
+        return cls.create_service("whisper_api", api_key=api_key)
 
     @classmethod
-    def register_service(cls, name: str, service_class: Type[STTServiceInterface]) -> None:
+    def register_service(
+        cls, name: str, service_class: Type[STTServiceInterface]
+    ) -> None:
         """
         Registra un nuevo tipo de servicio STT.
 

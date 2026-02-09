@@ -26,7 +26,9 @@ class ConversationService(ConversationInterface):
         self.conversations: Dict[str, List[Dict[str, Any]]] = {}
         self.session_metadata: Dict[str, Dict[str, Any]] = {}
 
-    async def add_message(self, user_message: str, ai_response: str, session_id: Optional[str] = None) -> str:
+    async def add_message(
+        self, user_message: str, ai_response: str, session_id: Optional[str] = None
+    ) -> str:
         """Add message pair to conversation"""
         try:
             if not session_id:
@@ -40,17 +42,21 @@ class ConversationService(ConversationInterface):
                 "timestamp": datetime.now().isoformat(),
                 "user_message": user_message,
                 "ai_response": ai_response,
-                "message_type": "conversation_pair"
+                "message_type": "conversation_pair",
             }
 
             self.conversations[session_id].append(message_pair)
 
-            self.session_metadata[session_id]["last_activity"] = datetime.now().isoformat()
+            self.session_metadata[session_id]["last_activity"] = (
+                datetime.now().isoformat()
+            )
             self.session_metadata[session_id]["message_count"] += 1
 
-            logger.info("Message pair added to conversation",
-                       session_id=session_id,
-                       total_messages=len(self.conversations[session_id]))
+            logger.info(
+                "Message pair added to conversation",
+                session_id=session_id,
+                total_messages=len(self.conversations[session_id]),
+            )
 
             return session_id
 
@@ -66,12 +72,14 @@ class ConversationService(ConversationInterface):
             "created_at": datetime.now().isoformat(),
             "last_activity": datetime.now().isoformat(),
             "message_count": 0,
-            "session_type": "demo"
+            "session_type": "demo",
         }
 
         logger.info("New conversation session initialized", session_id=session_id)
 
-    async def get_conversation_history(self, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_conversation_history(
+        self, session_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Get conversation history for session"""
         try:
             if not session_id:
@@ -84,9 +92,11 @@ class ConversationService(ConversationInterface):
                 return sorted(all_conversations, key=lambda x: x["timestamp"])
 
             if session_id in self.conversations:
-                logger.info("Retrieved conversation history",
-                           session_id=session_id,
-                           message_count=len(self.conversations[session_id]))
+                logger.info(
+                    "Retrieved conversation history",
+                    session_id=session_id,
+                    message_count=len(self.conversations[session_id]),
+                )
                 return self.conversations[session_id].copy()
             else:
                 logger.warning("Session not found", session_id=session_id)
@@ -106,7 +116,9 @@ class ConversationService(ConversationInterface):
                     logger.info("Conversation cleared", session_id=session_id)
                     return True
                 else:
-                    logger.warning("Session not found for clearing", session_id=session_id)
+                    logger.warning(
+                        "Session not found for clearing", session_id=session_id
+                    )
                     return False
             else:
                 cleared_count = len(self.conversations)
@@ -124,7 +136,9 @@ class ConversationService(ConversationInterface):
         try:
             if session_id in self.session_metadata:
                 session_info = self.session_metadata[session_id].copy()
-                session_info["current_message_count"] = len(self.conversations.get(session_id, []))
+                session_info["current_message_count"] = len(
+                    self.conversations.get(session_id, [])
+                )
                 return session_info
             return None
         except Exception as e:
@@ -137,7 +151,9 @@ class ConversationService(ConversationInterface):
             sessions = []
             for session_id, metadata in self.session_metadata.items():
                 session_info = metadata.copy()
-                session_info["current_message_count"] = len(self.conversations.get(session_id, []))
+                session_info["current_message_count"] = len(
+                    self.conversations.get(session_id, [])
+                )
                 sessions.append(session_info)
 
             sessions.sort(key=lambda x: x["last_activity"], reverse=True)
@@ -146,7 +162,9 @@ class ConversationService(ConversationInterface):
             logger.error("Failed to get all sessions", error=str(e))
             return []
 
-    async def export_conversation(self, session_id: str, format: str = "json") -> Optional[Dict[str, Any]]:
+    async def export_conversation(
+        self, session_id: str, format: str = "json"
+    ) -> Optional[Dict[str, Any]]:
         """Export conversation in specified format"""
         try:
             if session_id not in self.conversations:
@@ -159,15 +177,15 @@ class ConversationService(ConversationInterface):
                 "export_info": {
                     "exported_at": datetime.now().isoformat(),
                     "format": format,
-                    "version": "1.0"
+                    "version": "1.0",
                 },
                 "session_metadata": metadata,
                 "conversation": conversation,
                 "statistics": {
                     "total_messages": len(conversation),
                     "session_duration": self._calculate_session_duration(conversation),
-                    "average_response_time": "N/A"
-                }
+                    "average_response_time": "N/A",
+                },
             }
 
             logger.info("Conversation exported", session_id=session_id, format=format)
@@ -194,5 +212,5 @@ class ConversationService(ConversationInterface):
                 return f"{minutes} minutes, {seconds} seconds"
             else:
                 return f"{seconds} seconds"
-        except:
+        except Exception:
             return "Unknown"

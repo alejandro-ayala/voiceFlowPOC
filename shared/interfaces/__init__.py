@@ -7,3 +7,11 @@ from shared.interfaces.interfaces import (
     AuthInterface,
     StorageInterface,
 )
+
+__all__ = [
+    "AudioProcessorInterface",
+    "BackendInterface",
+    "ConversationInterface",
+    "AuthInterface",
+    "StorageInterface",
+]

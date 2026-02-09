@@ -1887,7 +1887,39 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 ## Fase 5: CI/CD Pipeline  
 **Prioridad**: 🔥 ALTA (tras completar testing básico)  
-**Estado**: ⏭️ PRÓXIMA tras Fase 3
+**Estado**: ✅ MÍNIMO IMPLEMENTADO | ⏳ COMPLETO pendiente
+
+### 5.0 Estado Actual - Pipeline Mínimo Implementado ✅
+
+**Archivo**: `.github/workflows/ci.yml`
+
+El pipeline mínimo se ha implementado como "template" en este PR para validar:
+
+✅ **Lint & Format** (ruff + mypy)
+- Chequeo de estilo de código
+- Type checking informativo (no bloqueante)
+- Ejecución: ~1 min
+
+✅ **Docker Build Validation** 
+- Build de imagen Docker
+- Arranque del contenedor en modo simulación (`USE_REAL_AGENTS=false`)
+- Health check sin requerir keys de Azure/OpenAI
+- Ejecución: ~10 min
+
+**Ventajas**:
+- ✅ No requiere secretos (dummy keys)
+- ✅ Detecta problemas de compilación tempranamente
+- ✅ Valida que imagen Docker funcione
+- ✅ Base para expansión futura
+
+**Próximas adiciones** (después de Fase 3 - Testing):
+- Unit tests + coverage
+- Integration tests
+- Security scanning (bandit, safety)
+- Deploy a staging/production
+- Smoke tests post-deploy
+
+---
 
 ### 5.1 Objetivo
 
@@ -1895,6 +1927,7 @@ Automatizar build, test y deploy del proyecto aprovechando la infraestructura Do
 
 **Prerrequisitos**: 
 - ✅ Docker completo (Fase 2)
+- ✅ Pipeline mínimo (este PR)
 - ⏳ Tests básicos implementados (Fase 3)
 
 ### 5.2 Pipeline completo  (GitHub Actions)
