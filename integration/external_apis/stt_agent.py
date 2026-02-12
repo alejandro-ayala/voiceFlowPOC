@@ -1,10 +1,11 @@
-from typing import Dict, Any
-from pathlib import Path
 import asyncio
+from pathlib import Path
+from typing import Any, Dict
+
 import structlog
 
-from shared.interfaces.stt_interface import STTServiceInterface, STTServiceError
 from integration.external_apis.stt_factory import STTServiceFactory
+from shared.interfaces.stt_interface import STTServiceError, STTServiceInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -20,9 +21,7 @@ class VoiceflowSTTAgent:
     STTServiceInterface, no de implementaciones concretas.
     """
 
-    def __init__(
-        self, stt_service: STTServiceInterface, agent_id: str = "stt_agent_001"
-    ):
+    def __init__(self, stt_service: STTServiceInterface, agent_id: str = "stt_agent_001"):
         """
         Inicializa el agente STT.
 
@@ -64,9 +63,7 @@ class VoiceflowSTTAgent:
 
         # Validar que el servicio esté disponible
         if not self.stt_service.is_service_available():
-            raise STTServiceError(
-                "Servicio STT no está disponible", self.stt_service.__class__.__name__
-            )
+            raise STTServiceError("Servicio STT no está disponible", self.stt_service.__class__.__name__)
 
         try:
             logger.info(
@@ -77,9 +74,7 @@ class VoiceflowSTTAgent:
             )
 
             # Realizar transcripción usando el servicio configurado
-            transcribed_text = await self.stt_service.transcribe_audio(
-                audio_path, **kwargs
-            )
+            transcribed_text = await self.stt_service.transcribe_audio(audio_path, **kwargs)
 
             # Registrar en el historial
             transcription_record = {
@@ -95,11 +90,7 @@ class VoiceflowSTTAgent:
             logger.info(
                 "Transcripción completada exitosamente",
                 agent_id=self.agent_id,
-                text_preview=(
-                    transcribed_text[:100] + "..."
-                    if len(transcribed_text) > 100
-                    else transcribed_text
-                ),
+                text_preview=(transcribed_text[:100] + "..." if len(transcribed_text) > 100 else transcribed_text),
                 text_length=len(transcribed_text),
             )
 
@@ -207,9 +198,7 @@ class VoiceflowSTTAgent:
             }
 
     @classmethod
-    def create_from_config(
-        cls, config_path: str = None, agent_id: str = "stt_agent_001"
-    ) -> "VoiceflowSTTAgent":
+    def create_from_config(cls, config_path: str = None, agent_id: str = "stt_agent_001") -> "VoiceflowSTTAgent":
         """
         Factory method para crear un agente desde configuración.
 
@@ -224,9 +213,7 @@ class VoiceflowSTTAgent:
         return cls(stt_service, agent_id)
 
 
-def create_stt_agent(
-    config_path: str = None, agent_id: str = "stt_agent_001"
-) -> VoiceflowSTTAgent:
+def create_stt_agent(config_path: str = None, agent_id: str = "stt_agent_001") -> VoiceflowSTTAgent:
     """
     Convenience function to create an STT agent instance.
 

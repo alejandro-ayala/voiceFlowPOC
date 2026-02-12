@@ -19,9 +19,9 @@ except ImportError:
     PYDUB_AVAILABLE = False
     AudioSegment = None
 
-from shared.interfaces.interfaces import AudioProcessorInterface
-from shared.exceptions.exceptions import AudioProcessingException
 from integration.configuration.settings import Settings
+from shared.exceptions.exceptions import AudioProcessingException
+from shared.interfaces.interfaces import AudioProcessorInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -61,9 +61,7 @@ class AudioService(AudioProcessorInterface):
     async def validate_audio(self, audio_data: bytes, filename: str) -> bool:
         """Validate audio file format, size and basic structure"""
         try:
-            logger.info(
-                "Validating audio file", filename=filename, size_bytes=len(audio_data)
-            )
+            logger.info("Validating audio file", filename=filename, size_bytes=len(audio_data))
 
             if len(audio_data) > self.max_size_bytes:
                 raise AudioProcessingException(
@@ -95,9 +93,7 @@ class AudioService(AudioProcessorInterface):
             raise
         except Exception as e:
             logger.error("Audio validation failed", error=str(e))
-            raise AudioProcessingException(
-                f"Audio validation failed: {str(e)}", error_code="VALIDATION_ERROR"
-            )
+            raise AudioProcessingException(f"Audio validation failed: {str(e)}", error_code="VALIDATION_ERROR")
 
     async def validate_audio_format(self, audio_data: bytes, format: str):
         """
@@ -105,9 +101,7 @@ class AudioService(AudioProcessorInterface):
         This version returns a dictionary for the API with format validation.
         """
         try:
-            logger.info(
-                "Validating audio data", data_size=len(audio_data), format=format
-            )
+            logger.info("Validating audio data", data_size=len(audio_data), format=format)
 
             if len(audio_data) == 0:
                 return {
@@ -209,22 +203,14 @@ class AudioService(AudioProcessorInterface):
                 )
 
             logger.info("Starting transcription with Azure STT")
-            transcription = await stt_agent.transcribe_audio(
-                str(audio_path), language="es-ES"
-            )
+            transcription = await stt_agent.transcribe_audio(str(audio_path), language="es-ES")
 
             if not transcription or not transcription.strip():
-                raise AudioProcessingException(
-                    "No speech detected in audio", error_code="NO_SPEECH_DETECTED"
-                )
+                raise AudioProcessingException("No speech detected in audio", error_code="NO_SPEECH_DETECTED")
 
             logger.info(
                 "Transcription completed successfully",
-                transcription=(
-                    transcription[:100] + "..."
-                    if len(transcription) > 100
-                    else transcription
-                ),
+                transcription=(transcription[:100] + "..." if len(transcription) > 100 else transcription),
             )
 
             return transcription.strip()
@@ -260,9 +246,7 @@ class AudioService(AudioProcessorInterface):
 
             original_ext = Path(filename).suffix.lower()
 
-            with tempfile.NamedTemporaryFile(
-                suffix=original_ext, delete=False
-            ) as temp_file:
+            with tempfile.NamedTemporaryFile(suffix=original_ext, delete=False) as temp_file:
                 temp_file.write(audio_data)
                 temp_file.flush()
 
@@ -280,9 +264,7 @@ class AudioService(AudioProcessorInterface):
                         wav_path = temp_original_path
 
                     if not wav_path.exists():
-                        raise AudioProcessingException(
-                            f"Audio file not found after conversion: {wav_path}"
-                        )
+                        raise AudioProcessingException(f"Audio file not found after conversion: {wav_path}")
 
                     logger.info("Using audio file for STT", final_file=str(wav_path))
 
@@ -321,9 +303,7 @@ class AudioService(AudioProcessorInterface):
 
             return {
                 "service_name": "VoiceFlow Audio Service",
-                "stt_backend": service_info.get("service_info", {}).get(
-                    "service_name", "Unknown"
-                ),
+                "stt_backend": service_info.get("service_info", {}).get("service_name", "Unknown"),
                 "supported_formats": self.supported_formats,
                 "max_file_size_mb": self.settings.max_audio_size_mb,
                 "max_duration_seconds": self.max_duration,
@@ -340,9 +320,7 @@ class AudioService(AudioProcessorInterface):
                 "error": str(e),
             }
 
-    async def transcribe_audio(
-        self, audio_data: bytes, format: str, language: str = "es-ES"
-    ):
+    async def transcribe_audio(self, audio_data: bytes, format: str, language: str = "es-ES"):
         """
         Transcribe audio data using existing STT infrastructure.
         This method is specifically for the API endpoints.
@@ -399,9 +377,7 @@ class AudioService(AudioProcessorInterface):
 
             try:
                 if "webm" in format.lower():
-                    logger.info(
-                        "Converting webm to wav for Azure STT", original_file=temp_path
-                    )
+                    logger.info("Converting webm to wav for Azure STT", original_file=temp_path)
                     temp_path_obj = Path(temp_path)
                     wav_path = self._convert_webm_to_wav(temp_path_obj)
                     final_audio_path = str(wav_path)
@@ -415,9 +391,7 @@ class AudioService(AudioProcessorInterface):
                     file_size=os.path.getsize(final_audio_path),
                 )
 
-                transcribed_text = await stt_agent.transcribe_audio(
-                    audio_path=final_audio_path, language=language
-                )
+                transcribed_text = await stt_agent.transcribe_audio(audio_path=final_audio_path, language=language)
 
                 processing_time = time.time() - start_time
 
@@ -435,11 +409,7 @@ class AudioService(AudioProcessorInterface):
 
                 logger.info(
                     "REAL transcription completed successfully",
-                    text=(
-                        transcribed_text[:100] + "..."
-                        if len(transcribed_text) > 100
-                        else transcribed_text
-                    ),
+                    text=(transcribed_text[:100] + "..." if len(transcribed_text) > 100 else transcribed_text),
                     processing_time=processing_time,
                 )
 
@@ -449,11 +419,7 @@ class AudioService(AudioProcessorInterface):
                 try:
                     if os.path.exists(temp_path):
                         os.unlink(temp_path)
-                    if (
-                        "webm" in format.lower()
-                        and "final_audio_path" in locals()
-                        and final_audio_path != temp_path
-                    ):
+                    if "webm" in format.lower() and "final_audio_path" in locals() and final_audio_path != temp_path:
                         if os.path.exists(final_audio_path):
                             os.unlink(final_audio_path)
                 except Exception as e:
@@ -530,9 +496,7 @@ class AudioService(AudioProcessorInterface):
                         audio_data = raw_data[audio_start : audio_start + 32000]
                         wav_file.writeframes(audio_data)
 
-                    logger.info(
-                        "Fallback conversion completed", output_file=str(output_path)
-                    )
+                    logger.info("Fallback conversion completed", output_file=str(output_path))
                     return output_path
 
                 except Exception as fallback_error:

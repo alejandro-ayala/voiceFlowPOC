@@ -1370,17 +1370,19 @@ services:
 ### 6.2 Imagen Docker Multi-Stage
 
 ```dockerfile
-# Stage 1: Builder (1000MB)
+# Stage 1: Builder
 FROM python:3.11-slim as builder
 RUN apt-get update && apt-get install -y build-essential ffmpeg
-COPY requirements.txt .
-RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+RUN pip install --no-cache-dir poetry
+ENV POETRY_NO_INTERACTION=1 POETRY_VIRTUALENVS_CREATE=false
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --only main --no-root
 
-# Stage 2: Runtime (400MB final)
+# Stage 2: Runtime
 FROM python:3.11-slim
 RUN apt-get update && apt-get install -y ffmpeg curl
-COPY --from=builder /wheels /wheels
-RUN pip install --no-cache /wheels/*
+COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY . /app
 WORKDIR /app
 

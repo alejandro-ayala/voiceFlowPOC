@@ -4,8 +4,8 @@ These abstractions allow for easy testing, mocking, and future implementations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class AudioProcessorInterface(ABC):
@@ -64,9 +64,7 @@ class ConversationInterface(ABC):
         pass
 
     @abstractmethod
-    async def get_conversation_history(
-        self, session_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    async def get_conversation_history(self, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get conversation history"""
         pass
 
@@ -100,16 +98,12 @@ class StorageInterface(ABC):
     """
 
     @abstractmethod
-    async def save_conversation(
-        self, session_id: str, conversation: List[Dict[str, Any]]
-    ) -> bool:
+    async def save_conversation(self, session_id: str, conversation: List[Dict[str, Any]]) -> bool:
         """Save conversation to storage"""
         pass
 
     @abstractmethod
-    async def load_conversation(
-        self, session_id: str
-    ) -> Optional[List[Dict[str, Any]]]:
+    async def load_conversation(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
         """Load conversation from storage"""
         pass
 

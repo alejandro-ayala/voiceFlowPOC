@@ -12,15 +12,15 @@ import structlog
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse
 
-from integration.configuration.settings import get_settings, get_cors_config
-from shared.exceptions.exceptions import VoiceFlowException, EXCEPTION_STATUS_CODES
-from shared.utils.dependencies import initialize_services
-from application.api.v1 import health, audio, chat
+from application.api.v1 import audio, chat, health
 from application.models.responses import ErrorResponse, StatusEnum
+from integration.configuration.settings import get_cors_config, get_settings
+from shared.exceptions.exceptions import EXCEPTION_STATUS_CODES, VoiceFlowException
+from shared.utils.dependencies import initialize_services
 
 # Configure structured logging
 logging.basicConfig(

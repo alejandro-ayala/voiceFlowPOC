@@ -1,16 +1,17 @@
-from typing import Dict, Type
 import os
-from dotenv import load_dotenv
-import structlog
+from typing import Dict, Type
 
-from shared.interfaces.stt_interface import (
-    STTServiceInterface,
-    ServiceConfigurationError,
-)
+import structlog
+from dotenv import load_dotenv
+
 from integration.external_apis.azure_stt_client import AzureSpeechService
 from integration.external_apis.whisper_services import (
-    WhisperLocalService,
     WhisperAPIService,
+    WhisperLocalService,
+)
+from shared.interfaces.stt_interface import (
+    ServiceConfigurationError,
+    STTServiceInterface,
 )
 
 logger = structlog.get_logger(__name__)
@@ -58,12 +59,8 @@ class STTServiceFactory:
             logger.info("Creando servicio STT", service_type=service_type)
             return service_class(**kwargs)
         except Exception as e:
-            logger.error(
-                "Error creando servicio STT", service_type=service_type, error=str(e)
-            )
-            raise ServiceConfigurationError(
-                f"Error creando servicio {service_type}: {str(e)}", "factory", e
-            )
+            logger.error("Error creando servicio STT", service_type=service_type, error=str(e))
+            raise ServiceConfigurationError(f"Error creando servicio {service_type}: {str(e)}", "factory", e)
 
     @classmethod
     def create_from_config(cls, config_path: str = None) -> STTServiceInterface:
@@ -109,9 +106,7 @@ class STTServiceFactory:
                 "azure",
             )
 
-        return cls.create_service(
-            "azure", subscription_key=subscription_key, region=region
-        )
+        return cls.create_service("azure", subscription_key=subscription_key, region=region)
 
     @classmethod
     def _create_whisper_local_service(cls) -> WhisperLocalService:
@@ -133,9 +128,7 @@ class STTServiceFactory:
         return cls.create_service("whisper_api", api_key=api_key)
 
     @classmethod
-    def register_service(
-        cls, name: str, service_class: Type[STTServiceInterface]
-    ) -> None:
+    def register_service(cls, name: str, service_class: Type[STTServiceInterface]) -> None:
         """
         Registra un nuevo tipo de servicio STT.
 

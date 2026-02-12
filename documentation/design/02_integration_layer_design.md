@@ -61,7 +61,7 @@ Contiene dos implementaciones de `STTServiceInterface`:
 class WhisperLocalService(STTServiceInterface):
     def __init__(self, model_name: str = 'base')
     # Modelos: tiny, base, small, medium, large, large-v2, large-v3
-    # Requiere: pip install openai-whisper
+    # Requiere: openai-whisper (incluido en pyproject.toml)
     # Usa run_in_executor para no bloquear el event loop
 ```
 

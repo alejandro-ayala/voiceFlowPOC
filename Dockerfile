@@ -2,7 +2,7 @@
 # Builder stage
 #############################################
 FROM python:3.11-slim AS builder
-WORKDIR /app
+WORKDIR /build
 
 # Dependencias de compilación
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -19,14 +19,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libicu-dev \
  && rm -rf /var/lib/apt/lists/*
 
-# Copiamos solo requirements
-COPY requirements.txt requirements-ui.txt ./
+# Instalar Poetry (sin virtualenv — instala al Python del sistema)
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_CREATE=false
+RUN pip install --no-cache-dir poetry
 
-# Instalamos pip/setuptools/wheel y precompilamos ruedas
-RUN pip install --upgrade pip setuptools wheel \
- && mkdir /wheels \
- && pip wheel --no-build-isolation -r requirements.txt -w /wheels \
- && pip wheel --no-build-isolation -r requirements-ui.txt -w /wheels
+# Copiar solo archivos de dependencias para cache de Docker layers
+COPY pyproject.toml poetry.lock ./
+
+# Instalar dependencias de producción al site-packages del sistema
+RUN poetry install --only main --no-root
 
 
 #############################################
@@ -57,15 +59,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
  && rm -rf /var/lib/apt/lists/*
 
-# Copiamos ruedas precompiladas
-COPY --from=builder /wheels /wheels
-COPY requirements.txt requirements-ui.txt ./
+# Copiar paquetes instalados del builder (site-packages + binarios)
+COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
-# Instalamos offline
-RUN pip install --no-index --find-links /wheels -r requirements.txt \
- && pip install --no-index --find-links /wheels -r requirements-ui.txt
-
-# Copiamos la app
+# Copiar la app
 COPY . /app
 
 # Dar permisos de ejecución a los scripts

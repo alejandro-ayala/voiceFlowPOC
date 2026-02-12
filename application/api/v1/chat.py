@@ -5,24 +5,24 @@ Handles conversation management and AI responses.
 Backend responses are simulated for demo purposes to avoid OpenAI costs.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Optional
 import uuid
+from typing import Optional
 
 import structlog
+from fastapi import APIRouter, Depends, HTTPException
 
-from shared.interfaces.interfaces import BackendInterface, ConversationInterface
-from shared.utils.dependencies import get_backend_adapter, get_conversation_service
+from application.models.requests import ChatMessageRequest
+from application.models.responses import (
+    ChatResponse,
+    ConversationListResponse,
+    ConversationResponse,
+)
 from shared.exceptions.exceptions import (
     BackendCommunicationException,
     ValidationException,
 )
-from application.models.requests import ChatMessageRequest
-from application.models.responses import (
-    ChatResponse,
-    ConversationResponse,
-    ConversationListResponse,
-)
+from shared.interfaces.interfaces import BackendInterface, ConversationInterface
+from shared.utils.dependencies import get_backend_adapter, get_conversation_service
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -55,9 +55,7 @@ async def send_message(
         )
 
         # Get AI response from backend (real agents)
-        backend_response = await backend_service.process_query(
-            transcription=request.message.strip()
-        )
+        backend_response = await backend_service.process_query(transcription=request.message.strip())
 
         # Add message pair to conversation service (for session management)
         session_id = await conversation_service.add_message(
@@ -131,9 +129,7 @@ async def list_conversations(
     List all conversations with pagination.
     """
     try:
-        conversations = await conversation_service.list_conversations(
-            limit=limit, offset=offset
-        )
+        conversations = await conversation_service.list_conversations(limit=limit, offset=offset)
 
         return ConversationListResponse(
             success=True,
@@ -249,17 +245,29 @@ async def get_demo_responses():
         "sample_responses": [
             {
                 "input": "¿Qué lugares puedo visitar en Madrid?",
-                "response": "Madrid ofrece increíbles opciones turísticas. Te recomiendo visitar el Museo del Prado, el Palacio Real, el Parque del Retiro y la Plaza Mayor. Para una experiencia más local, explora el barrio de Malasaña y prueba tapas en el Mercado de San Miguel.",
+                "response": (
+                    "Madrid ofrece increíbles opciones turísticas. Te recomiendo visitar el Museo del Prado,"
+                    " el Palacio Real, el Parque del Retiro y la Plaza Mayor. Para una experiencia más local,"
+                    " explora el barrio de Malasaña y prueba tapas en el Mercado de San Miguel."
+                ),
                 "confidence": 0.95,
             },
             {
                 "input": "¿Cuál es el mejor momento para viajar a Barcelona?",
-                "response": "El mejor momento para visitar Barcelona es durante la primavera (abril-junio) y el otoño (septiembre-octubre). El clima es agradable, hay menos turistas que en verano, y los precios suelen ser más razonables. Evita agosto si prefieres menos multitudes.",
+                "response": (
+                    "El mejor momento para visitar Barcelona es durante la primavera (abril-junio) y el otoño"
+                    " (septiembre-octubre). El clima es agradable, hay menos turistas que en verano, y los precios"
+                    " suelen ser más razonables. Evita agosto si prefieres menos multitudes."
+                ),
                 "confidence": 0.92,
             },
             {
                 "input": "¿Qué documentos necesito para viajar a España?",
-                "response": "Para viajar a España necesitas: pasaporte válido (ciudadanos no-UE) o DNI (ciudadanos UE), posible visa según tu nacionalidad, seguro de viaje recomendado, y prueba de fondos suficientes si te lo solicitan en el control fronterizo.",
+                "response": (
+                    "Para viajar a España necesitas: pasaporte válido (ciudadanos no-UE) o DNI (ciudadanos UE),"
+                    " posible visa según tu nacionalidad, seguro de viaje recomendado, y prueba de fondos"
+                    " suficientes si te lo solicitan en el control fronterizo."
+                ),
                 "confidence": 0.98,
             },
         ],

@@ -2,9 +2,9 @@
 
 from shared.interfaces.interfaces import (
     AudioProcessorInterface,
+    AuthInterface,
     BackendInterface,
     ConversationInterface,
-    AuthInterface,
     StorageInterface,
 )
 

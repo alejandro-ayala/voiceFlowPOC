@@ -5,15 +5,15 @@ Implements SOLID DIP principle for loose coupling.
 
 from fastapi import Depends
 
+from application.orchestration.backend_adapter import LocalBackendAdapter
+from application.services.audio_service import AudioService
+from application.services.conversation_service import ConversationService
 from integration.configuration.settings import Settings, get_settings
 from shared.interfaces.interfaces import (
     AudioProcessorInterface,
     BackendInterface,
     ConversationInterface,
 )
-from application.orchestration.backend_adapter import LocalBackendAdapter
-from application.services.audio_service import AudioService
-from application.services.conversation_service import ConversationService
 
 
 def get_audio_processor(
@@ -50,12 +50,7 @@ async def initialize_services():
     Initialize all services during application startup.
     This function is called once during application lifespan.
     """
-    global \
-        _backend_service, \
-        _audio_service, \
-        _conversation_service, \
-        _auth_service, \
-        _storage_service
+    global _backend_service, _audio_service, _conversation_service, _auth_service, _storage_service
 
     try:
         # Initialize backend service (demo mode)
@@ -107,9 +102,7 @@ async def cleanup_services():
 class SimulatedAudioService:
     """Simulated audio service for demo when Azure isn't available"""
 
-    async def transcribe_audio(
-        self, audio_data: bytes, format: str, language: str = "es-ES"
-    ):
+    async def transcribe_audio(self, audio_data: bytes, format: str, language: str = "es-ES"):
         """Simulate audio transcription"""
         import asyncio
 

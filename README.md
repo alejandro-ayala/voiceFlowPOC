@@ -98,13 +98,13 @@ LOG_LEVEL=INFO
 
 ### Instalación de Dependencias
 ```bash
-# Activar entorno virtual (ya configurado)
 cd VoiceFlowPOC
-./venv/Scripts/activate
 
-# Las dependencias ya están instaladas en el venv
-# Si necesitas reinstalar:
-pip install -r requirements.txt
+# Instalar dependencias con Poetry
+poetry install
+
+# O ejecutar directamente con Docker (recomendado)
+docker compose up --build
 ```
 
 ---
@@ -137,10 +137,10 @@ VoiceFlowPOC/
 │   ├── app.py                # FastAPI application
 │   ├── api/v1/               # REST API endpoints
 │   └── static/               # Frontend assets
-├── requirements.txt           # 📦 Dependencias del proyecto
+├── pyproject.toml             # 📦 Dependencias y configuracion (Poetry)
+├── poetry.lock                # 🔒 Lock file de dependencias
 ├── .env                       # ⚙️ Configuración y API keys
 ├── README.md                  # 📖 Este archivo
-├── venv/                      # 🐍 Entorno virtual configurado
 └── documentation/             # 📚 Documentación completa
     ├── TESTING_SYSTEM_README.md
     ├── SISTEMA_CONSOLIDADO_FINAL.md

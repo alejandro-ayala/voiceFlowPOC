@@ -1,14 +1,15 @@
-from typing import Dict, Any
-from pathlib import Path
 import asyncio
+from pathlib import Path
+from typing import Any, Dict
+
 import azure.cognitiveservices.speech as speechsdk
 import structlog
 
 from shared.interfaces.stt_interface import (
-    STTServiceInterface,
-    STTServiceError,
     AudioFormatError,
     ServiceConfigurationError,
+    STTServiceError,
+    STTServiceInterface,
 )
 
 logger = structlog.get_logger(__name__)
@@ -40,18 +41,12 @@ class AzureSpeechService(STTServiceInterface):
     def _initialize_service(self) -> None:
         """Inicializa la configuración del servicio Azure Speech."""
         try:
-            self._speech_config = speechsdk.SpeechConfig(
-                subscription=self.subscription_key, region=self.region
-            )
+            self._speech_config = speechsdk.SpeechConfig(subscription=self.subscription_key, region=self.region)
             # Configuración para español (cambiable según necesidades)
             self._speech_config.speech_recognition_language = "es-ES"
-            logger.info(
-                "Azure Speech Service inicializado correctamente", region=self.region
-            )
+            logger.info("Azure Speech Service inicializado correctamente", region=self.region)
         except Exception as e:
-            raise ServiceConfigurationError(
-                f"Error inicializando Azure Speech Service: {str(e)}", "azure_speech", e
-            )
+            raise ServiceConfigurationError(f"Error inicializando Azure Speech Service: {str(e)}", "azure_speech", e)
 
     async def transcribe_audio(self, audio_path: Path, **kwargs) -> str:
         """
@@ -65,9 +60,7 @@ class AzureSpeechService(STTServiceInterface):
             str: Texto transcrito
         """
         if not audio_path.exists():
-            raise STTServiceError(
-                f"Archivo de audio no encontrado: {audio_path}", "azure_speech"
-            )
+            raise STTServiceError(f"Archivo de audio no encontrado: {audio_path}", "azure_speech")
 
         # Handle webm format by converting to wav temporarily
         original_path = audio_path
@@ -76,9 +69,7 @@ class AzureSpeechService(STTServiceInterface):
             audio_path = await self._convert_webm_to_wav(audio_path)
 
         if not self._is_supported_format_for_azure(audio_path):
-            raise AudioFormatError(
-                f"Formato de audio no soportado: {audio_path.suffix}", "azure_speech"
-            )
+            raise AudioFormatError(f"Formato de audio no soportado: {audio_path.suffix}", "azure_speech")
 
         try:
             # Configurar idioma si se proporciona
@@ -89,13 +80,9 @@ class AzureSpeechService(STTServiceInterface):
             audio_input = speechsdk.audio.AudioConfig(filename=str(audio_path))
 
             # Crear recognizer
-            speech_recognizer = speechsdk.SpeechRecognizer(
-                speech_config=self._speech_config, audio_config=audio_input
-            )
+            speech_recognizer = speechsdk.SpeechRecognizer(speech_config=self._speech_config, audio_config=audio_input)
 
-            logger.info(
-                "Iniciando transcripción", audio_file=str(audio_path), language=language
-            )
+            logger.info("Iniciando transcripción", audio_file=str(audio_path), language=language)
 
             # Realizar transcripción (Azure maneja esto de forma síncrona internamente)
             result = await self._recognize_once(speech_recognizer)
@@ -131,9 +118,7 @@ class AzureSpeechService(STTServiceInterface):
                         try:
                             props = getattr(result, "properties", None)
                             if props is not None:
-                                raw = props.get(
-                                    speechsdk.PropertyId.SpeechServiceResponse_JsonResult
-                                )
+                                raw = props.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult)
                                 logger.debug("Azure raw JSON result", raw=raw)
                         except Exception:
                             # Non-fatal: best-effort logging
@@ -158,9 +143,7 @@ class AzureSpeechService(STTServiceInterface):
             if isinstance(e, STTServiceError):
                 raise
             logger.error("Error en transcripción Azure", error=str(e))
-            raise STTServiceError(
-                f"Error durante la transcripción: {str(e)}", "azure_speech", e
-            )
+            raise STTServiceError(f"Error durante la transcripción: {str(e)}", "azure_speech", e)
 
     async def _recognize_once(self, recognizer: speechsdk.SpeechRecognizer):
         """Wrapper asyncio para el método síncrono de Azure."""
@@ -190,8 +173,8 @@ class AzureSpeechService(STTServiceInterface):
                 push_stream.close()
 
                 # Create temp wav file with proper header
-                import wave
                 import struct
+                import wave
 
                 sample_rate = 16000
                 channels = 1
@@ -208,9 +191,7 @@ class AzureSpeechService(STTServiceInterface):
                     # Use a portion of the data as audio samples
                     # Skip potential webm headers (first 10% of file)
                     start_offset = len(webm_data) // 10
-                    audio_data = webm_data[
-                        start_offset : start_offset + estimated_samples * 2
-                    ]
+                    audio_data = webm_data[start_offset : start_offset + estimated_samples * 2]
 
                     wav_file.writeframes(audio_data)
 

@@ -2,13 +2,14 @@
 Health check endpoints for system monitoring.
 """
 
-from fastapi import APIRouter, Depends
 from datetime import datetime
 
-from application.models.responses import SystemStatusResponse, StatusEnum
-from shared.utils.dependencies import get_backend_adapter, get_audio_processor
-from shared.interfaces.interfaces import BackendInterface, AudioProcessorInterface
-from integration.configuration.settings import get_settings, Settings
+from fastapi import APIRouter, Depends
+
+from application.models.responses import StatusEnum, SystemStatusResponse
+from integration.configuration.settings import Settings, get_settings
+from shared.interfaces.interfaces import AudioProcessorInterface, BackendInterface
+from shared.utils.dependencies import get_audio_processor, get_backend_adapter
 
 router = APIRouter(prefix="/health", tags=["Health"])
 
@@ -43,9 +44,7 @@ async def health_check(
                 "details": backend_status,
             },
             "audio_service": {
-                "status": (
-                    "healthy" if audio_info.get("is_available", False) else "unhealthy"
-                ),
+                "status": ("healthy" if audio_info.get("is_available", False) else "unhealthy"),
                 "description": f"STT Backend: {audio_info.get('stt_backend', 'unknown')}",
                 "details": audio_info,
             },
@@ -58,11 +57,7 @@ async def health_check(
 
         return SystemStatusResponse(
             status=StatusEnum.SUCCESS if system_healthy else StatusEnum.WARNING,
-            message=(
-                "System operational"
-                if system_healthy
-                else "System partially operational"
-            ),
+            message=("System operational" if system_healthy else "System partially operational"),
             system_health="healthy" if system_healthy else "partial",
             components=components,
             uptime="running",

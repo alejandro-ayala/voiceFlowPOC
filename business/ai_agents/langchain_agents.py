@@ -8,19 +8,19 @@ Author: GitHub Copilot Assistant
 Date: November 28, 2025
 """
 
-import os
-import json
 import asyncio
-from typing import Dict, Any, List, Optional
+import json
+import os
 from datetime import datetime
-
-# LangChain imports
-from langchain.tools import BaseTool
-from langchain_openai import ChatOpenAI
+from typing import Any, Dict, List, Optional
 
 # Core dependencies
 import structlog
 from dotenv import load_dotenv
+
+# LangChain imports
+from langchain.tools import BaseTool
+from langchain_openai import ChatOpenAI
 
 # Load environment variables
 load_dotenv()
@@ -33,9 +33,7 @@ class TourismNLUTool(BaseTool):
     """Extract intents and entities from Spanish tourism requests"""
 
     name: str = "tourism_nlu"
-    description: str = (
-        "Analyze user intent and extract tourism entities from Spanish text"
-    )
+    description: str = "Analyze user intent and extract tourism entities from Spanish text"
 
     def _run(self, user_input: str) -> str:
         """Analyze Spanish tourism request and extract structured information"""
@@ -46,15 +44,9 @@ class TourismNLUTool(BaseTool):
 
         # Extract intent
         intent = "information_request"
-        if any(
-            word in user_lower
-            for word in ["ruta", "llegar", "cómo", "como", "ir", "transporte"]
-        ):
+        if any(word in user_lower for word in ["ruta", "llegar", "cómo", "como", "ir", "transporte"]):
             intent = "route_planning"
-        elif any(
-            word in user_lower
-            for word in ["concierto", "evento", "actividad", "plan", "ocio"]
-        ):
+        elif any(word in user_lower for word in ["concierto", "evento", "actividad", "plan", "ocio"]):
             intent = "event_search"
         elif any(word in user_lower for word in ["restaurante", "comer", "comida"]):
             intent = "restaurant_search"
@@ -75,11 +67,7 @@ class TourismNLUTool(BaseTool):
             destination = "Palacio Real"
         elif "templo debod" in user_lower:
             destination = "Templo de Debod"
-        elif (
-            "concierto" in user_lower
-            or "música" in user_lower
-            or "musica" in user_lower
-        ):
+        elif "concierto" in user_lower or "música" in user_lower or "musica" in user_lower:
             destination = "Espacios musicales Madrid"
         elif "restaurante" in user_lower:
             destination = "Restaurantes Madrid"
@@ -87,17 +75,12 @@ class TourismNLUTool(BaseTool):
             destination = "Parques Madrid"
         elif "teatro" in user_lower:
             destination = "Teatros Madrid"
-        elif "madrid" in user_lower and not any(
-            specific in user_lower for specific in ["prado", "reina", "thyssen"]
-        ):
+        elif "madrid" in user_lower and not any(specific in user_lower for specific in ["prado", "reina", "thyssen"]):
             destination = "Madrid centro"
 
         # Extract accessibility needs
         accessibility = "general"
-        if any(
-            word in user_lower
-            for word in ["silla de ruedas", "wheelchair", "accesible", "movilidad"]
-        ):
+        if any(word in user_lower for word in ["silla de ruedas", "wheelchair", "accesible", "movilidad"]):
             accessibility = "wheelchair"
         elif any(word in user_lower for word in ["visual", "ciego", "braille"]):
             accessibility = "visual_impairment"
@@ -132,9 +115,7 @@ class AccessibilityAnalysisTool(BaseTool):
 
     def _run(self, nlu_result: str) -> str:
         """Analyze accessibility requirements based on NLU results"""
-        logger.info(
-            "♿ Accessibility Tool: Processing requirements", nlu_input=nlu_result
-        )
+        logger.info("♿ Accessibility Tool: Processing requirements", nlu_input=nlu_result)
 
         # Parse NLU result
         try:
@@ -224,9 +205,7 @@ class RoutePlanningTool(BaseTool):
     """Plan optimal accessible routes using Maps APIs"""
 
     name: str = "route_planning"
-    description: str = (
-        "Generate accessible routes with multiple transport options and timing"
-    )
+    description: str = "Generate accessible routes with multiple transport options and timing"
 
     def _run(self, accessibility_info: str) -> str:
         """Plan accessible routes based on accessibility requirements"""
@@ -385,9 +364,7 @@ class TourismInfoTool(BaseTool):
 
     def _run(self, venue_info: str) -> str:
         """Get comprehensive tourism information"""
-        logger.info(
-            "ℹ️ Tourism Info Tool: Fetching venue information", venue_input=venue_info
-        )
+        logger.info("ℹ️ Tourism Info Tool: Fetching venue information", venue_input=venue_info)
 
         # Parse venue information
         venue_lower = venue_info.lower()
@@ -549,9 +526,7 @@ class TourismInfoTool(BaseTool):
                 ],
                 "special_exhibitions": ["Check specific venue websites"],
                 "accessibility_services": {"varies": "Contact venue directly"},
-                "contact": {
-                    "general": "Contact specific venue for accessibility information"
-                },
+                "contact": {"general": "Contact specific venue for accessibility information"},
             },
         )
 
@@ -588,14 +563,10 @@ class TourismMultiAgent:
         # Configure OpenAI
         api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError(
-                "OpenAI API key not found. Set OPENAI_API_KEY environment variable."
-            )
+            raise ValueError("OpenAI API key not found. Set OPENAI_API_KEY environment variable.")
 
         # Initialize LLM
-        self.llm = ChatOpenAI(
-            model="gpt-4", temperature=0.3, openai_api_key=api_key, max_tokens=1500
-        )
+        self.llm = ChatOpenAI(model="gpt-4", temperature=0.3, openai_api_key=api_key, max_tokens=1500)
 
         # Initialize conversation memory
         self.conversation_history = []
@@ -609,12 +580,12 @@ class TourismMultiAgent:
         ]
 
         # Initialize agent with simplified approach
-        self.system_prompt = """You are an expert accessible tourism assistant for Spanish-speaking users. 
+        self.system_prompt = """You are an expert accessible tourism assistant for Spanish-speaking users.
 Your goal is to help users plan accessible tourism experiences using specialized tools.
 
 Available tools:
 - tourism_nlu: Analyzes user intent and extracts entities
-- accessibility_analysis: Analyzes accessibility requirements  
+- accessibility_analysis: Analyzes accessibility requirements
 - route_planning: Plans accessible routes
 - tourism_info: Gets current venue information
 
@@ -695,18 +666,12 @@ Genera una respuesta completa y útil en español que incluya:
 Sé conversacional, útil y enfócate en los aspectos de accesibilidad."""
 
             response = self.llm.invoke(final_prompt)
-            result_text = (
-                response.content if hasattr(response, "content") else str(response)
-            )
+            result_text = response.content if hasattr(response, "content") else str(response)
 
             # Save to conversation history
-            self.conversation_history.append(
-                {"user": user_input, "assistant": result_text}
-            )
+            self.conversation_history.append({"user": user_input, "assistant": result_text})
 
-            logger.info(
-                "✅ Request processed successfully", response_length=len(result_text)
-            )
+            logger.info("✅ Request processed successfully", response_length=len(result_text))
             return result_text
 
         except Exception as e:
@@ -715,10 +680,7 @@ Sé conversacional, útil y enfócate en los aspectos de accesibilidad."""
 
     def get_conversation_history(self) -> List[Dict[str, Any]]:
         """Get current conversation history"""
-        return [
-            {"user": msg["user"], "assistant": msg["assistant"]}
-            for msg in self.conversation_history
-        ]
+        return [{"user": msg["user"], "assistant": msg["assistant"]} for msg in self.conversation_history]
 
     def clear_conversation(self) -> None:
         """Clear conversation history"""
@@ -762,9 +724,7 @@ async def test_orchestrator():
     try:
         agent = TourismMultiAgent()
 
-        test_request = (
-            "Necesito ir al Museo del Prado en silla de ruedas, ¿cuál es la mejor ruta?"
-        )
+        test_request = "Necesito ir al Museo del Prado en silla de ruedas, ¿cuál es la mejor ruta?"
         response = await agent.process_request(test_request)
 
         print(f"\n🤖 Orchestrator Response:\n{response}")

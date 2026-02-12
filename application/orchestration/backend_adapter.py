@@ -4,13 +4,14 @@ Implements BackendInterface following SOLID SRP principle.
 """
 
 import asyncio
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
+
 import structlog
 
-from shared.interfaces.interfaces import BackendInterface
-from shared.exceptions.exceptions import BackendCommunicationException
 from integration.configuration.settings import Settings
+from shared.exceptions.exceptions import BackendCommunicationException
+from shared.interfaces.interfaces import BackendInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -33,9 +34,7 @@ class LocalBackendAdapter(BackendInterface):
                 # Import the existing multi-agent system
                 from business.ai_agents.langchain_agents import TourismMultiAgent
 
-                logger.info(
-                    "🔗 Initializing LocalBackendAdapter with existing multi-agent system"
-                )
+                logger.info("🔗 Initializing LocalBackendAdapter with existing multi-agent system")
                 self._backend_instance = TourismMultiAgent()
                 logger.info("✅ Backend adapter initialized successfully")
 
@@ -66,14 +65,10 @@ class LocalBackendAdapter(BackendInterface):
             use_real_agents = getattr(self.settings, "use_real_agents", True)
 
             if use_real_agents:
-                logger.info(
-                    "🚀 Processing query through REAL backend", query=transcription
-                )
+                logger.info("🚀 Processing query through REAL backend", query=transcription)
                 ai_response = await self._process_real_query(transcription)
             else:
-                logger.info(
-                    "🚀 Processing query through SIMULATED backend", query=transcription
-                )
+                logger.info("🚀 Processing query through SIMULATED backend", query=transcription)
                 ai_response = await self._simulate_ai_response(transcription)
 
             # Increment conversation counter
@@ -92,9 +87,7 @@ class LocalBackendAdapter(BackendInterface):
                         "route_planning",
                         "tourism_info",
                     ],
-                    "backend_type": (
-                        "real_langchain" if use_real_agents else "simulated_demo"
-                    ),
+                    "backend_type": ("real_langchain" if use_real_agents else "simulated_demo"),
                     "model": "gpt-4" if use_real_agents else "demo_simulation",
                 },
                 "metadata": {
@@ -138,13 +131,9 @@ class LocalBackendAdapter(BackendInterface):
             # Call the real backend with the transcription
             # This will use OpenAI and consume tokens
             if hasattr(backend, "process_request_sync"):
-                response = await asyncio.to_thread(
-                    backend.process_request_sync, transcription
-                )
+                response = await asyncio.to_thread(backend.process_request_sync, transcription)
             elif hasattr(backend, "process_request"):
-                response = await asyncio.to_thread(
-                    backend.process_request, transcription
-                )
+                response = await asyncio.to_thread(backend.process_request, transcription)
             elif hasattr(backend, "process_query"):
                 response = await asyncio.to_thread(backend.process_query, transcription)
             elif hasattr(backend, "process"):
@@ -153,9 +142,8 @@ class LocalBackendAdapter(BackendInterface):
                 response = await asyncio.to_thread(backend.run, transcription)
             else:
                 # Final fallback - try to get a method that might work
-                raise AttributeError(
-                    f"TourismMultiAgent has no compatible method. Available methods: {[m for m in dir(backend) if not m.startswith('_')]}"
-                )
+                available = [m for m in dir(backend) if not m.startswith("_")]
+                raise AttributeError(f"TourismMultiAgent has no compatible method. Available methods: {available}")
 
             logger.info(
                 "✅ REAL backend processing completed",
@@ -184,8 +172,8 @@ class LocalBackendAdapter(BackendInterface):
 
         # Generate contextual response based on keywords
         if "prado" in query_lower or "museo del prado" in query_lower:
-            return """El Museo del Prado es una excelente opción accesible en Madrid. 
-            
+            return """El Museo del Prado es una excelente opción accesible en Madrid.
+
 🏛️ **Información de Accesibilidad:**
 • Acceso completo para sillas de ruedas
 • Puntuación de accesibilidad: 9.2/10
@@ -271,13 +259,13 @@ Recomendamos llamar con anticipación para confirmar la accesibilidad específic
 Planifica tu ruta con tiempo extra y considera las condiciones climáticas para las partes a pie."""
 
         else:
-            return f"""Entiendo tu consulta sobre "{transcription}". 
+            return f"""Entiendo tu consulta sobre "{transcription}".
 
 🌍 **Asistente de Turismo Accesible Madrid**
 
 Te puedo ayudar con:
 • 🏛️ Museos y atracciones turísticas accesibles
-• 🎵 Eventos y conciertos con accesibilidad garantizada  
+• 🎵 Eventos y conciertos con accesibilidad garantizada
 • 🍽️ Restaurantes accesibles
 • 🚇 Rutas de transporte accesible
 • ♿ Información específica de accesibilidad

@@ -4,9 +4,9 @@ VoiceFlow PoC Web UI Runner
 Simple script to run the web interface with proper environment setup.
 """
 
+import argparse
 import os
 import sys
-import argparse
 from pathlib import Path
 
 # Add the project directory to Python path
@@ -65,9 +65,7 @@ def check_dependencies():
         for package in missing_packages:
             print(f"   - {package}")
         print("\nInstall them with:")
-        print(f"   pip install {' '.join(missing_packages)}")
-        print("\nOr install all UI requirements:")
-        print(f"   pip install -r {project_dir}/requirements-ui.txt")
+        print("   poetry install")
         return False
 
     print("All required packages are installed")
@@ -75,9 +73,7 @@ def check_dependencies():
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="VoiceFlow PoC Web UI Development Server"
-    )
+    parser = argparse.ArgumentParser(description="VoiceFlow PoC Web UI Development Server")
     parser.add_argument(
         "--host",
         default=os.environ.get("HOST", "127.0.0.1"),
@@ -101,9 +97,7 @@ def main():
         choices=["critical", "error", "warning", "info", "debug"],
         help="Log level (default: info)",
     )
-    parser.add_argument(
-        "--check-deps", action="store_true", help="Check dependencies and exit"
-    )
+    parser.add_argument("--check-deps", action="store_true", help="Check dependencies and exit")
 
     args = parser.parse_args()
 

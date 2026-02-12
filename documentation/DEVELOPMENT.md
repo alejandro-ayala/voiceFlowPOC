@@ -1,14 +1,16 @@
 # Guia de Desarrollo - VoiceFlow Tourism PoC
 
-**Actualizado**: 11 de Febrero de 2026
+**Actualizado**: 12 de Febrero de 2026
 **Arquitectura**: 4 capas (shared, integration, business, application) + presentation + CI/CD Pipeline
 
 ---
 
 ## Prerrequisitos
 
-- Python 3.9+
+- Python 3.11+
+- [Poetry](https://python-poetry.org/docs/#installation) (gestor de dependencias)
 - Git
+- Docker y Docker Compose (recomendado)
 - Editor con soporte para type hints (VS Code recomendado)
 - ffmpeg (para conversion de audio webm/mp3)
 
@@ -17,38 +19,32 @@
 1. **Clonar y navegar al proyecto:**
    ```bash
    git clone <repo-url>
-   cd voiceFlowPOC-refactor-baseline
+   cd voiceFlowPOC
    ```
 
-2. **Crear entorno virtual:**
+2. **Instalar dependencias:**
    ```bash
-   python -m venv venv
-   source venv/bin/activate       # Linux/Mac
-   # venv\Scripts\activate        # Windows
+   poetry install          # Dependencias de produccion + desarrollo
+   poetry install --only main  # Solo produccion (sin ruff, pytest, etc.)
    ```
 
-3. **Instalar dependencias:**
-   ```bash
-   pip install -r requirements.txt -r requirements-ui.txt
-   ```
-
-4. **Configurar variables de entorno:**
+3. **Configurar variables de entorno:**
    ```bash
    cp .env.example .env
    # Editar .env con tus credenciales (Azure Speech, OpenAI)
    ```
 
-5. **Ejecutar la aplicacion con Docker (recomendado):**
+4. **Ejecutar la aplicacion con Docker (recomendado):**
    ```bash
    docker compose up --build
    # Acceder a http://localhost:8000
    # API docs en http://localhost:8000/api/docs (modo debug)
    # Hot-reload automatico al editar archivos
    ```
-   
+
    **Alternativa local (sin Docker):**
    ```bash
-   python presentation/server_launcher.py
+   poetry run python presentation/server_launcher.py
    # Acceder a http://localhost:8000
    # API docs en http://localhost:8000/api/docs (modo debug)
    ```
@@ -119,8 +115,8 @@ voiceFlowPOC-refactor-baseline/
 │
 ├── presentation/
 │   ├── server_launcher.py           # Entry point principal
-├── requirements.txt                 # Dependencias core (Azure, LangChain, audio)
-├── requirements-ui.txt              # Dependencias web (FastAPI, uvicorn, etc.)
+├── pyproject.toml                   # Dependencias y configuracion (Poetry)
+├── poetry.lock                      # Lock file de dependencias
 ├── .env.example                     # Template de configuracion
 └── INFORME_FINAL_ARQUITECTONICO.md  # Documento de arquitectura general
 ```
@@ -167,28 +163,21 @@ python -c "from presentation.fastapi_factory import create_application; print('O
 
 **Antes de hacer push**, ejecuta las mismas verificaciones que el CI/CD pipeline:
 
-#### 1. **Instalar herramientas de linting**
+#### 1. **Herramientas de linting**
 
-```bash
-# Instalar ruff (linter y formatter) y mypy (type checker)
-pip install ruff mypy
-
-# Nota: Asegúrate de instalar en el venv del proyecto, no global
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate    # Windows
-```
+`ruff` y `mypy` ya estan incluidos en el grupo de desarrollo de `pyproject.toml`. Se instalan automaticamente con `poetry install`.
 
 #### 2. **Ejecutar verificaciones**
 
 ```bash
 # Check linting (detectar errores de estilo, imports no usados, etc.)
-ruff check .
+poetry run ruff check .
 
 # Check de formato (verificar que el código siga el estándar)
-ruff format --check .
+poetry run ruff format --check .
 
 # Type checking (información sobre tipos - no bloquea, solo informativo)
-mypy application/ business/ shared/ integration/ presentation/ --ignore-missing-imports --no-error-summary
+poetry run mypy application/ business/ shared/ integration/ presentation/
 ```
 
 #### 3. **Auto-fix automático**
@@ -197,13 +186,13 @@ Si hay errores, ruff puede arreglar muchos automáticamente:
 
 ```bash
 # Auto-fix errores que se pueden arreglar automáticamente
-ruff check . --fix
+poetry run ruff check . --fix
 
 # Auto-format todo el código al estándar
-ruff format .
+poetry run ruff format .
 
 # Luego verifica que todo pasó
-ruff check . && ruff format --check .
+poetry run ruff check . && poetry run ruff format --check .
 ```
 
 #### 4. **Errores comunes** que mira ruff:
@@ -219,14 +208,14 @@ ruff check . && ruff format --check .
 
 ```bash
 # 1. Verificar que el código pasa linting
-ruff check .
+poetry run ruff check .
 
 # 2. Si hay errores, auto-fixear
-ruff check . --fix
-ruff format .
+poetry run ruff check . --fix
+poetry run ruff format .
 
 # 3. Verificar de nuevo
-ruff check . && ruff format --check .
+poetry run ruff check . && poetry run ruff format --check .
 
 # 4. Si todo pasa, hacer commit
 git add -A
@@ -251,15 +240,15 @@ Si alguna verificación falla localmente, fallará también en el CI/CD y bloque
 
 ```bash
 # Ejecutar todos los tests
-pytest tests/ -v
+poetry run pytest tests/ -v
 
 # Tests por capa
-pytest tests/test_shared/ -v
-pytest tests/test_business/ -v
-pytest tests/test_application/ -v
+poetry run pytest tests/test_shared/ -v
+poetry run pytest tests/test_business/ -v
+poetry run pytest tests/test_application/ -v
 
 # Con coverage
-pytest tests/ --cov=shared --cov=integration --cov=business --cov=application --cov=presentation --cov-report=html
+poetry run pytest tests/ --cov --cov-report=html
 ```
 
 ### Verificar servicio STT
@@ -270,6 +259,19 @@ from integration.external_apis.stt_factory import STTServiceFactory
 services = STTServiceFactory.get_available_services()
 print(f'Servicios disponibles: {services}')
 "
+```
+
+## Agregar dependencias
+
+```bash
+# Agregar una dependencia de produccion
+poetry add <paquete>
+
+# Agregar una dependencia de desarrollo
+poetry add --group dev <paquete>
+
+# Actualizar dependencias respetando los constraints
+poetry update
 ```
 
 ## Agregar un nuevo servicio STT

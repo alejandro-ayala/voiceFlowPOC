@@ -490,23 +490,20 @@ RUN groupadd -r voiceflow && useradd -r -g voiceflow -d /app -s /sbin/nologin vo
 # ============================================
 FROM base AS dependencies
 
-# Copiar solo archivos de dependencias para cache de Docker layers
-COPY requirements.txt requirements-ui.txt ./
-
-# Instalar dependencias en un virtualenv
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt -r requirements-ui.txt
+# Instalar Poetry y dependencias de produccion
+RUN pip install --no-cache-dir poetry
+ENV POETRY_NO_INTERACTION=1 POETRY_VIRTUALENVS_CREATE=false
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --only main --no-root
 
 # ============================================
 # Stage 3: Aplicación final
 # ============================================
 FROM base AS production
 
-# Copiar virtualenv del stage anterior
-COPY --from=dependencies /opt/venv /opt/venv
+# Copiar paquetes instalados del stage anterior
+COPY --from=dependencies /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=dependencies /usr/local/bin/ /usr/local/bin/
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copiar código de la aplicación
@@ -792,16 +789,17 @@ Implementar una suite de tests completa que cubra los tres niveles del ciclo de 
 
 ### 3.2 Dependencias de testing
 
-Añadir a `requirements-dev.txt` (nuevo archivo, solo para desarrollo):
+Las dependencias de testing ya estan en el grupo `dev` de `pyproject.toml` (pytest, pytest-asyncio, pytest-mock, pytest-cov). Para instalarlas:
 
+```bash
+poetry install  # instala main + dev por defecto
 ```
-pytest==7.4.3
-pytest-asyncio==0.23.0
-pytest-mock==3.12.0
-pytest-cov==4.1.0
-pytest-xdist==3.5.0          # Ejecución paralela de tests
-httpx==0.25.2                 # Cliente async para TestClient
-faker==22.0.0                 # Generación de datos de test
+
+Dependencias adicionales a añadir si se necesitan:
+
+```bash
+poetry add --group dev pytest-xdist  # Ejecución paralela de tests
+poetry add --group dev faker         # Generación de datos de test
 ```
 
 ### 3.3 Configuración pytest
@@ -1741,9 +1739,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt -r requirements-ui.txt -r requirements-dev.txt
-      - run: pytest tests/unit/ tests/integration/ -v --tb=short --junitxml=results.xml -m "not slow"
-      - run: pytest tests/ --cov --cov-report=xml --cov-fail-under=70
+      - run: pip install poetry && poetry install
+      - run: poetry run pytest tests/unit/ tests/integration/ -v --tb=short --junitxml=results.xml -m "not slow"
+      - run: poetry run pytest tests/ --cov --cov-report=xml --cov-fail-under=70
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-report
@@ -1951,11 +1949,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install linting tools
-        run: pip install ruff black mypy
+      - name: Install dependencies
+        run: pip install poetry && poetry install --only dev
       - name: Run ruff
-        run: ruff check .
-      - name: Check black formatting
+        run: poetry run ruff check .
+      - name: Check formatting
         run: black --check .
       - name: Type checking with mypy
         run: mypy --ignore-missing-imports application/ business/ integration/
@@ -1987,7 +1985,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install security tools
-        run: pip install bandit safety
+        run: pip install poetry && poetry add --group dev bandit safety && poetry install --only dev
       - name: Run bandit (security linter)
         run: bandit -r application/ business/ integration/ -f json -o bandit-report.json
       - name: Check dependencies with safety
@@ -2181,7 +2179,7 @@ Tareas que pueden ejecutarse en paralelo con cualquier fase:
 | 2 | Eliminar `SimulatedAudioService` de `dependencies.py` (no implementa interfaz) | Bajo | Fase 3 |
 | 3 | Eliminar `initialize_services()` globals duplicadas | Bajo | Fase 3 |
 | 4 | Mover `dependencies.py` de `shared/utils/` a `application/` | Medio | Fase 1 |
-| 5 | Unificar `requirements.txt` y `requirements-ui.txt` en uno solo | Bajo | Fase 2 |
+| ~~5~~ | ~~Unificar requirements en uno solo~~ | ~~Bajo~~ | ✅ **COMPLETADO** — Consolidado en `pyproject.toml` |
 | 6 | Fijar variables Jinja2 en `index.html` (`title` → `app_name`, `environment`) | Bajo | Cualquiera |
 | 7 | Conectar templates `404.html` y `500.html` a handlers | Bajo | Cualquiera |
 | 8 | Fix `AudioService.validate_audio` dual (dos métodos con mismo nombre) | Medio | Fase 3 |
