@@ -96,17 +96,58 @@ jobs:
         run: docker rm -f voiceflow-test || true
 
   # ====================
+  # SECRETS VALIDATION
+  # ====================
+  secrets-check:
+    runs-on: ubuntu-latest
+    name: Validate GitHub Secrets
+    steps:
+      - name: Check secrets are configured
+        env:
+          OPENAI_KEY_SET: ${{ secrets.OPENAI_API_KEY != '' }}
+          AZURE_KEY_SET: ${{ secrets.AZURE_SPEECH_KEY != '' }}
+          AZURE_REGION_SET: ${{ secrets.AZURE_SPEECH_REGION != '' }}
+        run: |
+          echo "=== GitHub Secrets Validation ==="
+          STATUS=0
+
+          if [ "$OPENAI_KEY_SET" = "true" ]; then
+            echo "✅ OPENAI_API_KEY configured"
+          else
+            echo "❌ OPENAI_API_KEY missing"
+            STATUS=1
+          fi
+
+          if [ "$AZURE_KEY_SET" = "true" ]; then
+            echo "✅ AZURE_SPEECH_KEY configured"
+          else
+            echo "❌ AZURE_SPEECH_KEY missing"
+            STATUS=1
+          fi
+
+          if [ "$AZURE_REGION_SET" = "true" ]; then
+            echo "✅ AZURE_SPEECH_REGION configured"
+          else
+            echo "❌ AZURE_SPEECH_REGION missing"
+            STATUS=1
+          fi
+
+          exit $STATUS
+
+  # ====================
   # SUMMARY
   # ====================
   ci-summary:
     runs-on: ubuntu-latest
     name: CI Status Summary
-    needs: [lint-format, docker-build-validate]
+    needs: [lint-format, docker-build-validate, secrets-check]
     if: always()
     steps:
       - name: Check CI status
         run: |
-          if [ "${{ needs.lint-format.result }}" == "failure" ] || [ "${{ needs.docker-build-validate.result }}" == "failure" ]; then
+          if [ "${{ needs.lint-format.result }}" == "failure" ] || \
+             [ "${{ needs.docker-build-validate.result }}" == "failure" ] || \
+             [ "${{ needs.secrets-check.result }}" == "failure" ]; then
             echo "❌ CI Pipeline Failed"
             exit 1
           fi

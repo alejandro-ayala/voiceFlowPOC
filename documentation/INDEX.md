@@ -1,6 +1,6 @@
 # Documentacion del Proyecto - VoiceFlow Tourism PoC
 
-**Actualizado**: 9 de Febrero de 2026
+**Actualizado**: 12 de Febrero de 2026
 
 ---
 
@@ -23,6 +23,9 @@
 - **[03_business_layer_design.md](design/03_business_layer_design.md)** - LangChain multi-agent
 - **[04_application_layer_design.md](design/04_application_layer_design.md)** - API endpoints, servicios, orquestacion
 - **[05_presentation_layer_design.md](design/05_presentation_layer_design.md)** - FastAPI factory, templates, frontend
+
+### Operaciones y seguridad
+- **[SECRETS_MANAGEMENT.md](SECRETS_MANAGEMENT.md)** - Gestion de credenciales (git-crypt + GitHub Secrets)
 
 ### Evolucion del proyecto
 - **[ROADMAP.md](ROADMAP.md)** - Plan de accion completo: testing, CI/CD, persistencia, monitoring
@@ -53,7 +56,7 @@
 | Ver los endpoints disponibles | [API_REFERENCE.md](API_REFERENCE.md) |
 | Entender una capa especifica | [design/](design/) (SDDs 01-05) |
 | Saber que viene despues | [ROADMAP.md](ROADMAP.md) |
-| Setup CI/CD | [ROADMAP.md](ROADMAP.md) (Fase 5 (SDDs 01-05) |
-| Saber que viene despues | [ROADMAP.md](ROADMAP.md) |
+| Setup CI/CD | [ROADMAP.md](ROADMAP.md) (Fase 5) |
+| Gestionar secrets/credenciales | [SECRETS_MANAGEMENT.md](SECRETS_MANAGEMENT.md) |
 | Agregar un nuevo servicio STT | [DEVELOPMENT.md](DEVELOPMENT.md) |
 | Entender el multi-agente | [ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md) |

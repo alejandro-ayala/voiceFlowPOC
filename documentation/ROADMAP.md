@@ -1,7 +1,7 @@
 # ROADMAP: VoiceFlow Tourism PoC
 
-**Fecha**: 9 de Febrero de 2026
-**Estado actual**: Arquitectura 4 capas + Docker completo | Testing pendiente
+**Fecha**: 12 de Febrero de 2026
+**Estado actual**: Arquitectura 4 capas + Docker + Secrets Management | Testing pendiente
 **Versión actual del proyecto**: 1.1.0
 
 ---
@@ -14,16 +14,17 @@ Este roadmap define las fases de evolución del proyecto desde su estado actual 
 - ✅ Fase 2A: Corrección documental y consolidación
 - ✅ Fase 2:  Dockerización completa (desarrollo + producción)
 - ✅ Fase 2C: Documentación de diseño por capa (SDDs)
+- ✅ Fase 2D: Gestión de secrets (git-crypt + GitHub Secrets)
 
 ### Próximas Fases
 ```
+Fase 2B ─ Descomposición de langchain_agents.py   ← SIGUIENTE
+  │
 Fase 3 ─ Suite de testing (unitario, integración, e2e)
   │
 Fase 5 ─ CI/CD Pipeline (GitHub Actions + Azure)
   │
 Fase 4 ─ Persistencia real (PostgreSQL + Redis)
-  │
-Fase 1 ─ Descomposición de langchain_agents.py (opcional)
   │
 Fase 6 ─ Monitoring y observabilidad (Prometheus, Grafana)
   │
@@ -779,9 +780,36 @@ docker compose build --no-cache
 
 ---
 
+## Fase 2D: Gestión de Secrets
+
+**Estado**: ✅ **COMPLETADA** (12 Febrero 2026)
+
+### 2D.1 Objetivo
+
+Hacer el repositorio autocontenido en cuanto a credenciales: al clonar y desbloquear, todas las keys están disponibles sin configuración manual.
+
+### 2D.2 Implementación
+
+- **Local**: `git-crypt` cifra `.env` en el repositorio. Se descifra con `git-crypt unlock <key-file>`.
+- **CI/CD**: GitHub Secrets (`OPENAI_API_KEY`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`) inyectados como variables de entorno.
+- **Pipeline**: Job `secrets-check` valida que los 3 secrets están configurados sin exponer valores.
+
+### 2D.3 Archivos modificados
+
+- `.gitattributes` (nuevo): Marca `.env` para cifrado con git-crypt
+- `.gitignore`: Eliminada exclusión de `.env` (ahora gestionado por git-crypt)
+- `.github/workflows/ci.yml`: Añadido job `secrets-check`
+- `documentation/SECRETS_MANAGEMENT.md` (nuevo): Guía completa de setup y operaciones
+
+### 2D.4 Documentación
+
+Guía completa en [SECRETS_MANAGEMENT.md](SECRETS_MANAGEMENT.md).
+
+---
+
 ## Fase 3: Testing y validación del software
 
-**Estado**: ⏭️ **PRÓXIMA PRIORIDAD**
+**Estado**: Pendiente (tras Fase 2B)
 
 ### 3.1 Objetivo
 
