@@ -1,21 +1,29 @@
-from typing import Dict, Any, Optional
-from pathlib import Path
 import asyncio
+from pathlib import Path
+from typing import Any, Dict
+
 import structlog
 
 try:
     import whisper
+
     WHISPER_AVAILABLE = True
 except ImportError:
     WHISPER_AVAILABLE = False
 
 try:
     import openai
+
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
 
-from shared.interfaces.stt_interface import STTServiceInterface, STTServiceError, AudioFormatError, ServiceConfigurationError
+from shared.interfaces.stt_interface import (
+    AudioFormatError,
+    ServiceConfigurationError,
+    STTServiceError,
+    STTServiceInterface,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -28,10 +36,18 @@ class WhisperLocalService(STTServiceInterface):
     con Whisper local.
     """
 
-    SUPPORTED_FORMATS = ['wav', 'mp3', 'ogg', 'flac', 'm4a', 'webm']
-    AVAILABLE_MODELS = ['tiny', 'base', 'small', 'medium', 'large', 'large-v2', 'large-v3']
+    SUPPORTED_FORMATS = ["wav", "mp3", "ogg", "flac", "m4a", "webm"]
+    AVAILABLE_MODELS = [
+        "tiny",
+        "base",
+        "small",
+        "medium",
+        "large",
+        "large-v2",
+        "large-v3",
+    ]
 
-    def __init__(self, model_name: str = 'base'):
+    def __init__(self, model_name: str = "base"):
         """
         Inicializa el servicio Whisper local.
 
@@ -40,8 +56,8 @@ class WhisperLocalService(STTServiceInterface):
         """
         if not WHISPER_AVAILABLE:
             raise ServiceConfigurationError(
-                "OpenAI Whisper no está instalado. Instale con: pip install openai-whisper",
-                "whisper_local"
+                "OpenAI Whisper no está instalado. Instale con: poetry add openai-whisper",
+                "whisper_local",
             )
 
         self.model_name = model_name
@@ -54,7 +70,7 @@ class WhisperLocalService(STTServiceInterface):
             if self.model_name not in self.AVAILABLE_MODELS:
                 raise ServiceConfigurationError(
                     f"Modelo no válido: {self.model_name}. Disponibles: {self.AVAILABLE_MODELS}",
-                    "whisper_local"
+                    "whisper_local",
                 )
 
             logger.info("Cargando modelo Whisper", model=self.model_name)
@@ -62,11 +78,7 @@ class WhisperLocalService(STTServiceInterface):
             logger.info("Modelo Whisper cargado exitosamente")
 
         except Exception as e:
-            raise ServiceConfigurationError(
-                f"Error cargando modelo Whisper: {str(e)}",
-                "whisper_local",
-                e
-            )
+            raise ServiceConfigurationError(f"Error cargando modelo Whisper: {str(e)}", "whisper_local", e)
 
     async def transcribe_audio(self, audio_path: Path, **kwargs) -> str:
         """
@@ -80,54 +92,45 @@ class WhisperLocalService(STTServiceInterface):
             str: Texto transcrito
         """
         if not audio_path.exists():
-            raise STTServiceError(
-                f"Archivo de audio no encontrado: {audio_path}",
-                "whisper_local"
-            )
+            raise STTServiceError(f"Archivo de audio no encontrado: {audio_path}", "whisper_local")
 
         if not self._is_supported_format(audio_path):
-            raise AudioFormatError(
-                f"Formato de audio no soportado: {audio_path.suffix}",
-                "whisper_local"
-            )
+            raise AudioFormatError(f"Formato de audio no soportado: {audio_path.suffix}", "whisper_local")
 
         try:
             # Configurar opciones de transcripción
             options = {
-                'language': kwargs.get('language', 'es'),  # español por defecto
-                'task': kwargs.get('task', 'transcribe'),  # transcribe o translate
-                'verbose': kwargs.get('verbose', False)
+                "language": kwargs.get("language", "es"),  # español por defecto
+                "task": kwargs.get("task", "transcribe"),  # transcribe o translate
+                "verbose": kwargs.get("verbose", False),
             }
 
-            logger.info("Iniciando transcripción con Whisper local",
-                       audio_file=str(audio_path),
-                       options=options)
+            logger.info(
+                "Iniciando transcripción con Whisper local",
+                audio_file=str(audio_path),
+                options=options,
+            )
 
             # Ejecutar transcripción en un executor para no bloquear el loop
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                lambda: self._model.transcribe(str(audio_path), **options)
+            result = await loop.run_in_executor(None, lambda: self._model.transcribe(str(audio_path), **options))
+
+            transcribed_text = result.get("text", "").strip()
+
+            logger.info(
+                "Transcripción completada exitosamente",
+                text_length=len(transcribed_text),
             )
-
-            transcribed_text = result.get('text', '').strip()
-
-            logger.info("Transcripción completada exitosamente",
-                       text_length=len(transcribed_text))
 
             return transcribed_text
 
         except Exception as e:
             logger.error("Error en transcripción Whisper local", error=str(e))
-            raise STTServiceError(
-                f"Error durante la transcripción: {str(e)}",
-                "whisper_local",
-                e
-            )
+            raise STTServiceError(f"Error durante la transcripción: {str(e)}", "whisper_local", e)
 
     def _is_supported_format(self, audio_path: Path) -> bool:
         """Verifica si el formato de audio es soportado."""
-        extension = audio_path.suffix.lower().lstrip('.')
+        extension = audio_path.suffix.lower().lstrip(".")
         return extension in self.SUPPORTED_FORMATS
 
     def is_service_available(self) -> bool:
@@ -145,7 +148,7 @@ class WhisperLocalService(STTServiceInterface):
             "model": self.model_name,
             "supported_formats": self.get_supported_formats(),
             "available_models": self.AVAILABLE_MODELS,
-            "is_available": self.is_service_available()
+            "is_available": self.is_service_available(),
         }
 
 
@@ -157,7 +160,7 @@ class WhisperAPIService(STTServiceInterface):
     con Whisper API.
     """
 
-    SUPPORTED_FORMATS = ['wav', 'mp3', 'ogg', 'flac', 'm4a', 'webm']
+    SUPPORTED_FORMATS = ["wav", "mp3", "ogg", "flac", "m4a", "webm"]
     MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB límite de OpenAI
 
     def __init__(self, api_key: str):
@@ -169,8 +172,8 @@ class WhisperAPIService(STTServiceInterface):
         """
         if not OPENAI_AVAILABLE:
             raise ServiceConfigurationError(
-                "Cliente OpenAI no está instalado. Instale con: pip install openai",
-                "whisper_api"
+                "Cliente OpenAI no está instalado. Instale con: poetry add openai",
+                "whisper_api",
             )
 
         self.api_key = api_key
@@ -183,11 +186,7 @@ class WhisperAPIService(STTServiceInterface):
             self._client = openai.OpenAI(api_key=self.api_key)
             logger.info("Cliente OpenAI Whisper API inicializado correctamente")
         except Exception as e:
-            raise ServiceConfigurationError(
-                f"Error inicializando cliente OpenAI: {str(e)}",
-                "whisper_api",
-                e
-            )
+            raise ServiceConfigurationError(f"Error inicializando cliente OpenAI: {str(e)}", "whisper_api", e)
 
     async def transcribe_audio(self, audio_path: Path, **kwargs) -> str:
         """
@@ -201,66 +200,52 @@ class WhisperAPIService(STTServiceInterface):
             str: Texto transcrito
         """
         if not audio_path.exists():
-            raise STTServiceError(
-                f"Archivo de audio no encontrado: {audio_path}",
-                "whisper_api"
-            )
+            raise STTServiceError(f"Archivo de audio no encontrado: {audio_path}", "whisper_api")
 
         if not self._is_supported_format(audio_path):
-            raise AudioFormatError(
-                f"Formato de audio no soportado: {audio_path.suffix}",
-                "whisper_api"
-            )
+            raise AudioFormatError(f"Formato de audio no soportado: {audio_path.suffix}", "whisper_api")
 
         # Verificar tamaño del archivo
         file_size = audio_path.stat().st_size
         if file_size > self.MAX_FILE_SIZE:
             raise STTServiceError(
-                f"Archivo demasiado grande: {file_size / (1024*1024):.1f}MB. Máximo: 25MB",
-                "whisper_api"
+                f"Archivo demasiado grande: {file_size / (1024 * 1024):.1f}MB. Máximo: 25MB",
+                "whisper_api",
             )
 
         try:
-            logger.info("Iniciando transcripción con Whisper API",
-                       audio_file=str(audio_path))
+            logger.info("Iniciando transcripción con Whisper API", audio_file=str(audio_path))
 
             # Ejecutar llamada API en un executor
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                self._transcribe_sync,
-                audio_path,
-                kwargs
-            )
+            result = await loop.run_in_executor(None, self._transcribe_sync, audio_path, kwargs)
 
             transcribed_text = result.text.strip()
 
-            logger.info("Transcripción completada exitosamente",
-                       text_length=len(transcribed_text))
+            logger.info(
+                "Transcripción completada exitosamente",
+                text_length=len(transcribed_text),
+            )
 
             return transcribed_text
 
         except Exception as e:
             logger.error("Error en transcripción Whisper API", error=str(e))
-            raise STTServiceError(
-                f"Error durante la transcripción: {str(e)}",
-                "whisper_api",
-                e
-            )
+            raise STTServiceError(f"Error durante la transcripción: {str(e)}", "whisper_api", e)
 
     def _transcribe_sync(self, audio_path: Path, kwargs: Dict[str, Any]):
         """Método síncrono para la transcripción API."""
-        with open(audio_path, 'rb') as audio_file:
+        with open(audio_path, "rb") as audio_file:
             return self._client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file,
-                language=kwargs.get('language', 'es'),
-                response_format="text"
+                language=kwargs.get("language", "es"),
+                response_format="text",
             )
 
     def _is_supported_format(self, audio_path: Path) -> bool:
         """Verifica si el formato de audio es soportado."""
-        extension = audio_path.suffix.lower().lstrip('.')
+        extension = audio_path.suffix.lower().lstrip(".")
         return extension in self.SUPPORTED_FORMATS
 
     def is_service_available(self) -> bool:
@@ -277,6 +262,6 @@ class WhisperAPIService(STTServiceInterface):
             "service_name": "OpenAI Whisper API",
             "model": "whisper-1",
             "supported_formats": self.get_supported_formats(),
-            "max_file_size_mb": self.MAX_FILE_SIZE / (1024*1024),
-            "is_available": self.is_service_available()
+            "max_file_size_mb": self.MAX_FILE_SIZE / (1024 * 1024),
+            "is_available": self.is_service_available(),
         }

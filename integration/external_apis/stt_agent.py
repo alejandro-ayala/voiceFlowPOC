@@ -1,10 +1,11 @@
-from typing import Optional, Dict, Any
-from pathlib import Path
 import asyncio
+from pathlib import Path
+from typing import Any, Dict
+
 import structlog
 
-from shared.interfaces.stt_interface import STTServiceInterface, STTServiceError, AudioFormatError
 from integration.external_apis.stt_factory import STTServiceFactory
+from shared.interfaces.stt_interface import STTServiceError, STTServiceInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -32,9 +33,11 @@ class VoiceflowSTTAgent:
         self.agent_id = agent_id
         self._transcription_history: list[Dict[str, Any]] = []
 
-        logger.info("VoiceflowSTTAgent inicializado",
-                   agent_id=self.agent_id,
-                   service_info=self.stt_service.get_service_info())
+        logger.info(
+            "VoiceflowSTTAgent inicializado",
+            agent_id=self.agent_id,
+            service_info=self.stt_service.get_service_info(),
+        )
 
     async def transcribe_audio(self, audio_path: str | Path, **kwargs) -> str:
         """
@@ -60,16 +63,15 @@ class VoiceflowSTTAgent:
 
         # Validar que el servicio esté disponible
         if not self.stt_service.is_service_available():
-            raise STTServiceError(
-                "Servicio STT no está disponible",
-                self.stt_service.__class__.__name__
-            )
+            raise STTServiceError("Servicio STT no está disponible", self.stt_service.__class__.__name__)
 
         try:
-            logger.info("Iniciando transcripción",
-                       agent_id=self.agent_id,
-                       audio_file=str(audio_path),
-                       service=self.stt_service.__class__.__name__)
+            logger.info(
+                "Iniciando transcripción",
+                agent_id=self.agent_id,
+                audio_file=str(audio_path),
+                service=self.stt_service.__class__.__name__,
+            )
 
             # Realizar transcripción usando el servicio configurado
             transcribed_text = await self.stt_service.transcribe_audio(audio_path, **kwargs)
@@ -81,14 +83,16 @@ class VoiceflowSTTAgent:
                 "service_used": self.stt_service.__class__.__name__,
                 "parameters": kwargs,
                 "timestamp": asyncio.get_event_loop().time(),
-                "success": True
+                "success": True,
             }
             self._transcription_history.append(transcription_record)
 
-            logger.info("Transcripción completada exitosamente",
-                       agent_id=self.agent_id,
-                       text_preview=transcribed_text[:100] + "..." if len(transcribed_text) > 100 else transcribed_text,
-                       text_length=len(transcribed_text))
+            logger.info(
+                "Transcripción completada exitosamente",
+                agent_id=self.agent_id,
+                text_preview=(transcribed_text[:100] + "..." if len(transcribed_text) > 100 else transcribed_text),
+                text_length=len(transcribed_text),
+            )
 
             return transcribed_text
 
@@ -100,14 +104,16 @@ class VoiceflowSTTAgent:
                 "service_used": self.stt_service.__class__.__name__,
                 "parameters": kwargs,
                 "timestamp": asyncio.get_event_loop().time(),
-                "success": False
+                "success": False,
             }
             self._transcription_history.append(error_record)
 
-            logger.error("Error en transcripción",
-                        agent_id=self.agent_id,
-                        error=str(e),
-                        audio_file=str(audio_path))
+            logger.error(
+                "Error en transcripción",
+                agent_id=self.agent_id,
+                error=str(e),
+                audio_file=str(audio_path),
+            )
 
             # Re-lanzar la excepción para que el sistema multiagente pueda manejarla
             raise
@@ -135,7 +141,7 @@ class VoiceflowSTTAgent:
             "service_info": service_info,
             "supported_formats": self.get_supported_formats(),
             "transcription_count": len(self._transcription_history),
-            "is_service_available": self.stt_service.is_service_available()
+            "is_service_available": self.stt_service.is_service_available(),
         }
 
     def get_transcription_history(self) -> list[Dict[str, Any]]:
@@ -171,12 +177,14 @@ class VoiceflowSTTAgent:
                 "service_available": is_available,
                 "service_info": service_info,
                 "transcription_count": len(self._transcription_history),
-                "timestamp": asyncio.get_event_loop().time()
+                "timestamp": asyncio.get_event_loop().time(),
             }
 
-            logger.info("Health check completado",
-                       agent_id=self.agent_id,
-                       status=health_status["status"])
+            logger.info(
+                "Health check completado",
+                agent_id=self.agent_id,
+                status=health_status["status"],
+            )
 
             return health_status
 
@@ -186,7 +194,7 @@ class VoiceflowSTTAgent:
                 "agent_id": self.agent_id,
                 "status": "error",
                 "error": str(e),
-                "timestamp": asyncio.get_event_loop().time()
+                "timestamp": asyncio.get_event_loop().time(),
             }
 
     @classmethod

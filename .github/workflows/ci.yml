@@ -1,0 +1,154 @@
+name: CI - Minimal Pipeline
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # ====================
+  # LINT & FORMAT CHECK
+  # ====================
+  lint-format:
+    runs-on: ubuntu-latest
+    name: Lint, Format & Type Checking
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install linting tools
+        run: |
+          pip install ruff mypy
+
+      - name: Run ruff lint
+        run: ruff check .
+        continue-on-error: false
+
+      - name: Run ruff format check
+        run: ruff format --check .
+        continue-on-error: false
+
+      - name: Run mypy type checking
+        run: mypy application/ business/ shared/ integration/ presentation/ --ignore-missing-imports --no-error-summary
+        continue-on-error: true  # Type errors don't block, just informational
+
+  # ====================
+  # DOCKER BUILD & VALIDATE
+  # ====================
+  docker-build-validate:
+    runs-on: ubuntu-latest
+    name: Docker Build & Health Check
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t voiceflow:ci-test .
+        timeout-minutes: 10
+
+      - name: Start container with simulated backend
+        run: |
+          docker run -d \
+            --name voiceflow-test \
+            -p 8000:8000 \
+            -e DEBUG=true \
+            -e USE_REAL_AGENTS=false \
+            -e AZURE_SPEECH_KEY=dummy_key \
+            -e OPENAI_API_KEY=dummy_key \
+            voiceflow:ci-test
+
+      - name: Wait for container startup
+        run: sleep 15
+
+      - name: Check container is running
+        run: docker ps | grep voiceflow-test
+
+      - name: Health check API endpoint
+        run: |
+          max_attempts=5
+          attempt=0
+          while [ $attempt -lt $max_attempts ]; do
+            if docker exec voiceflow-test curl -f -s http://localhost:8000/api/v1/health/ > /dev/null 2>&1; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            attempt=$((attempt + 1))
+            echo "⏳ Attempt $attempt/$max_attempts..."
+            sleep 5
+          done
+          echo "❌ Health check failed"
+          exit 1
+
+      - name: Check logs for errors
+        if: failure()
+        run: docker logs voiceflow-test
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f voiceflow-test || true
+
+  # ====================
+  # SECRETS VALIDATION
+  # ====================
+  secrets-check:
+    runs-on: ubuntu-latest
+    name: Validate GitHub Secrets
+    steps:
+      - name: Check secrets are configured
+        env:
+          OPENAI_KEY_SET: ${{ secrets.OPENAI_API_KEY != '' }}
+          AZURE_KEY_SET: ${{ secrets.AZURE_SPEECH_KEY != '' }}
+          AZURE_REGION_SET: ${{ secrets.AZURE_SPEECH_REGION != '' }}
+        run: |
+          echo "=== GitHub Secrets Validation ==="
+          STATUS=0
+
+          if [ "$OPENAI_KEY_SET" = "true" ]; then
+            echo "✅ OPENAI_API_KEY configured"
+          else
+            echo "❌ OPENAI_API_KEY missing"
+            STATUS=1
+          fi
+
+          if [ "$AZURE_KEY_SET" = "true" ]; then
+            echo "✅ AZURE_SPEECH_KEY configured"
+          else
+            echo "❌ AZURE_SPEECH_KEY missing"
+            STATUS=1
+          fi
+
+          if [ "$AZURE_REGION_SET" = "true" ]; then
+            echo "✅ AZURE_SPEECH_REGION configured"
+          else
+            echo "❌ AZURE_SPEECH_REGION missing"
+            STATUS=1
+          fi
+
+          exit $STATUS
+
+  # ====================
+  # SUMMARY
+  # ====================
+  ci-summary:
+    runs-on: ubuntu-latest
+    name: CI Status Summary
+    needs: [lint-format, docker-build-validate, secrets-check]
+    if: always()
+    steps:
+      - name: Check CI status
+        run: |
+          if [ "${{ needs.lint-format.result }}" == "failure" ] || \
+             [ "${{ needs.docker-build-validate.result }}" == "failure" ] || \
+             [ "${{ needs.secrets-check.result }}" == "failure" ]; then
+            echo "❌ CI Pipeline Failed"
+            exit 1
+          fi
+          echo "✅ CI Pipeline Passed"

@@ -1,6 +1,6 @@
 # Quick Start - VoiceFlow Tourism PoC
 
-**Actualizado**: 4 de Febrero de 2026
+**Actualizado**: 12 de Febrero de 2026
 
 ---
 
@@ -9,11 +9,8 @@
 ### 1. Instalar dependencias
 
 ```bash
-python -m venv venv
-source venv/bin/activate          # Linux/Mac
-# venv\Scripts\activate           # Windows
-
-pip install -r requirements.txt -r requirements-ui.txt
+# Requiere Python 3.11+ y Poetry (https://python-poetry.org/docs/#installation)
+poetry install
 ```
 
 ### 2. Configurar credenciales
@@ -29,7 +26,11 @@ cp .env.example .env
 ### 3. Ejecutar la aplicacion
 
 ```bash
-python run-ui.py
+# Con Docker (recomendado)
+docker compose up --build
+
+# Sin Docker
+poetry run python presentation/server_launcher.py
 ```
 
 Acceder a:
@@ -68,7 +69,7 @@ Browser (index.html)
 
 | Archivo | Descripcion |
 |---------|-------------|
-| `run-ui.py` | Entry point principal |
+| `presentation/server_launcher.py` | Entry point principal |
 | `presentation/fastapi_factory.py` | Fabrica FastAPI (create_application) |
 | `application/api/v1/` | Endpoints REST (health, audio, chat) |
 | `application/orchestration/backend_adapter.py` | Adapter a business layer |
@@ -96,9 +97,8 @@ curl http://localhost:8000/api/v1/chat/demo/responses
 
 ### Import errors
 ```bash
-# Verificar que PYTHONPATH incluye la raiz del proyecto
-export PYTHONPATH=$(pwd)
-python -c "from presentation.fastapi_factory import app; print('OK')"
+# Verificar que las dependencias estan instaladas
+poetry run python -c "from presentation.fastapi_factory import app; print('OK')"
 ```
 
 ### Azure no conecta
@@ -107,7 +107,7 @@ python -c "from presentation.fastapi_factory import app; print('OK')"
 
 ### Puerto ocupado
 ```bash
-python run-ui.py --port 9000
+poetry run python presentation/server_launcher.py --port 9000
 ```
 
 ## Documentacion

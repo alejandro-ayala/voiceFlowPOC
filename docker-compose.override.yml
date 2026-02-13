@@ -1,0 +1,45 @@
+version: "3.9"
+
+# Docker Compose Override for Development
+# This file is automatically loaded by docker-compose in development
+# It overrides settings from docker-compose.yml
+
+services:
+  app:
+    # Development environment variables
+    environment:
+      - VOICEFLOW_DEBUG=true
+      - VOICEFLOW_USE_REAL_AGENTS=false
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    
+    # Mount source code for hot-reload
+    volumes:
+      # Mount all source code directories as read-only
+      - ./shared:/app/shared:ro
+      - ./integration:/app/integration:ro
+      - ./business:/app/business:ro
+      - ./application:/app/application:ro
+      - ./presentation:/app/presentation:ro
+      
+      # Mount .env for local configuration
+      - ./.env:/app/.env:ro
+    
+    # Enable uvicorn auto-reload for development
+    command: >
+      uvicorn presentation.fastapi_factory:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --reload-dir /app/shared
+      --reload-dir /app/integration
+      --reload-dir /app/business
+      --reload-dir /app/application
+      --reload-dir /app/presentation
+      --log-level debug
+    
+    # Development-specific ports (optional: expose additional ports)
+    ports:
+      - "8000:8000"
+      # Uncomment if you need debugging ports
+      # - "5678:5678"  # debugpy

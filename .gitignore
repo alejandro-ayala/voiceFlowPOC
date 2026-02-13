@@ -1,6 +1,6 @@
 # Archivos de configuración
-.env
-*.env
+#.env
+#*.env
 
 # Archivos de Python
 __pycache__/
@@ -59,3 +59,5 @@ htmlcov/
 # Azure/Cloud credentials
 azure_credentials.json
 gcp_credentials.json
+# Ruff cache
+.ruff_cache/

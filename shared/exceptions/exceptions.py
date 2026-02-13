@@ -3,17 +3,17 @@ Custom exceptions for the VoiceFlow PoC application.
 Provides structured error handling throughout the application.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class VoiceFlowException(Exception):
     """Base exception for VoiceFlow PoC application"""
-    
+
     def __init__(
         self,
         message: str,
         error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         self.message = message
         self.error_code = error_code
@@ -23,26 +23,31 @@ class VoiceFlowException(Exception):
 
 class AudioProcessingException(VoiceFlowException):
     """Exception raised during audio processing operations"""
+
     pass
 
 
 class BackendCommunicationException(VoiceFlowException):
     """Exception raised during backend communication"""
+
     pass
 
 
 class ValidationException(VoiceFlowException):
     """Exception raised during data validation"""
+
     pass
 
 
 class ConfigurationException(VoiceFlowException):
     """Exception raised for configuration issues"""
+
     pass
 
 
 class AuthenticationException(VoiceFlowException):
     """Exception raised for authentication issues"""
+
     pass
 
 

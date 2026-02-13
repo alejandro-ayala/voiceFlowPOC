@@ -1,6 +1,6 @@
 # Documentacion del Proyecto - VoiceFlow Tourism PoC
 
-**Actualizado**: 4 de Febrero de 2026
+**Actualizado**: 12 de Febrero de 2026
 
 ---
 
@@ -10,9 +10,10 @@
 - **[QUICK_START.md](QUICK_START.md)** - Setup en 5 minutos y primeros pasos
 - **[AZURE_SETUP_GUIDE.md](AZURE_SETUP_GUIDE.md)** - Configuracion de Azure Speech Services
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Guia completa de desarrollo
+- **[../docker/README.md](../docker/README.md)** - Docker: desarrollo, produccion y deployment
 
 ### Arquitectura y diseno
-- **[INFORME_FINAL_ARQUITECTONICO.md](../INFORME_FINAL_ARQUITECTONICO.md)** - Estado general de la arquitectura (4 capas)
+- **[ARCHITECTURE_VOICE-FLOW-POC.md](ARCHITECTURE_VOICE-FLOW-POC.md)** - Informe arquitectonico completo (4 capas + Docker)
 - **[ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md)** - Diseno del sistema multi-agente LangChain + STT
 - **[API_REFERENCE.md](API_REFERENCE.md)** - Referencia de endpoints REST, interfaces y servicios STT
 
@@ -23,8 +24,11 @@
 - **[04_application_layer_design.md](design/04_application_layer_design.md)** - API endpoints, servicios, orquestacion
 - **[05_presentation_layer_design.md](design/05_presentation_layer_design.md)** - FastAPI factory, templates, frontend
 
+### Operaciones y seguridad
+- **[SECRETS_MANAGEMENT.md](SECRETS_MANAGEMENT.md)** - Gestion de credenciales (git-crypt + GitHub Secrets)
+
 ### Evolucion del proyecto
-- **[ROADMAP.md](ROADMAP.md)** - Plan de accion: refactor, Docker, testing, persistencia, CI/CD
+- **[ROADMAP.md](ROADMAP.md)** - Plan de accion completo: testing, CI/CD, persistencia, monitoring
 
 ### Recursos adicionales
 - **[Viability_Analysis_Iteration_2.pdf](Viability_Analysis_Iteration_2.pdf)** - Analisis de viabilidad del proyecto
@@ -35,20 +39,24 @@
 
 | Audiencia | Documentos recomendados |
 |-----------|------------------------|
-| **Nuevo en el proyecto** | QUICK_START -> DEVELOPMENT -> ARCHITECTURE_MULTIAGENT |
-| **Desarrollador** | DEVELOPMENT -> API_REFERENCE -> SDDs (design/) -> ROADMAP |
-| **Arquitecto** | INFORME_FINAL -> SDDs (design/) -> ROADMAP -> ARCHITECTURE_MULTIAGENT |
-| **Project Manager** | INFORME_FINAL -> ROADMAP -> Viability Analysis PDF |
+| **Nuevo en el proyecto** | QUICK_START -> docker/README.md -> DEVELOPMENT |
+| **Desarrollador** | DEVELOPMENT -> docker/README.md -> API_REFERENCE -> SDDs |
+| **Arquitecto** | ARCHITECTURE_VOICE-FLOW-POC -> SDDs -> ROADMAP |
+| **DevOps/SRE** | docker/README.md -> ROADMAP (Fase 5: CI/CD) |
+| **Project Manager** | ARCHITECTURE_VOICE-FLOW-POC -> ROADMAP |
 
 ## Por caso de uso
 
 | Necesito... | Documento |
 |-------------|-----------|
-| Arrancar la app rapidamente | [QUICK_START.md](QUICK_START.md) |
+| Usar Docker (desarrollo) | [../docker/README.md](../docker/README.md) |
+| Deploy con Docker (produccion) | [../docker/README.md](../docker/README.md) + [ROADMAP Fase 5](ROADMAP.md) |
 | Configurar Azure Speech | [AZURE_SETUP_GUIDE.md](AZURE_SETUP_GUIDE.md) |
-| Entender la arquitectura | [INFORME_FINAL_ARQUITECTONICO.md](../INFORME_FINAL_ARQUITECTONICO.md) |
+| Entender la arquitectura | [ARCHITECTURE_VOICE-FLOW-POC.md](ARCHITECTURE_VOICE-FLOW-POC.md) |
 | Ver los endpoints disponibles | [API_REFERENCE.md](API_REFERENCE.md) |
 | Entender una capa especifica | [design/](design/) (SDDs 01-05) |
 | Saber que viene despues | [ROADMAP.md](ROADMAP.md) |
+| Setup CI/CD | [ROADMAP.md](ROADMAP.md) (Fase 5) |
+| Gestionar secrets/credenciales | [SECRETS_MANAGEMENT.md](SECRETS_MANAGEMENT.md) |
 | Agregar un nuevo servicio STT | [DEVELOPMENT.md](DEVELOPMENT.md) |
 | Entender el multi-agente | [ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md) |

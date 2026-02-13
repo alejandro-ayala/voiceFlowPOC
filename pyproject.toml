@@ -1,0 +1,113 @@
+[tool.poetry]
+name = "voiceflow-poc"
+version = "1.1.0"
+description = "VoiceFlow PoC - Sistema de Turismo Accesible con IA"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+
+# Core Speech & Audio
+azure-cognitiveservices-speech = "*"
+openai-whisper = "*"
+python-dotenv = "1.0.0"
+pydantic = "2.5.0"
+
+# LangChain Multi-Agent System
+langchain = "0.1.0"
+langchain-openai = "0.0.5"
+langchain-community = "0.0.13"
+openai = ">=1.6.1,<2.0.0"
+
+# Agent Tools & External APIs
+requests = "2.31.0"
+aiohttp = "3.9.1"
+googlemaps = "4.10.0"
+beautifulsoup4 = "4.12.2"
+
+# Audio processing
+pydub = "0.25.1"
+librosa = "0.10.1"
+numpy = ">=1.20.0"
+wave = "0.0.2"
+
+# CLI & Utilities
+click = "8.1.7"
+colorama = "0.4.6"
+
+# Logging
+structlog = "23.2.0"
+
+# FastAPI Stack
+fastapi = "0.104.1"
+uvicorn = { version = "0.24.0", extras = ["standard"] }
+python-multipart = "0.0.6"
+pydantic-settings = "2.1.0"
+
+# Security
+python-jose = { version = "3.3.0", extras = ["cryptography"] }
+
+# File handling
+aiofiles = "23.2.1"
+python-magic = "0.4.27"
+
+# HTTP client
+httpx = "0.25.2"
+
+# JSON
+orjson = "3.9.10"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "7.4.3"
+pytest-mock = "3.12.0"
+pytest-asyncio = "0.21.1"
+pytest-cov = ">=4.1.0"
+ruff = ">=0.8.0"
+mypy = ">=1.13.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["."]
+markers = [
+    "unit: Tests unitarios (sin I/O, sin red, sin estado externo)",
+    "integration: Tests de integración entre capas (pueden usar filesystem)",
+    "e2e: Tests end-to-end contra la API HTTP completa",
+    "slow: Tests que tardan más de 5s (requieren API keys o LLM)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:langchain.*",
+]
+addopts = "-ra --strict-markers"
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+no_error_summary = true
+
+[tool.coverage.run]
+source = ["shared", "integration", "business", "application", "presentation"]
+omit = ["tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__",
+    "raise NotImplementedError",
+]

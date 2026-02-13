@@ -112,21 +112,9 @@ Esta guía te llevará paso a paso desde la creación de la cuenta Azure hasta l
    # O descargar y extraer el ZIP
    ```
 
-2. **Crear entorno virtual:**
+2. **Instalar dependencias:**
    ```bash
-   python -m venv venv
-   
-   # Windows
-   venv\Scripts\activate
-   
-   # Linux/Mac
-   source venv/bin/activate
-   ```
-
-3. **Instalar dependencias:**
-   ```bash
-   pip install -r requirements.txt
-   pip install azure-cognitiveservices-speech
+   poetry install
    ```
 
 ### 3.2 Configurar Variables de Entorno
@@ -242,7 +230,7 @@ async def test_azure_connection():
         print("   ✅ azure-cognitiveservices-speech instalado")
     except ImportError:
         print("   ❌ ERROR: Instala azure-cognitiveservices-speech")
-        print("   Ejecuta: pip install azure-cognitiveservices-speech")
+        print("   Ejecuta: poetry add azure-cognitiveservices-speech")
         return False
     
     # 3. Crear servicio Azure
@@ -443,7 +431,7 @@ Este error ocurre cuando intentas usar una región no disponible para Azure for 
 
 ### Error: "Import azure.cognitiveservices.speech could not be resolved"
 ```bash
-pip install azure-cognitiveservices-speech
+poetry add azure-cognitiveservices-speech
 ```
 
 ### Error: "Audio file not found"
@@ -470,7 +458,7 @@ Antes de considerar la configuración completa, verificar:
 - [ ] ✅ Recurso Speech Services creado con plan F0 (gratuito)
 - [ ] ✅ Claves y región obtenidas del portal Azure
 - [ ] ✅ Archivo `.env` configurado correctamente
-- [ ] ✅ Dependencias instaladas (`pip install azure-cognitiveservices-speech`)
+- [ ] ✅ Dependencias instaladas (`poetry install`)
 - [ ] ✅ Archivo de audio de prueba creado
 - [ ] ✅ Test de conexión exitoso (`python test_azure_connection.py`)
 - [ ] ✅ Test completo exitoso (`python test_complete.py`)

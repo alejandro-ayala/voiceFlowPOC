@@ -3,22 +3,21 @@ Dependency injection setup for FastAPI.
 Implements SOLID DIP principle for loose coupling.
 """
 
-from typing import Generator
 from fastapi import Depends
 
+from application.orchestration.backend_adapter import LocalBackendAdapter
+from application.services.audio_service import AudioService
+from application.services.conversation_service import ConversationService
 from integration.configuration.settings import Settings, get_settings
 from shared.interfaces.interfaces import (
     AudioProcessorInterface,
     BackendInterface,
-    ConversationInterface
+    ConversationInterface,
 )
-from application.orchestration.backend_adapter import LocalBackendAdapter
-from application.services.audio_service import AudioService
-from application.services.conversation_service import ConversationService
 
 
 def get_audio_processor(
-    settings: Settings = Depends(get_settings)
+    settings: Settings = Depends(get_settings),
 ) -> AudioProcessorInterface:
     """
     Dependency injection for audio processor.
@@ -27,9 +26,7 @@ def get_audio_processor(
     return AudioService(settings)
 
 
-def get_backend_adapter(
-    settings: Settings = Depends(get_settings)
-) -> BackendInterface:
+def get_backend_adapter(settings: Settings = Depends(get_settings)) -> BackendInterface:
     """
     Dependency injection for backend adapter.
     Can be easily switched to cloud implementation.
@@ -38,7 +35,7 @@ def get_backend_adapter(
 
 
 def get_conversation_service(
-    settings: Settings = Depends(get_settings)
+    settings: Settings = Depends(get_settings),
 ) -> ConversationInterface:
     """
     Dependency injection for conversation service.
@@ -108,23 +105,28 @@ class SimulatedAudioService:
     async def transcribe_audio(self, audio_data: bytes, format: str, language: str = "es-ES"):
         """Simulate audio transcription"""
         import asyncio
+
         await asyncio.sleep(1)
 
-        return type('Result', (), {
-            'transcription': 'Esta es una transcripcion simulada del audio',
-            'confidence': 0.85,
-            'language': language,
-            'duration': 3.5,
-            'processing_time': 1.2
-        })()
+        return type(
+            "Result",
+            (),
+            {
+                "transcription": "Esta es una transcripcion simulada del audio",
+                "confidence": 0.85,
+                "language": language,
+                "duration": 3.5,
+                "processing_time": 1.2,
+            },
+        )()
 
     async def validate_audio(self, audio_data: bytes, format: str):
         """Simulate audio validation"""
         return {
-            'valid': True,
-            'format': format,
-            'duration': len(audio_data) / 16000,
-            'file_size': len(audio_data),
-            'sample_rate': 16000,
-            'channels': 1
+            "valid": True,
+            "format": format,
+            "duration": len(audio_data) / 16000,
+            "file_size": len(audio_data),
+            "sample_rate": 16000,
+            "channels": 1,
         }

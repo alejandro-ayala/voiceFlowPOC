@@ -5,12 +5,12 @@ Handles chat sessions and conversation history (in-memory for PoC).
 
 import uuid
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import structlog
 
-from shared.interfaces.interfaces import ConversationInterface
 from integration.configuration.settings import Settings
+from shared.interfaces.interfaces import ConversationInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -40,7 +40,7 @@ class ConversationService(ConversationInterface):
                 "timestamp": datetime.now().isoformat(),
                 "user_message": user_message,
                 "ai_response": ai_response,
-                "message_type": "conversation_pair"
+                "message_type": "conversation_pair",
             }
 
             self.conversations[session_id].append(message_pair)
@@ -48,9 +48,11 @@ class ConversationService(ConversationInterface):
             self.session_metadata[session_id]["last_activity"] = datetime.now().isoformat()
             self.session_metadata[session_id]["message_count"] += 1
 
-            logger.info("Message pair added to conversation",
-                       session_id=session_id,
-                       total_messages=len(self.conversations[session_id]))
+            logger.info(
+                "Message pair added to conversation",
+                session_id=session_id,
+                total_messages=len(self.conversations[session_id]),
+            )
 
             return session_id
 
@@ -66,7 +68,7 @@ class ConversationService(ConversationInterface):
             "created_at": datetime.now().isoformat(),
             "last_activity": datetime.now().isoformat(),
             "message_count": 0,
-            "session_type": "demo"
+            "session_type": "demo",
         }
 
         logger.info("New conversation session initialized", session_id=session_id)
@@ -84,9 +86,11 @@ class ConversationService(ConversationInterface):
                 return sorted(all_conversations, key=lambda x: x["timestamp"])
 
             if session_id in self.conversations:
-                logger.info("Retrieved conversation history",
-                           session_id=session_id,
-                           message_count=len(self.conversations[session_id]))
+                logger.info(
+                    "Retrieved conversation history",
+                    session_id=session_id,
+                    message_count=len(self.conversations[session_id]),
+                )
                 return self.conversations[session_id].copy()
             else:
                 logger.warning("Session not found", session_id=session_id)
@@ -159,15 +163,15 @@ class ConversationService(ConversationInterface):
                 "export_info": {
                     "exported_at": datetime.now().isoformat(),
                     "format": format,
-                    "version": "1.0"
+                    "version": "1.0",
                 },
                 "session_metadata": metadata,
                 "conversation": conversation,
                 "statistics": {
                     "total_messages": len(conversation),
                     "session_duration": self._calculate_session_duration(conversation),
-                    "average_response_time": "N/A"
-                }
+                    "average_response_time": "N/A",
+                },
             }
 
             logger.info("Conversation exported", session_id=session_id, format=format)
@@ -194,5 +198,5 @@ class ConversationService(ConversationInterface):
                 return f"{minutes} minutes, {seconds} seconds"
             else:
                 return f"{seconds} seconds"
-        except:
+        except Exception:
             return "Unknown"
