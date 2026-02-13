@@ -312,3 +312,408 @@ body {
         transition-duration: 0.01ms !important;
     }
 }
+
+
+/* ============================================
+   F6 - Demo Mode Styles
+   ============================================ */
+
+.demo-scenarios-card {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border: 2px dashed var(--primary-color);
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+.demo-scenarios-card .card-body {
+    padding: 12px 20px;
+}
+
+.demo-bar-title {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.demo-scenario-btn {
+    font-size: 0.85rem;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.demo-scenario-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+}
+
+.demo-scenario-btn:disabled {
+    opacity: 0.5;
+}
+
+.demo-scenario-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    animation: pulse-blue 1.5s infinite;
+}
+
+@keyframes pulse-blue {
+    0% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(13, 110, 253, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+}
+
+/* Typewriter effect */
+.typewriter-word {
+    animation: fadeInWord 0.2s ease-out;
+}
+
+@keyframes fadeInWord {
+    from { opacity: 0; transform: translateY(2px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.typewriter-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.2em;
+    background-color: var(--primary-color);
+    animation: blink 0.8s step-end infinite;
+    vertical-align: text-bottom;
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+
+/* ============================================
+   F1 - Pipeline Visualizer Styles
+   ============================================ */
+
+.pipeline-container {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 12px;
+    padding: 20px 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.pipeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+    position: relative;
+}
+
+.pipeline-step-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.4s ease;
+    border: 2px solid transparent;
+}
+
+/* Step states */
+.pipeline-step.idle .pipeline-step-icon {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pipeline-step.processing .pipeline-step-icon {
+    background-color: rgba(13, 202, 240, 0.2);
+    color: var(--info-color);
+    border-color: var(--info-color);
+    animation: pipeline-pulse 1.2s ease-in-out infinite;
+}
+
+.pipeline-step.completed .pipeline-step-icon {
+    background-color: rgba(25, 135, 84, 0.3);
+    color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+@keyframes pipeline-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(13, 202, 240, 0.4); }
+    50% { transform: scale(1.1); box-shadow: 0 0 15px 5px rgba(13, 202, 240, 0.2); }
+}
+
+.pipeline-step-label {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 6px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.pipeline-step.completed .pipeline-step-label {
+    color: var(--success-color);
+}
+
+.pipeline-step.processing .pipeline-step-label {
+    color: var(--info-color);
+}
+
+.pipeline-step-time {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 2px;
+    min-height: 14px;
+}
+
+.pipeline-step.completed .pipeline-step-time {
+    color: rgba(25, 135, 84, 0.8);
+}
+
+/* Connectors between steps */
+.pipeline-connector {
+    width: 60px;
+    height: 2px;
+    background-color: rgba(255, 255, 255, 0.15);
+    margin: 0 4px;
+    margin-bottom: 28px;
+    border-radius: 1px;
+    overflow: hidden;
+}
+
+.pipeline-connector-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--info-color), var(--success-color));
+    transition: width 0.5s ease;
+    border-radius: 1px;
+}
+
+
+/* ============================================
+   F2 - Rich Response Card Styles
+   ============================================ */
+
+.chat-message.has-cards {
+    max-width: 95%;
+}
+
+.response-cards {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding-top: 12px;
+}
+
+.response-card {
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    animation: cardSlideIn 0.4s ease-out;
+    background: white;
+}
+
+.response-card .card-body {
+    background: transparent;
+}
+
+.response-card .card-title {
+    font-size: 0.9rem;
+    color: var(--dark-color);
+}
+
+@keyframes cardSlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Venue card */
+.venue-card {
+    border-left: 4px solid var(--primary-color);
+}
+
+/* Accessibility card */
+.accessibility-card {
+    border-left: 4px solid var(--success-color);
+}
+
+/* Route card */
+.route-card {
+    border-left: 4px solid var(--info-color);
+}
+
+/* Accessibility gauge */
+.gauge-circle {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.gauge-circle.gauge-success {
+    background: rgba(25, 135, 84, 0.15);
+    border: 3px solid var(--success-color);
+    color: var(--success-color);
+}
+
+.gauge-circle.gauge-warning {
+    background: rgba(255, 193, 7, 0.15);
+    border: 3px solid var(--warning-color);
+    color: #997404;
+}
+
+.gauge-circle.gauge-danger {
+    background: rgba(220, 53, 69, 0.15);
+    border: 3px solid var(--danger-color);
+    color: var(--danger-color);
+}
+
+.gauge-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.gauge-label {
+    font-size: 0.55rem;
+    opacity: 0.7;
+}
+
+/* Facility badges */
+.facility-badge {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+    color: var(--primary-color) !important;
+    border: 1px solid rgba(13, 110, 253, 0.2);
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    margin: 2px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.cert-badge {
+    font-size: 0.7rem;
+}
+
+/* Venue details */
+.venue-detail {
+    font-size: 0.8rem;
+    color: var(--secondary-color);
+    padding: 2px 0;
+}
+
+.venue-detail i {
+    margin-right: 4px;
+    color: var(--primary-color);
+}
+
+/* Score bar */
+.score-bar-container {
+    max-width: 200px;
+}
+
+.score-bar {
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.score-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease-out;
+}
+
+/* Service items */
+.service-item {
+    font-size: 0.8rem;
+    padding: 2px 0;
+    color: var(--dark-color);
+}
+
+.service-item i {
+    color: var(--success-color);
+    margin-right: 4px;
+}
+
+/* Route steps */
+.route-steps {
+    padding-left: 4px;
+}
+
+.route-step {
+    font-size: 0.8rem;
+    padding: 3px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.route-step-number {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: var(--info-color);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Message metadata line */
+.message-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 8px;
+}
+
+.processing-time {
+    margin-left: 8px;
+}
+
+
+/* ============================================
+   Responsive overrides for new features
+   ============================================ */
+
+@media (max-width: 768px) {
+    .pipeline-step {
+        min-width: 55px;
+    }
+    .pipeline-step-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 0.9rem;
+    }
+    .pipeline-connector {
+        width: 20px;
+    }
+    .pipeline-step-label {
+        font-size: 0.6rem;
+    }
+    .pipeline-container {
+        padding: 12px 10px;
+    }
+    .demo-scenario-btn {
+        font-size: 0.75rem;
+        padding: 6px 12px;
+    }
+    .gauge-circle {
+        width: 44px;
+        height: 44px;
+    }
+    .gauge-value {
+        font-size: 0.9rem;
+    }
+}

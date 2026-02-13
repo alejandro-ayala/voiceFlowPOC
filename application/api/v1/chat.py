@@ -73,6 +73,7 @@ async def send_message(
             intent=backend_response.get("intent"),
             entities=backend_response.get("entities"),
             tourism_data=backend_response.get("tourism_data"),
+            pipeline_steps=backend_response.get("pipeline_steps"),
         )
 
     except BackendCommunicationException as e:
@@ -232,6 +233,40 @@ async def analyze_transcription(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
+
+
+@router.get("/demo/scenarios")
+async def get_demo_scenarios():
+    """Get predefined demo scenarios with full structured data for the demo UI."""
+    return {
+        "success": True,
+        "scenarios": [
+            {
+                "id": "prado_wheelchair",
+                "title": "Museo del Prado accesible",
+                "icon": "bi-building",
+                "query": "Quiero visitar el Museo del Prado en silla de ruedas",
+            },
+            {
+                "id": "reina_sofia_transport",
+                "title": "Transporte al Reina Sof\u00eda",
+                "icon": "bi-map",
+                "query": "\u00bfC\u00f3mo llego al Museo Reina Sof\u00eda en transporte accesible?",
+            },
+            {
+                "id": "restaurants_centro",
+                "title": "Restaurantes accesibles",
+                "icon": "bi-cup-hot",
+                "query": "Recomendame restaurantes accesibles en el centro",
+            },
+            {
+                "id": "concert_hearing",
+                "title": "Conciertos accesibles",
+                "icon": "bi-music-note-beamed",
+                "query": "Quiero ir a un concierto, necesito acceso auditivo",
+            },
+        ],
+    }
 
 
 @router.get("/demo/responses")

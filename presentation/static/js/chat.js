@@ -60,15 +60,26 @@ class ChatHandler {
                 this.messageInput.value = '';
             }
 
+            // Start pipeline animation if available
+            const pipelineViz = window.VoiceFlowApp?.pipelineVisualizer;
+            if (pipelineViz) pipelineViz.startAnimation(null);
+
             // Send to backend
             const response = await this.sendToBackend(message);
-            
+
             if (response.status === 'success') {
-                // Add AI response to chat
+                // Update pipeline with actual timings
+                if (pipelineViz && response.pipeline_steps) {
+                    pipelineViz.completeFromResponse(response);
+                }
+
+                // Add AI response with rich data
                 this.addMessage('assistant', response.ai_response, {
-                    processingTime: response.processing_time
+                    processingTime: response.processing_time,
+                    tourismData: response.tourism_data,
+                    pipelineSteps: response.pipeline_steps,
                 });
-                
+
                 console.log('✅ Message processed successfully');
             } else {
                 throw new Error(response.message || 'Failed to get AI response');
@@ -132,6 +143,11 @@ class ChatHandler {
         const messageElement = document.createElement('div');
         messageElement.className = `chat-message ${role}`;
 
+        // Expand width for rich cards
+        if (role === 'assistant' && metadata.tourismData) {
+            messageElement.classList.add('has-cards');
+        }
+
         const timestamp = new Date().toLocaleTimeString('es-ES', {
             hour: '2-digit',
             minute: '2-digit'
@@ -139,21 +155,21 @@ class ChatHandler {
 
         let messageHtml = `
             <div class="message-content">${this.escapeHtml(content)}</div>
-            <div class="timestamp">${timestamp}</div>
         `;
 
-        // Add confidence and processing time for assistant messages
-        if (role === 'assistant' && metadata.confidence !== undefined) {
-            const confidence = Math.round(metadata.confidence * 100);
-            const processingTime = metadata.processingTime?.toFixed(2) || 'N/A';
-            
-            messageHtml += `
-                <div class="confidence">
-                    <i class="bi bi-cpu"></i> Confianza: ${confidence}% | 
-                    <i class="bi bi-clock"></i> ${processingTime}s
-                </div>
-            `;
+        // Render rich response cards if tourism data is available
+        if (role === 'assistant' && metadata.tourismData && typeof CardRenderer !== 'undefined') {
+            messageHtml += CardRenderer.render(metadata.tourismData);
         }
+
+        // Metadata line
+        const processingTime = metadata.processingTime?.toFixed(2) || null;
+        messageHtml += `
+            <div class="message-meta">
+                <span class="timestamp">${timestamp}</span>
+                ${role === 'assistant' && processingTime ? `<span class="processing-time"><i class="bi bi-clock"></i> ${processingTime}s</span>` : ''}
+            </div>
+        `;
 
         messageElement.innerHTML = messageHtml;
 

@@ -57,6 +57,16 @@ class AudioProcessingStatusResponse(BaseResponse):
     estimated_completion: Optional[datetime] = Field(default=None, description="Estimated completion time")
 
 
+class PipelineStep(BaseModel):
+    """A single step in the agent pipeline"""
+
+    name: str = Field(..., description="Display name of the step")
+    tool: str = Field(..., description="Tool identifier")
+    status: str = Field(default="pending", description="pending|processing|completed|error")
+    duration_ms: Optional[int] = Field(default=None, description="Processing time in milliseconds")
+    summary: Optional[str] = Field(default=None, description="Brief summary of step output")
+
+
 class ChatResponse(BaseResponse):
     """Response model for chat interactions"""
 
@@ -68,6 +78,11 @@ class ChatResponse(BaseResponse):
     tourism_data: Optional[Dict[str, Any]] = Field(default=None, description="Structured tourism information")
     intent: Optional[str] = Field(default=None, description="Detected user intent")
     entities: Optional[Dict[str, Any]] = Field(default=None, description="Extracted entities")
+
+    # Pipeline visualization
+    pipeline_steps: Optional[List[Dict[str, Any]]] = Field(
+        default=None, description="Per-tool pipeline step timing and status"
+    )
 
 
 class SystemStatusResponse(BaseResponse):
