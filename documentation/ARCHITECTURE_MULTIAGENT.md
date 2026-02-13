@@ -1,7 +1,7 @@
 # Arquitectura Multi-Agente: LangChain + STT
 
-**Actualizado**: 4 de Febrero de 2026
-**Version**: 3.0 - Arquitectura 4 capas
+**Actualizado**: 12 de Febrero de 2026
+**Version**: 4.0 - Framework reutilizable core/ + domains/
 
 ---
 
@@ -78,18 +78,25 @@ El sistema VoiceFlow Tourism PoC combina Speech-to-Text (STT) con un sistema mul
   REAL      SIMULADO
     |         |
     v         |
-  +------------------------+   Business Layer
-  | TourismMultiAgent      |   business/ai_agents/langchain_agents.py
-  +------------------------+
+  +----------------------------------+   Business Layer (core/)
+  | MultiAgentOrchestrator           |   business/core/orchestrator.py
+  |   process_request() → AgentResponse
+  +----------------------------------+
+    |
+    v (Template Method)
+  +----------------------------------+   Business Layer (domains/tourism/)
+  | TourismMultiAgent                |   business/domains/tourism/agent.py
+  |   _execute_pipeline()            |
+  +----------------------------------+
     |
     | Ejecuta 4 tools secuencialmente
     |
-    +---> TourismNLUTool         (intent + entities + accessibility)
-    +---> AccessibilityAnalysisTool  (score, facilities, certification)
-    +---> RoutePlanningTool      (rutas metro/bus, costes)
-    +---> TourismInfoTool        (horarios, precios, servicios)
+    +---> TourismNLUTool             (tools/nlu_tool.py)
+    +---> AccessibilityAnalysisTool  (tools/accessibility_tool.py)
+    +---> RoutePlanningTool          (tools/route_planning_tool.py)
+    +---> TourismInfoTool            (tools/tourism_info_tool.py)
     |
-    | Combina resultados en prompt final
+    | _build_response_prompt()       (prompts/response_prompt.py)
     v
   +-------------------+
   | ChatOpenAI GPT-4  |   Genera respuesta conversacional en espanol
@@ -103,25 +110,29 @@ El sistema VoiceFlow Tourism PoC combina Speech-to-Text (STT) con un sistema mul
 
 ### Orquestador: `TourismMultiAgent`
 
-**Ubicacion**: `business/ai_agents/langchain_agents.py`
+**Ubicacion**: `business/domains/tourism/agent.py`
+**Hereda de**: `business/core/orchestrator.py` → `MultiAgentOrchestrator`
 **LLM**: ChatOpenAI GPT-4 (temperature=0.3, max_tokens=1500)
 
-El orquestador ejecuta los 4 tools en secuencia fija y luego pasa todos los resultados como contexto a GPT-4 para generar la respuesta final en espanol.
+El orquestador extiende `MultiAgentOrchestrator` (patron Template Method) e implementa `_execute_pipeline()` que ejecuta los 4 tools en secuencia. El algoritmo base (invoke LLM, gestionar historial, retornar `AgentResponse`) esta en `core/`.
 
 ```python
-class TourismMultiAgent:
+class TourismMultiAgent(MultiAgentOrchestrator):
     def __init__(self, openai_api_key=None):
-        self.llm = ChatOpenAI(model="gpt-4", temperature=0.3)
-        self.tools = [TourismNLUTool(), AccessibilityAnalysisTool(),
-                      RoutePlanningTool(), TourismInfoTool()]
-        self.conversation_history = []
+        llm = ChatOpenAI(model="gpt-4", temperature=0.3, max_tokens=1500)
+        super().__init__(llm=llm, system_prompt=SYSTEM_PROMPT)
+        self.nlu = TourismNLUTool()
+        self.accessibility = AccessibilityAnalysisTool()
+        self.route = RoutePlanningTool()
+        self.tourism_info = TourismInfoTool()
 
-    async def process_request(self, user_input: str) -> str:
-        nlu = TourismNLUTool()._run(user_input)
-        accessibility = AccessibilityAnalysisTool()._run(nlu)
-        routes = RoutePlanningTool()._run(accessibility)
-        tourism = TourismInfoTool()._run(nlu)
-        # Combina todo en prompt -> GPT-4 -> respuesta
+    def _execute_pipeline(self, user_input: str) -> dict[str, str]:
+        nlu_result = self.nlu._run(user_input)
+        accessibility_result = self.accessibility._run(nlu_result)
+        route_result = self.route._run(accessibility_result)
+        tourism_result = self.tourism_info._run(nlu_result)
+        return {"nlu": nlu_result, "accessibility": accessibility_result,
+                "route": route_result, "tourism_info": tourism_result}
 ```
 
 ### Tools especializados
@@ -137,14 +148,18 @@ Todos los tools extienden `langchain.tools.BaseTool` e implementan `_run()` (syn
 
 ### Datos estaticos
 
-Los tools contienen datos hardcodeados sobre Madrid:
+Los datos de Madrid estan separados en modulos independientes dentro de `business/domains/tourism/data/`:
 
-- **Venues**: Museo del Prado, Reina Sofia, Thyssen, Retiro, Palacio Real, Templo de Debod
-- **Accesibilidad**: Scores, facilities (rampas, banos, audioguias), certificaciones (ONCE)
-- **Rutas**: Metro (lineas 1, 2), bus (linea 27), costes (1.50-2.50 EUR)
-- **Info**: Horarios, precios, exposiciones, contactos de accesibilidad
+| Modulo | Contenido |
+|--------|-----------|
+| `nlu_patterns.py` | Patrones de intent, destino, accesibilidad, keywords Madrid |
+| `accessibility_data.py` | `ACCESSIBILITY_DB` - scores, facilities, certificaciones por venue |
+| `route_data.py` | `ROUTE_DB` - rutas metro/bus, costes, pasos por destino |
+| `venue_data.py` | `VENUE_DB` - horarios, precios, servicios por venue |
 
-Estos datos deberan extraerse a modulos separados en la Fase 1 del [ROADMAP](ROADMAP.md).
+**Venues**: Museo del Prado, Reina Sofia, espacios musicales, restaurantes.
+**Accesibilidad**: Scores, facilities (rampas, banos, audioguias), certificaciones (ONCE).
+**Rutas**: Metro (lineas 1, 2), bus (linea 27), costes (1.50-2.50 EUR).
 
 ## Decisiones arquitectonicas
 
@@ -162,7 +177,7 @@ Actualmente los tools se ejecutan en secuencia fija porque cada tool recibe el o
 
 ### Modo simulacion en el adapter
 
-`LocalBackendAdapter._simulate_ai_response()` contiene ~110 lineas de respuestas hardcodeadas que permiten desarrollar y demostrar el frontend sin consumir creditos de OpenAI. Este codigo deberia moverse a un mock service separado (ver ROADMAP Fase 1).
+`LocalBackendAdapter._simulate_ai_response()` contiene ~110 lineas de respuestas hardcodeadas que permiten desarrollar y demostrar el frontend sin consumir creditos de OpenAI. Este codigo deberia moverse a un mock service separado.
 
 ## Ejemplo de interaccion
 
@@ -191,7 +206,8 @@ Actualmente los tools se ejecutan en secuencia fija porque cada tool recibe el o
 
 ## Documentacion relacionada
 
-- [03_business_layer_design.md](design/03_business_layer_design.md) - SDD detallado de business layer
+- [03_business_layer_design.md](design/03_business_layer_design.md) - SDD detallado de business layer (actualizado post-Fase 2B)
 - [04_application_layer_design.md](design/04_application_layer_design.md) - SDD del adapter y servicios
 - [02_integration_layer_design.md](design/02_integration_layer_design.md) - SDD del pipeline STT
-- [ROADMAP.md](ROADMAP.md) - Fase 1: descomposicion del monolito multi-agente
+- [ROADMAP.md](ROADMAP.md) - Plan de evolucion del proyecto
+- [PROPOSAL_FASE_2B.md](PROPOSAL_FASE_2B.md) - Propuesta y SDD de la descomposicion

@@ -1,5 +1,5 @@
 """
-Backend adapter for communicating with existing LangChain multi-agent system.
+Backend adapter for communicating with the LangChain multi-agent system.
 Implements BackendInterface following SOLID SRP principle.
 """
 
@@ -28,25 +28,24 @@ class LocalBackendAdapter(BackendInterface):
         self._conversation_count = 0
 
     async def _get_backend_instance(self):
-        """Lazy initialization of backend to avoid import issues"""
+        """Lazy initialization of backend to avoid import issues."""
         if self._backend_instance is None:
             try:
-                # Import the existing multi-agent system
-                from business.ai_agents.langchain_agents import TourismMultiAgent
+                from business.domains.tourism.agent import TourismMultiAgent
 
-                logger.info("🔗 Initializing LocalBackendAdapter with existing multi-agent system")
+                logger.info("Initializing LocalBackendAdapter with tourism multi-agent system")
                 self._backend_instance = TourismMultiAgent()
-                logger.info("✅ Backend adapter initialized successfully")
+                logger.info("Backend adapter initialized successfully")
 
             except ImportError as e:
-                logger.error("❌ Failed to import existing backend", error=str(e))
+                logger.error("Failed to import backend", error=str(e))
                 raise BackendCommunicationException(
                     "Failed to initialize backend system",
                     error_code="BACKEND_IMPORT_ERROR",
                     details={"import_error": str(e)},
                 )
             except Exception as e:
-                logger.error("❌ Failed to initialize backend", error=str(e))
+                logger.error("Failed to initialize backend", error=str(e))
                 raise BackendCommunicationException(
                     "Failed to initialize backend system",
                     error_code="BACKEND_INIT_ERROR",
@@ -117,44 +116,22 @@ class LocalBackendAdapter(BackendInterface):
             )
 
     async def _process_real_query(self, transcription: str) -> str:
-        """
-        Process query through REAL LangChain agents with OpenAI.
-        """
+        """Process query through REAL LangChain agents with OpenAI."""
         try:
-            logger.info("🤖 Initializing REAL backend agents")
+            agent = await self._get_backend_instance()
+            logger.info("Calling TourismMultiAgent", query=transcription)
 
-            # Get the backend instance (TourismMultiAgent)
-            backend = await self._get_backend_instance()
-
-            logger.info("🔗 Calling REAL TourismMultiAgent", query=transcription)
-
-            # Call the real backend with the transcription
-            # This will use OpenAI and consume tokens
-            if hasattr(backend, "process_request_sync"):
-                response = await asyncio.to_thread(backend.process_request_sync, transcription)
-            elif hasattr(backend, "process_request"):
-                response = await asyncio.to_thread(backend.process_request, transcription)
-            elif hasattr(backend, "process_query"):
-                response = await asyncio.to_thread(backend.process_query, transcription)
-            elif hasattr(backend, "process"):
-                response = await asyncio.to_thread(backend.process, transcription)
-            elif hasattr(backend, "run"):
-                response = await asyncio.to_thread(backend.run, transcription)
-            else:
-                # Final fallback - try to get a method that might work
-                available = [m for m in dir(backend) if not m.startswith("_")]
-                raise AttributeError(f"TourismMultiAgent has no compatible method. Available methods: {available}")
+            result = await agent.process_request(transcription)
 
             logger.info(
-                "✅ REAL backend processing completed",
-                response_length=len(str(response)),
+                "Backend processing completed",
+                response_length=len(result.response_text),
             )
-            return str(response)
+            return result.response_text
 
         except Exception as e:
-            logger.error("❌ Error in real backend processing", error=str(e))
-            # Fall back to simulation if real backend fails
-            logger.warning("🔄 Falling back to simulation due to backend error")
+            logger.error("Error in real backend processing", error=str(e))
+            logger.warning("Falling back to simulation due to backend error")
             return await self._simulate_ai_response(transcription)
 
     async def _simulate_ai_response(self, transcription: str) -> str:
@@ -334,27 +311,20 @@ Te puedo ayudar con:
             }
 
     async def clear_conversation(self) -> bool:
-        """
-        Clear conversation history in the backend system.
-        """
+        """Clear conversation history in the backend system."""
         try:
-            logger.info("🧹 Clearing conversation history")
+            logger.info("Clearing conversation history")
 
-            # Get backend instance
             backend = await self._get_backend_instance()
+            backend.clear_conversation()
 
-            # Clear conversation if method exists
-            if hasattr(backend, "clear_conversation"):
-                backend.clear_conversation()
-
-            # Reset conversation counter
             self._conversation_count = 0
 
-            logger.info("✅ Conversation history cleared successfully")
+            logger.info("Conversation history cleared successfully")
             return True
 
         except Exception as e:
-            logger.error("❌ Failed to clear conversation", error=str(e))
+            logger.error("Failed to clear conversation", error=str(e))
             raise BackendCommunicationException(
                 f"Failed to clear conversation: {str(e)}",
                 error_code="CLEAR_CONVERSATION_ERROR",

@@ -132,15 +132,20 @@ Tecnologías: FastAPI routers + Pydantic models
 
 #### **CAPA 3: BUSINESS LAYER** 🧠
 ```bash
-Responsabilidad: Lógica de Negocio (Tourism + AI)
+Responsabilidad: Logica de Negocio (Framework reutilizable + Dominio turismo)
 Componentes:
-├── LangChain Multi-Agent System
-├── Tourism domain logic
-├── Accessibility processing rules  
-├── NLU + intent recognition
-└── Response generation logic
+├── core/                    # Framework reutilizable
+│   ├── MultiAgentInterface     (ABC - contrato generico)
+│   ├── MultiAgentOrchestrator  (Template Method base)
+│   └── AgentResponse           (dataclass de respuesta)
+├── domains/tourism/         # Dominio especifico
+│   ├── TourismMultiAgent       (orquestador turismo)
+│   ├── 4 LangChain tools       (NLU, Accessibility, Route, Tourism)
+│   ├── data/                   (datos estaticos Madrid)
+│   └── prompts/                (system + response prompts)
+└── ai_agents/               # Backward compatibility facade
 
-Tecnologías: LangChain + Custom business rules
+Tecnologias: LangChain + OpenAI GPT-4 + Custom business rules
 ```
 
 #### **CAPA 4: INTEGRATION LAYER** 🔌
@@ -183,12 +188,18 @@ VoiceFlowPOC/
 │   │   ├── audio_service.py       # Orquestación STT con fallback
 │   │   └── conversation_service.py # Gestión de conversaciones
 │   └── __init__.py
-├── business/              # CAPA 3 - Lógica de Negocio
-│   ├── ai_agents/          # LangChain multi-agent system
-│   │   ├── __init__.py        # Re-export TourismMultiAgent
-│   │   └── langchain_agents.py # Monolito multi-agente (pendiente descomposición)
-│   ├── nlp/               # (placeholder - pendiente implementación)
-│   ├── tourism/           # (placeholder - pendiente implementación)
+├── business/              # CAPA 3 - Logica de Negocio
+│   ├── core/               # Framework reutilizable multi-agente
+│   │   ├── interfaces.py      # MultiAgentInterface (ABC)
+│   │   ├── orchestrator.py    # MultiAgentOrchestrator (Template Method)
+│   │   └── models.py          # AgentResponse (dataclass)
+│   ├── domains/
+│   │   └── tourism/        # Dominio: turismo accesible Madrid
+│   │       ├── agent.py       # TourismMultiAgent(MultiAgentOrchestrator)
+│   │       ├── tools/         # 4 LangChain tools separadas
+│   │       ├── data/          # Datos estaticos Madrid
+│   │       └── prompts/       # System + response prompts
+│   ├── ai_agents/          # Backward compatibility (facade re-export)
 │   └── __init__.py
 ├── integration/           # CAPA 4 - APIs Externas & Datos
 │   ├── external_apis/      # Integraciones Azure, Whisper, etc.
@@ -252,11 +263,15 @@ VoiceFlowPOC/
 | `requests.py`, `responses.py` | `/application/models/` | DTOs Pydantic para request/response de APIs | `ChatMessageRequest`, `ChatResponse`, etc. |
 
 #### 🧠 **CAPA 3: BUSINESS**
-| Componente | Ubicación | Responsabilidad | Interfaces Expuestas |
+| Componente | Ubicacion | Responsabilidad | Interfaces Expuestas |
 |-----------|-----------|-----------------|----------------------|
-| `langchain_agents.py` | `/business/ai_agents/` | Sistema multi-agente LangChain con 4 tools especializadas | `TourismMultiAgent.process_query()` |
-| **Tourism Logic** | `/business/tourism/` | Placeholder - lógica embebida en prompts de langchain_agents | Pendiente implementación |
-| **NLP Processing** | `/business/nlp/` | Placeholder - NLU integrada como tool en langchain_agents | Pendiente implementación |
+| `core/interfaces.py` | `/business/core/` | Contrato generico multi-agente (ABC) | `MultiAgentInterface` |
+| `core/orchestrator.py` | `/business/core/` | Orquestador base reutilizable (Template Method) | `MultiAgentOrchestrator` |
+| `core/models.py` | `/business/core/` | Modelos de respuesta genericos | `AgentResponse` |
+| `domains/tourism/agent.py` | `/business/domains/tourism/` | Orquestador especifico de turismo accesible | `TourismMultiAgent.process_request()` |
+| `domains/tourism/tools/` | `/business/domains/tourism/` | 4 tools LangChain: NLU, Accessibility, Route, TourismInfo | `BaseTool._run()` |
+| `domains/tourism/data/` | `/business/domains/tourism/` | Datos estaticos Madrid (venues, rutas, accesibilidad) | Constantes Python |
+| `domains/tourism/prompts/` | `/business/domains/tourism/` | Prompts del sistema y de respuesta | `SYSTEM_PROMPT`, `build_response_prompt()` |
 
 #### 🔌 **CAPA 4: INTEGRATION**
 | Componente | Ubicación | Responsabilidad | Interfaces Expuestas |

@@ -1,6 +1,10 @@
 """
-Business Layer - VoiceFlow PoC
-Responsabilidad: Lógica de Negocio del Turismo Accesible + IA
+Business Layer - Multi-Agent LLM Framework + Domain Implementations
+
+Structure:
+- core/: Reusable multi-agent orchestration framework
+- domains/: Domain-specific implementations (tourism, etc.)
+- ai_agents/: Backward compatibility re-exports
 """
 
-__all__ = ["ai_agents", "tourism", "nlp"]
+__all__ = ["core", "domains", "ai_agents"]

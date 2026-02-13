@@ -1,7 +1,7 @@
 # ROADMAP: VoiceFlow Tourism PoC
 
 **Fecha**: 12 de Febrero de 2026
-**Estado actual**: Arquitectura 4 capas + Docker + Secrets Management | Testing pendiente
+**Estado actual**: Arquitectura 4 capas + Docker + Secrets + Business Layer descompuesto | Testing pendiente
 **Versión actual del proyecto**: 1.1.0
 
 ---
@@ -16,7 +16,7 @@ Este roadmap define las fases de evolución del proyecto desde su estado actual 
 - ✅ Fase 2C: Documentación de diseño por capa (SDDs)
 - ✅ Fase 2D: Gestión de secrets (git-crypt + GitHub Secrets)
 
-### Próximas Fases
+### Proximas Fases
 ```
 Fase 2B ─ Descomposición de langchain_agents.py   ← SIGUIENTE
   │
@@ -28,105 +28,87 @@ Fase 4 ─ Persistencia real (PostgreSQL + Redis)
   │
 Fase 6 ─ Monitoring y observabilidad (Prometheus, Grafana)
   │
-Fase 7 ─ Seguridad y autenticación
+Fase 7 ─ Seguridad y autenticacion
   │
-Fase 8 ─ Optimización y escalado
+Fase 8 ─ Optimizacion y escalado
 ```
 
 ---
 
-## Fase 1: Descomposición de `langchain_agents.py`
+## Fase 2B: Descomposicion de Business Layer ✅ COMPLETADA
 
-### 1.1 Contexto y problema
+### 2B.1 Contexto y problema (resuelto)
 
-El archivo `business/ai_agents/langchain_agents.py` es un monolito de 580 líneas que contiene:
+El archivo `business/ai_agents/langchain_agents.py` era un monolito de 751 lineas. Los problemas resueltos:
 
-- 4 clases de herramientas LangChain (`TourismNLUTool`, `AccessibilityAnalysisTool`, `RoutePlanningTool`, `TourismInfoTool`)
-- 1 clase orquestadora (`TourismMultiAgent`)
-- 2 funciones de test (`test_individual_tools`, `test_orchestrator`)
-- Datos hardcodeados de accesibilidad, rutas y venues mezclados con la lógica
-- Bloque `if __name__` con lógica de ejecución
+1. **SRP violado** → Cada tool en su propio archivo con datos separados
+2. **Datos acoplados** → Extraidos a `domains/tourism/data/` (~340 lineas)
+3. **Sin interfaz formal** → `MultiAgentInterface` (ABC) en `core/interfaces.py`
+4. **hasattr() chain** → Contrato directo `process_request() -> AgentResponse`
+5. **asyncio.run() incompatible** → `asyncio.to_thread()` en orchestrator base
+6. **Prompts hardcodeados** → Extraidos a `domains/tourism/prompts/`
+7. **Tests en produccion** → Eliminados
+8. **Framework no reutilizable** → `core/` generico + `domains/` especifico
 
-Problemas concretos:
-
-1. **SRP violado**: Cada tool mezcla lógica de parsing, lógica de negocio y datos estáticos en el mismo método `_run()`
-2. **Datos acoplados a lógica**: Los diccionarios `accessibility_db`, `route_db`, `venue_db` (~200 líneas de datos) están inline dentro de los métodos
-3. **Sin interfaz formal**: `TourismMultiAgent` no implementa ninguna interfaz de `shared/interfaces/`; el adapter usa `hasattr()` con 5 fallbacks para encontrar un método compatible
-4. **Orquestación secuencial fija**: `process_request()` ejecuta siempre los 4 tools en orden, sin importar la intención del usuario
-5. **Tests en código de producción**: `test_individual_tools()` y `test_orchestrator()` no pertenecen al módulo
-6. **Prompts hardcodeados**: El system prompt y el final prompt están embebidos como strings multilínea dentro de métodos
-
-### 1.2 Arquitectura objetivo
+### 2B.2 Arquitectura implementada
 
 ```
 business/
 ├── __init__.py
-├── ai_agents/
-│   ├── __init__.py                      # Re-exports: TourismMultiAgent
-│   ├── orchestrator.py                  # TourismMultiAgent (orquestador)
-│   └── tools/
-│       ├── __init__.py                  # Re-exports: todas las tools
-│       ├── base.py                      # TourismBaseTool (si se necesita lógica común)
-│       ├── nlu_tool.py                  # TourismNLUTool
-│       ├── accessibility_tool.py        # AccessibilityAnalysisTool
-│       ├── route_planning_tool.py       # RoutePlanningTool
-│       └── tourism_info_tool.py         # TourismInfoTool
-├── data/
+├── core/                                  # FRAMEWORK REUTILIZABLE
 │   ├── __init__.py
-│   ├── accessibility_data.py            # ACCESSIBILITY_DB dict
-│   ├── route_data.py                    # ROUTE_DB dict
-│   ├── venue_data.py                    # VENUE_DB dict
-│   └── nlu_patterns.py                 # INTENT_PATTERNS, DESTINATION_PATTERNS, ACCESSIBILITY_PATTERNS
-├── prompts/
-│   ├── __init__.py
-│   ├── system_prompt.py                 # SYSTEM_PROMPT constant
-│   └── response_prompt.py              # RESPONSE_PROMPT_TEMPLATE (con placeholders)
-└── domain/
+│   ├── interfaces.py                      # MultiAgentInterface (ABC)
+│   ├── orchestrator.py                    # MultiAgentOrchestrator (Template Method)
+│   └── models.py                          # AgentResponse (dataclass)
+├── domains/
+│   └── tourism/                           # DOMINIO: turismo accesible Madrid
+│       ├── __init__.py
+│       ├── agent.py                       # TourismMultiAgent(MultiAgentOrchestrator)
+│       ├── tools/
+│       │   ├── nlu_tool.py, accessibility_tool.py, route_planning_tool.py, tourism_info_tool.py
+│       ├── data/
+│       │   ├── nlu_patterns.py, accessibility_data.py, route_data.py, venue_data.py
+│       └── prompts/
+│           ├── system_prompt.py, response_prompt.py
+└── ai_agents/                             # BACKWARD COMPAT (facade re-export)
     ├── __init__.py
-    └── models.py                        # NLUResult, AccessibilityInfo, RouteInfo, VenueInfo (dataclasses)
+    └── langchain_agents.py                # 1-line re-export
 ```
 
-### 1.3 Nuevas interfaces en `shared/`
+### 2B.3 Interfaz implementada
 
-Añadir a `shared/interfaces/interfaces.py`:
+Se creo `business/core/interfaces.py` con `MultiAgentInterface` (ABC generico, no especifico de turismo):
 
 ```python
-class TourismAgentInterface(ABC):
-    """Contrato para el agente de turismo accesible."""
-
+class MultiAgentInterface(ABC):
     @abstractmethod
-    async def process_request(self, user_input: str) -> Dict[str, Any]:
-        """Procesa una consulta de turismo y retorna respuesta estructurada."""
-        pass
-
+    def process_request_sync(self, user_input: str) -> AgentResponse: ...
     @abstractmethod
-    def get_conversation_history(self) -> List[Dict[str, Any]]:
-        """Retorna el historial de conversación."""
-        pass
-
+    async def process_request(self, user_input: str) -> AgentResponse: ...
     @abstractmethod
-    def clear_conversation(self) -> None:
-        """Limpia el historial de conversación."""
-        pass
+    def get_conversation_history(self) -> list[dict[str, Any]]: ...
+    @abstractmethod
+    def clear_conversation(self) -> None: ...
 ```
 
-El return type de `process_request` debe ser un dict con estructura definida:
+Return type: `AgentResponse(response_text, tool_results, metadata)` - dataclass en `core/models.py`.
 
-```python
-{
-    "response_text": str,          # Respuesta en lenguaje natural
-    "nlu_result": {                # Resultado del análisis NLU
-        "intent": str,
-        "entities": dict,
-        "confidence": float
-    },
-    "accessibility_info": dict,    # Info de accesibilidad (opcional)
-    "route_info": dict,            # Info de rutas (opcional)
-    "venue_info": dict             # Info del venue (opcional)
-}
-```
+### 2B.4 Verificacion completada
 
-### 1.4 Modelos de dominio
+| Verificacion | Resultado |
+|---|---|
+| Sintaxis (AST parse) | 24/24 archivos OK |
+| `ruff check` (lint) | All checks passed |
+| `ruff format --check` | 24 files already formatted |
+| `docker compose build` | Build exitoso |
+| Health check `/api/v1/health/` | Todos los componentes healthy |
+| Chat endpoint `/api/v1/chat/message` | Respuesta completa |
+| Logs Docker | Sin errores |
+
+Para detalles completos ver `documentation/PROPOSAL_FASE_2B.md` y `documentation/design/03_business_layer_design.md`.
+
+<!--
+### SECCION HISTORICA (pre-Fase 2B) - Modelos de dominio
 
 Crear `business/domain/models.py`:
 
@@ -436,10 +418,11 @@ Mover `test_individual_tools()` y `test_orchestrator()` a `tests/test_business/t
 - **Imports circulares**: `business/` no debe importar de `application/` ni `presentation/`. Solo de `shared/` y librerías externas.
 - **`asyncio.run()` en `process_request_sync()`**: Esta función falla si ya hay un event loop running (como en FastAPI). El adapter actual lo resuelve con `asyncio.to_thread()`, pero la solución correcta es hacer `process_request` async y llamarlo directamente con `await`.
 - **Backwards compatibility**: Mantener el wrapper `langchain_agents.py` en raíz durante esta fase para no romper imports externos.
+-->
 
 ---
 
-## Fase 2: Dockerización
+## Fase 2: Dockerizacion
 
 ### 2.1 Contexto
 

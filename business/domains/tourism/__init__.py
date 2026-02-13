@@ -1,4 +1,4 @@
-"""AI agents orchestration (backward compatibility re-exports)."""
+"""Tourism domain: Accessible tourism in Madrid."""
 
 from business.domains.tourism.agent import TourismMultiAgent
 

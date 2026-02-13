@@ -130,22 +130,24 @@ docker compose up --build
 
 ```
 VoiceFlowPOC/
-├── test_voiceflow.py          # 🔧 Sistema principal de testing  
-├── run-ui.py                  # 🎯 Entry point - Servidor Web UI
-├── langchain_agents.py        # 🤖 Sistema multi-agente LangChain
-├── web_ui/                    # � Aplicación web FastAPI
-│   ├── app.py                # FastAPI application
-│   ├── api/v1/               # REST API endpoints
-│   └── static/               # Frontend assets
-├── pyproject.toml             # 📦 Dependencias y configuracion (Poetry)
-├── poetry.lock                # 🔒 Lock file de dependencias
-├── .env                       # ⚙️ Configuración y API keys
-├── README.md                  # 📖 Este archivo
-└── documentation/             # 📚 Documentación completa
-    ├── TESTING_SYSTEM_README.md
-    ├── SISTEMA_CONSOLIDADO_FINAL.md
-    ├── ARCHITECTURE_MULTIAGENT.md
-    └── AZURE_SETUP_GUIDE.md
+├── presentation/              # Capa 1 - UI & Web Server
+├── application/               # Capa 2 - APIs & Orchestration
+├── business/                  # Capa 3 - Logica de Negocio
+│   ├── core/                  #   Framework reutilizable multi-agente
+│   │   ├── interfaces.py      #     MultiAgentInterface (ABC)
+│   │   ├── orchestrator.py    #     MultiAgentOrchestrator (Template Method)
+│   │   └── models.py          #     AgentResponse (dataclass)
+│   ├── domains/tourism/       #   Dominio: turismo accesible Madrid
+│   │   ├── agent.py           #     TourismMultiAgent
+│   │   ├── tools/             #     4 LangChain tools
+│   │   ├── data/              #     Datos estaticos Madrid
+│   │   └── prompts/           #     System + response prompts
+│   └── ai_agents/             #   Backward compatibility
+├── integration/               # Capa 4 - APIs Externas & Config
+├── shared/                    # Cross-cutting (interfaces, exceptions, DI)
+├── pyproject.toml             # Dependencias (Poetry)
+├── docker-compose.yml         # Orquestacion Docker
+└── documentation/             # Documentacion completa + SDDs
 ```
 
 ---
