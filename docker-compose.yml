@@ -16,4 +16,5 @@ services:
     environment:
       - VOICEFLOW_HOST=0.0.0.0
       - HOST=0.0.0.0
+      - DEMO_SCENARIOS=true
     command: ["python", "presentation/server_launcher.py", "--host", "0.0.0.0"]

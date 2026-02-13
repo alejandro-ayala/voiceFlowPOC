@@ -135,7 +135,7 @@ jobs:
           exit $STATUS
 
   # ====================
-  # SUMMARY
+  # SUMMARY (REQUIRED FOR MERGE)
   # ====================
   ci-summary:
     runs-on: ubuntu-latest
@@ -145,10 +145,37 @@ jobs:
     steps:
       - name: Check CI status
         run: |
-          if [ "${{ needs.lint-format.result }}" == "failure" ] || \
-             [ "${{ needs.docker-build-validate.result }}" == "failure" ] || \
-             [ "${{ needs.secrets-check.result }}" == "failure" ]; then
-            echo "❌ CI Pipeline Failed"
+          echo "=== CI Pipeline Status Check ==="
+          FAILED_JOBS=""
+
+          if [ "${{ needs.lint-format.result }}" != "success" ]; then
+            echo "❌ lint-format: ${{ needs.lint-format.result }}"
+            FAILED_JOBS="${FAILED_JOBS}lint-format "
+          else
+            echo "✅ lint-format: passed"
+          fi
+
+          if [ "${{ needs.docker-build-validate.result }}" != "success" ]; then
+            echo "❌ docker-build-validate: ${{ needs.docker-build-validate.result }}"
+            FAILED_JOBS="${FAILED_JOBS}docker-build-validate "
+          else
+            echo "✅ docker-build-validate: passed"
+          fi
+
+          if [ "${{ needs.secrets-check.result }}" != "success" ]; then
+            echo "❌ secrets-check: ${{ needs.secrets-check.result }}"
+            FAILED_JOBS="${FAILED_JOBS}secrets-check "
+          else
+            echo "✅ secrets-check: passed"
+          fi
+
+          if [ -n "$FAILED_JOBS" ]; then
+            echo ""
+            echo "❌ CI Pipeline FAILED (jobs: $FAILED_JOBS)"
+            echo "⚠️  Merge is blocked until all checks pass"
             exit 1
           fi
-          echo "✅ CI Pipeline Passed"
+
+          echo ""
+          echo "✅ CI Pipeline PASSED - Ready to merge"
+          exit 0

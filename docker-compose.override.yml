@@ -9,7 +9,7 @@ services:
     # Development environment variables
     environment:
       - VOICEFLOW_DEBUG=true
-      - VOICEFLOW_USE_REAL_AGENTS=false
+      - VOICEFLOW_USE_REAL_AGENTS=true
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
     

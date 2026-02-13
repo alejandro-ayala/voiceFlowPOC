@@ -4,6 +4,7 @@ Implements SOLID principles for scalable demo interface.
 """
 
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -114,6 +115,9 @@ def create_application() -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     async def root(request: Request):
         """Serve main application page"""
+        # Allow enabling demo scenarios in the UI via environment variable DEMO_SCENARIOS
+        demo_flag = os.getenv("DEMO_SCENARIOS", "false").lower() in ("1", "true", "yes")
+
         return templates.TemplateResponse(
             "index.html",
             {
@@ -122,6 +126,7 @@ def create_application() -> FastAPI:
                 "app_description": settings.app_description,
                 "version": settings.version,
                 "debug": settings.debug,
+                "demo_scenarios": demo_flag,
             },
         )
 

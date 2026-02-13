@@ -7,6 +7,8 @@ window.VoiceFlowApp = {
     // Global state
     audioHandler: null,
     chatHandler: null,
+    pipelineVisualizer: null,
+    demoHandler: null,
     isInitialized: false,
 
     /**
@@ -39,19 +41,54 @@ window.VoiceFlowApp = {
      */
     async initializeComponents() {
         // Initialize Audio Handler
-        if (typeof AudioHandler !== 'undefined') {
-            this.audioHandler = new AudioHandler();
-            console.log('✅ Audio handler initialized');
-        } else {
-            console.warn('⚠️ AudioHandler not found');
+        try {
+            if (typeof AudioHandler !== 'undefined') {
+                this.audioHandler = new AudioHandler();
+                console.log('✅ Audio handler initialized');
+            } else {
+                console.warn('⚠️ AudioHandler not found');
+            }
+        } catch (e) {
+            console.error('❌ AudioHandler init failed:', e);
         }
 
-        // Initialize Chat Handler  
-        if (typeof ChatHandler !== 'undefined') {
-            this.chatHandler = new ChatHandler();
-            console.log('✅ Chat handler initialized');
-        } else {
-            console.warn('⚠️ ChatHandler not found');
+        // Initialize Chat Handler
+        try {
+            if (typeof ChatHandler !== 'undefined') {
+                this.chatHandler = new ChatHandler();
+                console.log('✅ Chat handler initialized');
+            } else {
+                console.warn('⚠️ ChatHandler not found');
+            }
+        } catch (e) {
+            console.error('❌ ChatHandler init failed:', e);
+        }
+
+        // Initialize Pipeline Visualizer
+        try {
+            if (typeof PipelineVisualizer !== 'undefined') {
+                this.pipelineVisualizer = new PipelineVisualizer();
+                this.pipelineVisualizer.init();
+                console.log('✅ Pipeline visualizer initialized');
+            }
+        } catch (e) {
+            console.error('❌ PipelineVisualizer init failed:', e);
+        }
+
+        // Initialize Demo Mode Handler
+        try {
+            if (typeof DemoModeHandler !== 'undefined') {
+                // Only initialize demo handler when enabled by server-side flag
+                if (window.DEMO_SCENARIOS) {
+                    this.demoHandler = new DemoModeHandler();
+                    await this.demoHandler.init();
+                    console.log('✅ Demo mode handler initialized');
+                } else {
+                    console.log('ℹ️ Demo mode disabled (DEMO_SCENARIOS=false)');
+                }
+            }
+        } catch (e) {
+            console.error('❌ DemoModeHandler init failed:', e);
         }
 
         // Wait a moment for components to fully initialize
