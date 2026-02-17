@@ -717,3 +717,66 @@ body {
         font-size: 0.9rem;
     }
 }
+
+
+/* ============================================
+   F3 - Profile Preferences Styles
+   ============================================ */
+
+/* Profile badge in navbar */
+#profileBadge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+/* Navbar preferences link */
+#navbarPreferencesToggle {
+    cursor: pointer;
+}
+
+#navbarPreferencesToggle:hover {
+    opacity: 0.85;
+}
+
+/* Preferences modal cards */
+.profile-card-option {
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    background: var(--light-color);
+}
+
+.profile-card-option:hover {
+    border-color: rgba(13, 110, 253, 0.3);
+    background-color: rgba(13, 110, 253, 0.04);
+}
+
+.profile-card-option.selected {
+    border-color: var(--primary-color);
+    background-color: rgba(13, 110, 253, 0.08);
+}
+
+.profile-card-option .profile-icon {
+    font-size: 1.5rem;
+    margin-right: 12px;
+    color: var(--primary-color);
+}
+
+.profile-card-option .profile-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.profile-card-option .profile-description {
+    font-size: 0.8rem;
+    color: var(--secondary-color);
+    margin-top: 2px;
+}
+
+.profile-card-option input[type="radio"] {
+    display: none;
+}

@@ -43,6 +43,15 @@ class AudioTranscriptionRequest(BaseModel):
         return v
 
 
+class UserPreferences(BaseModel):
+    """User preference context sent with each chat request."""
+
+    active_profile_id: Optional[str] = Field(
+        default=None,
+        description="Active profile ID from the profile registry, or null",
+    )
+
+
 class ChatMessageRequest(BaseModel):
     """Request model for chat messages"""
 
@@ -51,6 +60,7 @@ class ChatMessageRequest(BaseModel):
     session_id: Optional[str] = Field(default=None, description="Legacy field - use conversation_id instead")
     timestamp: Optional[datetime] = Field(default=None, description="Message timestamp")
     context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context data")
+    user_preferences: Optional[UserPreferences] = Field(default=None, description="User preference profile selection")
 
     @validator("message")
     def validate_message(cls, v):

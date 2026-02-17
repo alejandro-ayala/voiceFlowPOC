@@ -130,12 +130,16 @@ Envia un mensaje y obtiene respuesta del asistente de turismo.
 {
   "message": "Como llego al Museo del Prado en silla de ruedas?",
   "conversation_id": "conv_123",
-  "session_id": "session_abc"
+  "session_id": "session_abc",
+  "user_preferences": {
+    "active_profile_id": "cultural"
+  }
 }
 ```
 
 **Validaciones**:
 - `message`: no vacio, max 1000 caracteres
+- `user_preferences.active_profile_id`: opcional, debe existir en profile registry
 
 **Response** (200):
 ```json
@@ -145,7 +149,50 @@ Envia un mensaje y obtiene respuesta del asistente de turismo.
   "session_id": "session_abc",
   "processing_time": 2.3,
   "intent": "route_planning",
-  "entities": {}
+  "entities": {
+    "location": "Madrid",
+    "accessibility_requirement": "wheelchair"
+  },
+  "tourism_data": {
+    "venue": {
+      "name": "Museo del Prado",
+      "type": "museum",
+      "accessibility_score": 9.5,
+      "facilities": ["wheelchair_accessible", "accessible_restrooms", "accessible_parking"],
+      "opening_hours": {"monday": "10:00-20:00"}
+    },
+    "routes": [
+      {
+        "transport": "metro",
+        "line": "L1",
+        "duration": "15 minutos",
+        "accessibility": "wheelchair_accessible",
+        "steps": ["Tomar línea 1 dirección Pinar de Chamartín"]
+      }
+    ],
+    "accessibility": {
+      "level": "fully_accessible",
+      "score": 9.5,
+      "certification": "iso_21542",
+      "facilities": ["elevator", "accessible_entrance", "adapted_restrooms"]
+    }
+  },
+  "pipeline_steps": [
+    {
+      "name": "Natural Language Understanding",
+      "tool": "nlu",
+      "status": "completed",
+      "duration_ms": 125,
+      "summary": "Intent: route_planning, Entities: {location, accessibility_requirement}"
+    },
+    {
+      "name": "Accessibility Assessment",
+      "tool": "accessibility",
+      "status": "completed",
+      "duration_ms": 89,
+      "summary": "Venue accessibility score: 9.5/10"
+    }
+  ]
 }
 ```
 
@@ -275,16 +322,20 @@ async def get_supported_formats(self) -> List[str]
 Implementada por: `application/orchestration/backend_adapter.py::LocalBackendAdapter`
 
 ```python
-async def process_query(self, transcription: str) -> Dict[str, Any]
+async def process_query(self, transcription: str, active_profile_id: Optional[str] = None) -> Dict[str, Any]
 async def get_system_status(self) -> Dict[str, Any]
 async def clear_conversation(self) -> bool
 ```
 
+**Descripción:**
+- `process_query()`: Procesa consulta del usuario opcionalmente con contexto de perfil activo
+- `active_profile_id`: ID del perfil activo (si existe) para aplicar directives y ranking bias
+
 ### `ConversationInterface`
-Implementada por: `integration/data_persistence/conversation_repository.py::ConversationService`
+Implementada por: `application/services/conversation_service.py::ConversationService`
 
 ```python
-async def add_message(self, user_message: str, ai_response: str) -> str
+async def add_message(self, user_message: str, ai_response: str, session_id: Optional[str] = None) -> str
 async def get_conversation_history(self, session_id: Optional[str] = None) -> List[Dict]
 async def clear_conversation(self, session_id: Optional[str] = None) -> bool
 ```
