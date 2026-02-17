@@ -2,7 +2,7 @@
 
 import asyncio
 from abc import abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 import structlog
 
@@ -31,7 +31,7 @@ class MultiAgentOrchestrator(MultiAgentInterface):
         self.system_prompt = system_prompt
         self.conversation_history: list[dict[str, str]] = []
 
-    def process_request_sync(self, user_input: str) -> AgentResponse:
+    def process_request_sync(self, user_input: str, profile_context: Optional[dict] = None) -> AgentResponse:
         """Execute tool pipeline + LLM synchronously."""
         try:
             logger.info("Processing request", input=user_input)
@@ -44,7 +44,7 @@ class MultiAgentOrchestrator(MultiAgentInterface):
                 tool_results = exec_result
                 metadata = {}
 
-            prompt = self._build_response_prompt(user_input, tool_results)
+            prompt = self._build_response_prompt(user_input, tool_results, profile_context=profile_context)
 
             # Measure LLM invocation time
             import time
@@ -83,9 +83,9 @@ class MultiAgentOrchestrator(MultiAgentInterface):
             error_text = f"Lo siento, hubo un error procesando tu solicitud: {str(e)}"
             return AgentResponse(response_text=error_text, tool_results={})
 
-    async def process_request(self, user_input: str) -> AgentResponse:
+    async def process_request(self, user_input: str, profile_context: Optional[dict] = None) -> AgentResponse:
         """Execute tool pipeline + LLM asynchronously (runs sync in thread)."""
-        return await asyncio.to_thread(self.process_request_sync, user_input)
+        return await asyncio.to_thread(self.process_request_sync, user_input, profile_context)
 
     def get_conversation_history(self) -> list[dict[str, Any]]:
         """Return conversation history."""
@@ -102,7 +102,7 @@ class MultiAgentOrchestrator(MultiAgentInterface):
         ...
 
     @abstractmethod
-    def _build_response_prompt(self, user_input: str, tool_results: dict[str, str]) -> str:
+    def _build_response_prompt(self, user_input: str, tool_results: dict[str, str], profile_context: Optional[dict] = None) -> str:
         """Build the final prompt for LLM synthesis from tool results."""
         ...
 

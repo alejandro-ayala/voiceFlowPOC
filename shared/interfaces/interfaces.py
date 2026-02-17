@@ -5,7 +5,7 @@ These abstractions allow for easy testing, mocking, and future implementations.
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional  # noqa: F401
 
 
 class AudioProcessorInterface(ABC):
@@ -37,7 +37,7 @@ class BackendInterface(ABC):
     """
 
     @abstractmethod
-    async def process_query(self, transcription: str) -> Dict[str, Any]:
+    async def process_query(self, transcription: str, active_profile_id: Optional[str] = None) -> Dict[str, Any]:
         """Process user query through multi-agent system"""
         pass
 

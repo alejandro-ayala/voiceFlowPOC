@@ -1,13 +1,30 @@
 # Arquitectura Multi-Agente: LangChain + STT
 
-**Actualizado**: 12 de Febrero de 2026
-**Version**: 4.0 - Framework reutilizable core/ + domains/
+**Actualizado**: 18 de Febrero de 2026
+**Version**: 4.1 - Framework reutilizable core/ + domains/
+
+---
+
+## ⚠️ ESTADO ACTUAL: Tools con Mock Data (STUBS)
+
+**IMPORTANTE:** Las herramientas (tools) actuales son **prototipos con datos hardcodeados**:
+- ❌ **NLU Tool**: Regex + diccionario de ~10 venues de Madrid
+- ❌ **Accessibility Tool**: Lookup en base de datos simulada (4 venues)
+- ❌ **Route Tool**: Rutas predefinidas, no consultan APIs reales
+- ❌ **Tourism Info Tool**: Horarios/precios son MOCK DATA
+
+**Impacto:**
+- Las tools NO aportan datos reales, el LLM usa su conocimiento pre-entrenado
+- Solo funciona para casos hardcodeados (Madrid + ~10 venues)
+- NO escala a otras ciudades sin añadir más mock data
+
+**Siguiente paso:** Ver [ESTADO_ACTUAL_SISTEMA.md](./ESTADO_ACTUAL_SISTEMA.md) y [REFACTOR_PLAN_PROFILE_DRIVEN_RESPONSES.md](./REFACTOR_PLAN_PROFILE_DRIVEN_RESPONSES.md) (Fase 0) para plan de integración con APIs reales.
 
 ---
 
 ## Contexto
 
-El sistema VoiceFlow Tourism PoC combina Speech-to-Text (STT) con un sistema multi-agente LangChain para proporcionar asistencia de turismo accesible en Madrid. El usuario habla en espanol, el sistema transcribe y procesa la consulta a traves de agentes especializados que generan recomendaciones de accesibilidad.
+El sistema VoiceFlow Tourism PoC combina Speech-to-Text (STT) con un sistema multi-agente LangChain para proporcionar asistencia de turismo accesible en Madrid. El usuario habla en español, el sistema transcribe y procesa la consulta a través de agentes especializados que generan recomendaciones de accesibilidad.
 
 ## Flujo de datos
 
