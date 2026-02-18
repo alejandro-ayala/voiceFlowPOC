@@ -7,7 +7,16 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, root_validator, validator
+
+
+class PipelineStatus(str):
+    """Allowed pipeline step statuses"""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    ERROR = "error"
 
 
 class StatusEnum(str, Enum):
@@ -57,6 +66,134 @@ class AudioProcessingStatusResponse(BaseResponse):
     estimated_completion: Optional[datetime] = Field(default=None, description="Estimated completion time")
 
 
+class PipelineStep(BaseModel):
+    """A single step in the agent pipeline"""
+
+    name: str = Field(..., description="Display name of the step")
+    tool: str = Field(..., description="Tool identifier")
+    status: str = Field(default=PipelineStatus.PENDING, description="pending|processing|completed|error")
+    duration_ms: Optional[int] = Field(default=None, description="Processing time in milliseconds")
+    summary: Optional[str] = Field(default=None, description="Brief summary of step output")
+
+    @validator("status")
+    def validate_status(cls, v):
+        allowed = {PipelineStatus.PENDING, PipelineStatus.PROCESSING, PipelineStatus.COMPLETED, PipelineStatus.ERROR}
+        if v not in allowed:
+            return PipelineStatus.PENDING
+        return v
+
+    @validator("duration_ms", pre=True)
+    def coerce_duration(cls, v):
+        try:
+            if v is None:
+                return None
+            iv = int(v)
+            return iv if iv >= 0 else None
+        except Exception:
+            return None
+
+    @validator("summary", pre=True, always=True)
+    def trim_summary(cls, v):
+        if v is None:
+            return None
+        s = str(v).strip()
+        return s[:240]
+
+
+class Venue(BaseModel):
+    name: str
+    type: Optional[str] = None
+    accessibility_score: Optional[float] = None
+    certification: Optional[str] = None
+    facilities: Optional[List[str]] = None
+    opening_hours: Optional[Dict[str, str]] = None
+    pricing: Optional[Dict[str, str]] = None
+
+    @validator("accessibility_score", pre=True)
+    def coerce_score(cls, v):
+        if v is None:
+            return None
+        try:
+            fv = float(v)
+            if fv < 0:
+                fv = 0.0
+            if fv > 10:
+                fv = 10.0
+            return round(fv, 2)
+        except Exception:
+            return None
+
+    @validator("facilities", pre=True)
+    def ensure_facilities_list(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, list):
+            return [str(x) for x in v][:20]
+        # if comma-separated string
+        return [s.strip() for s in str(v).split(",") if s.strip()][:20]
+
+
+class Route(BaseModel):
+    transport: Optional[str] = None
+    line: Optional[str] = None
+    duration: Optional[str] = None
+    accessibility: Optional[str] = None
+    cost: Optional[str] = None
+    steps: Optional[List[str]] = None
+
+    @validator("steps", pre=True)
+    def ensure_steps(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, list):
+            return [str(s) for s in v][:50]
+        return [s.strip() for s in str(v).split("\n") if s.strip()][:50]
+
+
+class Accessibility(BaseModel):
+    level: Optional[str] = None
+    score: Optional[float] = None
+    certification: Optional[str] = None
+    facilities: Optional[List[str]] = None
+    services: Optional[Dict[str, str]] = None
+
+    @validator("score", pre=True)
+    def coerce_score(cls, v):
+        if v is None:
+            return None
+        try:
+            fv = float(v)
+            if fv < 0:
+                fv = 0.0
+            if fv > 10:
+                fv = 10.0
+            return round(fv, 2)
+        except Exception:
+            return None
+
+    @validator("facilities", pre=True)
+    def ensure_facilities(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, list):
+            return [str(x) for x in v][:20]
+        return [s.strip() for s in str(v).split(",") if s.strip()][:20]
+
+
+class TourismData(BaseModel):
+    venue: Optional[Venue] = None
+    routes: Optional[List[Route]] = None
+    accessibility: Optional[Accessibility] = None
+
+    @root_validator(pre=True)
+    def ensure_structure(cls, values):
+        # allow routes being a dict with 'routes' key
+        routes = values.get("routes")
+        if routes and isinstance(routes, dict) and "routes" in routes:
+            values["routes"] = routes.get("routes")
+        return values
+
+
 class ChatResponse(BaseResponse):
     """Response model for chat interactions"""
 
@@ -65,9 +202,17 @@ class ChatResponse(BaseResponse):
     processing_time: Optional[float] = Field(default=None, description="Processing time in seconds")
 
     # Structured tourism data
-    tourism_data: Optional[Dict[str, Any]] = Field(default=None, description="Structured tourism information")
+    tourism_data: Optional[TourismData] = Field(default=None, description="Structured tourism information")
     intent: Optional[str] = Field(default=None, description="Detected user intent")
     entities: Optional[Dict[str, Any]] = Field(default=None, description="Extracted entities")
+
+    # Pipeline visualization
+    pipeline_steps: Optional[List[PipelineStep]] = Field(
+        default=None, description="Per-tool pipeline step timing and status"
+    )
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class SystemStatusResponse(BaseResponse):

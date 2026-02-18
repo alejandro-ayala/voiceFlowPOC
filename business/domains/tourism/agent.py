@@ -1,11 +1,14 @@
 """Tourism domain orchestrator - wires core framework with tourism-specific tools and prompts."""
 
+import json
 import os
+import re
 from typing import Optional
 
 import structlog
 from langchain_openai import ChatOpenAI
 
+from business.core.canonicalizer import canonicalize_tourism_data
 from business.core.orchestrator import MultiAgentOrchestrator
 from business.domains.tourism.prompts.response_prompt import build_response_prompt
 from business.domains.tourism.prompts.system_prompt import SYSTEM_PROMPT
@@ -37,7 +40,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
             model="gpt-4",
             temperature=0.3,
             openai_api_key=api_key,
-            max_tokens=1500,
+            max_tokens=2500,
         )
         super().__init__(llm=llm, system_prompt=SYSTEM_PROMPT)
 
@@ -49,31 +52,166 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         logger.info("Tourism Multi-Agent System initialized successfully")
 
     def _execute_pipeline(self, user_input: str) -> dict[str, str]:
-        """Execute the tourism tool pipeline.
+        """Execute the tourism tool pipeline with timing instrumentation.
 
-        Pipeline: NLU(user_input) -> Accessibility(nlu) -> Route(accessibility) + TourismInfo(nlu)
+        Returns a tuple: (tool_results: dict[str,str], metadata: dict)
+        metadata contains `pipeline_steps`, parsed tool outputs and basic intent/entities.
         """
-        logger.info("Executing tourism pipeline", input=user_input)
+        import json
+        import time
 
-        nlu_result = self.nlu._run(user_input)
-        logger.info("NLU analysis completed", result=nlu_result[:200])
+        logger.info("Executing tourism pipeline (instrumented)", input=user_input)
 
-        accessibility_result = self.accessibility._run(nlu_result)
-        logger.info("Accessibility analysis completed")
+        pipeline_steps: list[dict] = []
+        tool_results: dict[str, str] = {}
+        parsed_tools: dict[str, object] = {}
 
-        route_result = self.route._run(accessibility_result)
-        logger.info("Route planning completed")
+        # helper to run a tool and capture timing + parsed output
+        def run_tool(name: str, tool, input_data: str):
+            start = time.perf_counter()
+            raw = tool._run(input_data)
+            end = time.perf_counter()
+            duration_ms = int((end - start) * 1000)
 
-        tourism_result = self.tourism_info._run(nlu_result)
-        logger.info("Tourism info retrieved")
+            # try to parse JSON result
+            parsed = None
+            try:
+                parsed = json.loads(raw)
+            except Exception:
+                parsed = None
 
-        return {
-            "nlu": nlu_result,
-            "accessibility": accessibility_result,
-            "route": route_result,
-            "tourism_info": tourism_result,
+            # build summary heuristics
+            summary = None
+            if isinstance(parsed, dict):
+                # prefer concise known keys
+                summary = parsed.get("intent") or parsed.get("accessibility_level") or parsed.get("venue")
+                if summary is None:
+                    # fallback to presence of keys
+                    keys = list(parsed.keys())[:3]
+                    summary = ",".join(keys)
+            else:
+                summary = (raw or "").strip()[:120]
+
+            pipeline_steps.append(
+                {
+                    "name": name,
+                    "tool": getattr(tool, "name", name.lower()),
+                    "status": "completed",
+                    "duration_ms": duration_ms,
+                    "summary": summary,
+                }
+            )
+
+            tool_results[name.lower()] = raw
+            parsed_tools[name.lower()] = parsed
+            logger.info(f"{name} completed", duration_ms=duration_ms)
+
+            return raw, parsed
+
+        # NLU
+        run_tool("NLU", self.nlu, user_input)
+
+        # Accessibility (input: NLU raw)
+        nlu_raw = tool_results.get("nlu") or ""
+        run_tool("Accessibility", self.accessibility, nlu_raw)
+
+        # Routes (input: accessibility raw)
+        accessibility_raw = tool_results.get("accessibility") or ""
+        run_tool("Routes", self.route, accessibility_raw)
+
+        # Tourism info (input: NLU raw)
+        run_tool("Venue Info", self.tourism_info, nlu_raw)
+
+        # Build tourism_data from parsed tools where possible
+        tourism_data = None
+        try:
+            tourism_info = (
+                parsed_tools.get("venue info") or parsed_tools.get("tourism_info") or parsed_tools.get("venue")
+            )
+            routes = parsed_tools.get("routes") or parsed_tools.get("route")
+            accessibility = parsed_tools.get("accessibility")
+
+            # normalize names
+            if isinstance(tourism_info, dict) or isinstance(routes, dict) or isinstance(accessibility, dict):
+                routes_val = None
+                if isinstance(routes, dict) and routes.get("routes"):
+                    routes_val = routes.get("routes")
+                elif isinstance(routes, list):
+                    routes_val = routes
+                tourism_data = {
+                    "venue": (tourism_info if isinstance(tourism_info, dict) else None),
+                    "routes": routes_val,
+                    "accessibility": (accessibility if isinstance(accessibility, dict) else None),
+                }
+        except Exception:
+            tourism_data = None
+
+        # Canonicalize tourism_data into the SSOT used by the API/UI.
+        try:
+            tourism_data = canonicalize_tourism_data(tourism_data) if tourism_data else None
+        except Exception:
+            tourism_data = None
+
+        # attempt to extract intent/entities from NLU parsed
+        intent = None
+        entities = None
+        nlu_parsed = parsed_tools.get("nlu")
+        if isinstance(nlu_parsed, dict):
+            intent = nlu_parsed.get("intent")
+            entities = nlu_parsed.get("entities")
+
+        metadata = {
+            "pipeline_steps": pipeline_steps,
+            "tourism_data": tourism_data,
+            "intent": intent,
+            "entities": entities,
+            "tool_results_parsed": parsed_tools,
         }
+
+        return tool_results, metadata
 
     def _build_response_prompt(self, user_input: str, tool_results: dict[str, str]) -> str:
         """Build the tourism-specific response prompt."""
         return build_response_prompt(user_input=user_input, tool_results=tool_results)
+
+    def _extract_structured_data(self, llm_text: str, metadata: dict) -> tuple[str, dict]:
+        """Extract JSON tourism_data block from LLM response and merge into metadata."""
+        match = re.search(r"```json\s*(\{.*?\})\s*```", llm_text, re.DOTALL)
+        if not match:
+            return llm_text, metadata
+
+        json_block = match.group(1)
+        clean_text = llm_text[: match.start()].rstrip()
+
+        try:
+            raw_data = json.loads(json_block)
+        except json.JSONDecodeError as e:
+            logger.warning("LLM returned invalid JSON block", error=str(e))
+            return clean_text, metadata
+
+        llm_tourism_data = canonicalize_tourism_data(raw_data)
+        if not llm_tourism_data:
+            logger.warning("LLM tourism_data failed canonicalization")
+            return clean_text, metadata
+
+        # Merge: prefer LLM data over tool data (tool data is often generic defaults)
+        existing = metadata.get("tourism_data")
+        if not existing:
+            metadata["tourism_data"] = llm_tourism_data
+            logger.info("Using LLM-generated tourism_data (no tool data available)")
+        else:
+            # If existing tool data looks like a generic default (score 6.0, name contains "Guía"),
+            # prefer the LLM-generated data which has contextual information
+            existing_venue = existing.get("venue") or {}
+            is_default = (
+                existing_venue.get("accessibility_score") == 6.0
+                or existing_venue.get("name", "").startswith("Gu")
+                or not existing_venue.get("name")
+            )
+            if is_default:
+                metadata["tourism_data"] = llm_tourism_data
+                logger.info("Replaced default tool tourism_data with LLM-generated data")
+            else:
+                logger.info("Keeping tool-derived tourism_data (specific venue data)")
+
+        return clean_text, metadata
