@@ -135,20 +135,22 @@ class LocalBackendAdapter(BackendInterface):
     async def _simulate_ai_response(self, transcription: str) -> str
 ```
 
-**Lógica de decisión:**
+**Logica de decision:**
 ```
 process_query()
     ├── use_real_agents=True → _process_real_query()
-    │   → TourismMultiAgent.process_request() via asyncio.to_thread
-    │   ├── OK → respuesta real GPT-4
+    │   → TourismMultiAgent.process_request() → AgentResponse
+    │   ├── OK → result.response_text (respuesta real GPT-4)
     │   └── Error → fallback a _simulate_ai_response()
     └── use_real_agents=False → _simulate_ai_response()
         → Respuestas hardcodeadas por keyword matching
 ```
 
-**Simulación:** `_simulate_ai_response()` contiene ~110 líneas de respuestas hardcodeadas en español sobre turismo accesible en Madrid, con matching por keywords (prado, concierto, restaurante, ruta, etc.).
+**Contrato con Business Layer:** Desde la Fase 2B, el adapter usa directamente `MultiAgentInterface.process_request()` que retorna `AgentResponse(response_text, tool_results, metadata)`. Se elimino la cadena de `hasattr()` con 5 fallbacks.
 
-**Observación:** La lógica de simulación debería estar en business layer o en un servicio mock separado, no en el adapter.
+**Simulacion:** `_simulate_ai_response()` contiene ~110 lineas de respuestas hardcodeadas en espanol sobre turismo accesible en Madrid.
+
+**Observacion:** La logica de simulacion deberia estar en un servicio mock separado, no en el adapter.
 
 ### 2.4 Modelos (`application/models/`)
 
@@ -210,7 +212,7 @@ application/orchestration/backend_adapter.py
     → shared/interfaces (BackendInterface)
     → shared/exceptions (BackendCommunicationException)
     → integration/configuration/settings (Settings)
-    → business/ai_agents/langchain_agents (TourismMultiAgent) [lazy import]
+    → business/domains/tourism/agent (TourismMultiAgent) [lazy import]
 
 application/services/audio_service.py
     → shared/interfaces (AudioProcessorInterface)
@@ -267,7 +269,7 @@ def test_backend_adapter_simulation_mode():
 2. **`conversation_service.py` duplicado:** Copia exacta de `integration/data_persistence/conversation_repository.py`
 3. **`/health/audio` rompe DI:** Crea `create_stt_agent()` directamente en vez de usar `Depends()`
 4. **Simulación en adapter:** `_simulate_ai_response()` (~110 líneas de texto hardcoded) no pertenece al adapter
-5. **Reflection en `_process_real_query`:** Usa `hasattr()` para buscar método compatible en TourismMultiAgent
+5. ~~**Reflection en `_process_real_query`:**~~ Resuelto en Fase 2B - usa contrato directo `process_request() -> AgentResponse`
 6. **`processing_status` global:** Dict in-memory para async transcription, no compartido entre workers uvicorn
 7. **`ChatResponse.entities`:** Tipado como `Optional[Dict[str, Any]]` pero el frontend espera `Optional[List[str]]` según la documentación API
 8. **Response models parcialmente usados:** Algunos endpoints retornan dicts directos en vez de usar los response models definidos

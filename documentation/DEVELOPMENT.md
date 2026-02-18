@@ -74,8 +74,16 @@ voiceFlowPOC-refactor-baseline/
 │       └── conversation_repository.py  # ConversationService (in-memory)
 │
 ├── business/                        # Logica de negocio (LangChain agents)
-│   └── ai_agents/
-│       └── langchain_agents.py      #   TourismMultiAgent + 4 LangChain tools
+│   ├── core/                        #   Framework reutilizable
+│   │   ├── interfaces.py            #     MultiAgentInterface (ABC)
+│   │   ├── orchestrator.py          #     MultiAgentOrchestrator (Template Method)
+│   │   └── models.py                #     AgentResponse (dataclass)
+│   ├── domains/tourism/             #   Dominio: turismo accesible Madrid
+│   │   ├── agent.py                 #     TourismMultiAgent(MultiAgentOrchestrator)
+│   │   ├── tools/                   #     4 LangChain tools separadas
+│   │   ├── data/                    #     Datos estaticos Madrid
+│   │   └── prompts/                 #     System + response prompts
+│   └── ai_agents/                   #   Backward compat (facade re-export)
 │
 ├── application/                     # API REST, servicios, orquestacion
 │   ├── api/v1/
@@ -149,7 +157,11 @@ python -c "from integration.configuration.settings import Settings; print('OK')"
 python -c "from integration.external_apis.stt_factory import STTServiceFactory; print('OK')"
 
 # Business (depende de librerias externas)
+python -c "from business.domains.tourism.agent import TourismMultiAgent; print('OK')"
+# Backward compat (debe seguir funcionando)
 python -c "from business.ai_agents.langchain_agents import TourismMultiAgent; print('OK')"
+# Core framework
+python -c "from business.core.orchestrator import MultiAgentOrchestrator; print('OK')"
 
 # Application (depende de shared, integration, business)
 python -c "from application.services.audio_service import AudioService; print('OK')"

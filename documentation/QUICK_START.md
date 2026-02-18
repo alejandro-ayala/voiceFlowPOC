@@ -58,8 +58,8 @@ Browser (index.html)
     |       +-- AudioService -> STTFactory -> Azure/Whisper/Simulacion
     |
     +-- Chat: POST /api/v1/chat/message
-            +-- LocalBackendAdapter -> TourismMultiAgent (LangChain + GPT-4)
-                    +-- TourismNLUTool
+            +-- LocalBackendAdapter -> TourismMultiAgent (core/ + domains/tourism/)
+                    +-- TourismNLUTool          (domains/tourism/tools/)
                     +-- AccessibilityAnalysisTool
                     +-- RoutePlanningTool
                     +-- TourismInfoTool
@@ -73,7 +73,8 @@ Browser (index.html)
 | `presentation/fastapi_factory.py` | Fabrica FastAPI (create_application) |
 | `application/api/v1/` | Endpoints REST (health, audio, chat) |
 | `application/orchestration/backend_adapter.py` | Adapter a business layer |
-| `business/ai_agents/langchain_agents.py` | Multi-agent LangChain |
+| `business/domains/tourism/agent.py` | Orquestador multi-agente turismo |
+| `business/core/orchestrator.py` | Framework base reutilizable |
 | `integration/configuration/settings.py` | Configuracion centralizada |
 | `integration/external_apis/stt_factory.py` | Factory de servicios STT |
 | `.env` | Variables de entorno (credenciales) |
