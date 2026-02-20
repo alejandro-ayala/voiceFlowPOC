@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 import structlog
 
 from application.models.responses import PipelineStep, TourismData
+from application.services.profile_service import ProfileService
 from integration.configuration.settings import Settings
 from shared.exceptions.exceptions import BackendCommunicationException
 from shared.interfaces.interfaces import BackendInterface
@@ -27,6 +28,7 @@ class LocalBackendAdapter(BackendInterface):
         self.settings = settings
         self._backend_instance: Optional[Any] = None
         self._conversation_count = 0
+        self._profile_service = ProfileService()
 
     async def _get_backend_instance(self):
         """Lazy initialization of backend to avoid import issues."""
@@ -55,20 +57,29 @@ class LocalBackendAdapter(BackendInterface):
 
         return self._backend_instance
 
-    async def process_query(self, transcription: str) -> Dict[str, Any]:
+    async def process_query(self, transcription: str, active_profile_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Process user query through REAL multi-agent system or SIMULATED for demo.
         Returns structured response with tourism information.
         """
         try:
+            # Resolve profile context from registry
+            profile_context = self._profile_service.resolve_profile(active_profile_id)
+
             # Check if we should use real agents or simulation
             use_real_agents = getattr(self.settings, "use_real_agents", True)
 
+            logger.info(
+                "Processing query",
+                query=transcription,
+                profile_id=active_profile_id or "none",
+                profile_resolved=profile_context is not None,
+                backend_mode="real" if use_real_agents else "simulated",
+            )
+
             if use_real_agents:
-                logger.info("🚀 Processing query through REAL backend", query=transcription)
-                ai_response = await self._process_real_query(transcription)
+                ai_response = await self._process_real_query(transcription, profile_context=profile_context)
             else:
-                logger.info("🚀 Processing query through SIMULATED backend", query=transcription)
                 ai_response = await self._simulate_ai_response(transcription)
 
             # Increment conversation counter
@@ -172,13 +183,13 @@ class LocalBackendAdapter(BackendInterface):
                 },
             )
 
-    async def _process_real_query(self, transcription: str) -> str:
+    async def _process_real_query(self, transcription: str, profile_context: Optional[Dict[str, Any]] = None) -> str:
         """Process query through REAL LangChain agents with OpenAI."""
         try:
             agent = await self._get_backend_instance()
             logger.info("Calling TourismMultiAgent", query=transcription)
 
-            result = await agent.process_request(transcription)
+            result = await agent.process_request(transcription, profile_context=profile_context)
 
             # result is AgentResponse(response_text, tool_results, metadata)
             ai_text = getattr(result, "response_text", None)

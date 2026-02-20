@@ -23,9 +23,13 @@ class TourismInfoTool(BaseTool):
 
         venue_name = self._extract_venue_name(venue_info)
         venue_data = VENUE_DB.get(venue_name, DEFAULT_VENUE)
+        venue_type = self._infer_venue_type(venue_name)
 
         result = {
-            "venue": venue_name,
+            "venue": {
+                "name": venue_name,
+                "type": venue_type,
+            },
             "opening_hours": venue_data["opening_hours"],
             "pricing": venue_data["pricing"],
             "accessibility_reviews": venue_data["accessibility_reviews"],
@@ -62,3 +66,17 @@ class TourismInfoTool(BaseTool):
             return "Parques Madrid"
 
         return "General Madrid"
+
+    @staticmethod
+    def _infer_venue_type(venue_name: str) -> str:
+        """Infer a simple venue type from the venue name."""
+        name_lower = venue_name.lower()
+        if "museo" in name_lower:
+            return "museum"
+        if "restaurante" in name_lower:
+            return "restaurant"
+        if "parque" in name_lower:
+            return "park"
+        if "musical" in name_lower or "concierto" in name_lower:
+            return "entertainment"
+        return "tourism"

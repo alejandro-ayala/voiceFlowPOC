@@ -114,13 +114,20 @@ class ChatHandler {
     }
 
     async sendToBackend(message) {
+        // Get active profile from ProfileManager (if available)
+        const profileManager = window.VoiceFlowApp?.profileManager;
+        const userPreferences = profileManager
+            ? profileManager.getProfileForRequest()
+            : { active_profile_id: null };
+
         const requestData = {
             message: message,
             conversation_id: this.conversationId,
             context: {
                 timestamp: new Date().toISOString(),
                 source: 'web_ui'
-            }
+            },
+            user_preferences: userPreferences
         };
 
         const response = await fetch('/api/v1/chat/message', {

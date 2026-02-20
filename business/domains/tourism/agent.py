@@ -170,9 +170,13 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 
         return tool_results, metadata
 
-    def _build_response_prompt(self, user_input: str, tool_results: dict[str, str]) -> str:
+    def _build_response_prompt(self, user_input: str, tool_results: dict[str, str], profile_context: Optional[dict] = None) -> str:
         """Build the tourism-specific response prompt."""
-        return build_response_prompt(user_input=user_input, tool_results=tool_results)
+        return build_response_prompt(
+            user_input=user_input,
+            tool_results=tool_results,
+            profile_context=profile_context,
+        )
 
     def _extract_structured_data(self, llm_text: str, metadata: dict) -> tuple[str, dict]:
         """Extract JSON tourism_data block from LLM response and merge into metadata."""

@@ -1,7 +1,7 @@
 """Generic interface for multi-agent LLM systems."""
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 from business.core.models import AgentResponse
 
@@ -14,12 +14,12 @@ class MultiAgentInterface(ABC):
     """
 
     @abstractmethod
-    def process_request_sync(self, user_input: str) -> AgentResponse:
+    def process_request_sync(self, user_input: str, profile_context: Optional[dict] = None) -> AgentResponse:
         """Process a query synchronously through the tool pipeline + LLM."""
         ...
 
     @abstractmethod
-    async def process_request(self, user_input: str) -> AgentResponse:
+    async def process_request(self, user_input: str, profile_context: Optional[dict] = None) -> AgentResponse:
         """Process a query asynchronously (async wrapper over sync)."""
         ...
 
