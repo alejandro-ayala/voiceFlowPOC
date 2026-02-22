@@ -3,6 +3,7 @@ Centralized configuration for VoiceFlow PoC Web UI
 Supports local and Azure deployment with environment-based configuration.
 """
 
+import json
 from typing import Optional
 
 from pydantic import Field
@@ -54,6 +55,17 @@ class Settings(BaseSettings):
 
     # OpenAI settings (for backend service)
     openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key")
+
+    # NER settings
+    ner_enabled: bool = Field(default=True, description="Enable NER extraction")
+    ner_provider: str = Field(default="spacy", description="NER provider")
+    ner_default_language: str = Field(default="es", description="Default NER language")
+    ner_model_map: str = Field(
+        default='{"es":"es_core_news_md","en":"en_core_web_sm"}',
+        description="JSON mapping language->model for NER providers",
+    )
+    ner_fallback_model: str = Field(default="es_core_news_sm", description="Fallback NER model")
+    ner_confidence_threshold: float = Field(default=0.6, description="Minimum NER confidence threshold")
 
     # Azure deployment settings (future)
     azure_webapp_name: Optional[str] = Field(default=None, description="Azure Web App name")
@@ -121,3 +133,27 @@ def get_cors_config() -> dict:
             "allow_headers": ["*"],
             "allow_credentials": False,
         }
+
+
+def get_ner_model_map() -> dict[str, str]:
+    """Parse NER model mapping from settings with safe fallback defaults."""
+    default_map = {
+        "es": "es_core_news_md",
+        "en": "en_core_web_sm",
+    }
+
+    raw_value = settings.ner_model_map
+
+    try:
+        parsed = json.loads(raw_value)
+        if not isinstance(parsed, dict):
+            return default_map
+
+        normalized_map: dict[str, str] = {}
+        for key, value in parsed.items():
+            if isinstance(key, str) and isinstance(value, str) and key.strip() and value.strip():
+                normalized_map[key.strip().lower()] = value.strip()
+
+        return normalized_map or default_map
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return default_map
