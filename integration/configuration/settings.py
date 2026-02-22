@@ -135,17 +135,17 @@ def get_cors_config() -> dict:
         }
 
 
-def get_ner_model_map() -> dict[str, str]:
+def get_ner_model_map(raw_value: Optional[str] = None) -> dict[str, str]:
     """Parse NER model mapping from settings with safe fallback defaults."""
     default_map = {
         "es": "es_core_news_md",
         "en": "en_core_web_sm",
     }
 
-    raw_value = settings.ner_model_map
+    source_value = raw_value if raw_value is not None else settings.ner_model_map
 
     try:
-        parsed = json.loads(raw_value)
+        parsed = json.loads(source_value)
         if not isinstance(parsed, dict):
             return default_map
 
