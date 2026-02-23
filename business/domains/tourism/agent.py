@@ -13,6 +13,7 @@ from business.core.orchestrator import MultiAgentOrchestrator
 from business.domains.tourism.prompts.response_prompt import build_response_prompt
 from business.domains.tourism.prompts.system_prompt import SYSTEM_PROMPT
 from business.domains.tourism.tools.accessibility_tool import AccessibilityAnalysisTool
+from business.domains.tourism.tools.location_ner_tool import LocationNERTool
 from business.domains.tourism.tools.nlu_tool import TourismNLUTool
 from business.domains.tourism.tools.route_planning_tool import RoutePlanningTool
 from business.domains.tourism.tools.tourism_info_tool import TourismInfoTool
@@ -45,13 +46,16 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         super().__init__(llm=llm, system_prompt=SYSTEM_PROMPT)
 
         self.nlu = TourismNLUTool()
+        self.location_ner = LocationNERTool()
         self.accessibility = AccessibilityAnalysisTool()
         self.route = RoutePlanningTool()
         self.tourism_info = TourismInfoTool()
 
         logger.info("Tourism Multi-Agent System initialized successfully")
 
-    def _execute_pipeline(self, user_input: str, profile_context: Optional[dict] = None) -> dict[str, str]:
+    def _execute_pipeline(
+        self, user_input: str, profile_context: Optional[dict] = None
+    ) -> tuple[dict[str, str], dict]:
         """Execute the tourism tool pipeline with timing instrumentation.
 
         Receives profile_context for ranking bias application.
@@ -112,7 +116,10 @@ class TourismMultiAgent(MultiAgentOrchestrator):
             return raw, parsed
 
         # NLU
-        run_tool("NLU", self.nlu, user_input)
+        nlu_raw, nlu_parsed = run_tool("NLU", self.nlu, user_input)
+
+        # Location NER (input: NLU output, which is JSON-structured)
+        run_tool("LocationNER", self.location_ner, nlu_raw)
 
         # Accessibility (input: NLU raw)
         nlu_raw = tool_results.get("nlu") or ""
