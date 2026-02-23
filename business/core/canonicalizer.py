@@ -188,8 +188,8 @@ def canonicalize_tourism_data(raw: Any) -> Optional[Dict[str, Any]]:
         candidate = {"venue": venue, "routes": routes, "accessibility": accessibility}
 
         # Validate with Pydantic; if invalid, return None
-        td = TourismData.parse_obj(candidate)
-        return td.dict()
+        td = TourismData.model_validate(candidate)
+        return td.model_dump()
     except Exception as e:
         logger.warning("Canonicalization failed", error=str(e))
         return None

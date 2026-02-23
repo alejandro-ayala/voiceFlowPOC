@@ -216,6 +216,37 @@ poetry run ruff check . && poetry run ruff format --check .
 - **E501**: Línea muy larga → dividir o reformatear
 - **Formato**: Indentación, espacios, saltos de línea inconsistentes
 
+#### 4.1 **Excepciones puntuales con `noqa`**
+
+Cuando una regla es correcta en general pero **no aplica en un caso concreto**, puedes marcar una excepción explícita.
+
+```python
+from integration.external_apis.ner_factory import NERServiceFactory  # noqa: E402
+```
+
+Buenas prácticas:
+
+- Prefiere `# noqa: <REGLA>` en vez de `# noqa` genérico.
+- Usa excepciones solo cuando hay motivo técnico real (por ejemplo, imports después de ajustar `sys.path` en un script ejecutable).
+- Documenta el motivo en el PR o en un comentario breve si no es obvio.
+
+Opciones disponibles:
+
+```python
+# Ignorar todas las reglas en una línea (menos recomendado)
+valor = funcion_compleja()  # noqa
+
+# Ignorar una regla en todo el archivo (Ruff)
+# ruff: noqa: E402
+```
+
+También puedes definir excepciones por archivo en `pyproject.toml`:
+
+```toml
+[tool.ruff.lint.per-file-ignores]
+"tests/test_integration/ner_integration_smoke.py" = ["E402"]
+```
+
 #### 5. **Flujo antes de hacer commit/push**
 
 ```bash

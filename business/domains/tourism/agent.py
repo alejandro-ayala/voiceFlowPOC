@@ -54,9 +54,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 
         logger.info("Tourism Multi-Agent System initialized successfully")
 
-    def _execute_pipeline(
-        self, user_input: str, profile_context: Optional[dict] = None
-    ) -> tuple[dict[str, str], dict]:
+    def _execute_pipeline(self, user_input: str, profile_context: Optional[dict] = None) -> tuple[dict[str, str], dict]:
         """Execute the tourism tool pipeline with timing instrumentation.
 
         Receives profile_context for ranking bias application.

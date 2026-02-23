@@ -27,8 +27,17 @@ class LocalBackendAdapter(BackendInterface):
     Provides clean interface while maintaining SOLID principles.
     """
 
-    def __init__(self, settings: Settings, ner_service: Optional[NERServiceInterface] = None):
-        self.settings = settings
+    def __init__(
+        self,
+        settings: Optional[Settings] = None,
+        ner_service: Optional[NERServiceInterface] = None,
+        use_real_agents: Optional[bool] = None,
+    ):
+        resolved_settings = settings.model_copy(deep=True) if settings is not None else Settings()
+        if use_real_agents is not None:
+            resolved_settings.use_real_agents = use_real_agents
+
+        self.settings = resolved_settings
         self._backend_instance: Optional[Any] = None
         self._conversation_count = 0
         self._profile_service = ProfileService()
@@ -182,8 +191,8 @@ class LocalBackendAdapter(BackendInterface):
             # Validate tourism_data against Pydantic model (graceful degradation)
             if response_tourism_data:
                 try:
-                    td = TourismData.parse_obj(response_tourism_data)
-                    structured_response["tourism_data"] = td.dict()
+                    td = TourismData.model_validate(response_tourism_data)
+                    structured_response["tourism_data"] = td.model_dump()
                 except Exception as e:
                     logger.warning("Invalid tourism_data received, dropping to None", error=str(e))
 
@@ -192,8 +201,8 @@ class LocalBackendAdapter(BackendInterface):
                 cleaned_steps = []
                 for step in response_pipeline_steps[:20]:
                     try:
-                        ps = PipelineStep.parse_obj(step)
-                        cleaned_steps.append(ps.dict())
+                        ps = PipelineStep.model_validate(step)
+                        cleaned_steps.append(ps.model_dump())
                     except Exception:
                         # skip invalid step but keep processing
                         continue

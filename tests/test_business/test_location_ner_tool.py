@@ -11,6 +11,8 @@ from business.domains.tourism.tools.location_ner_tool import LocationNERTool
 class TestLocationNERTool:
     """Test suite for LocationNERTool."""
 
+    pytestmark = pytest.mark.unit
+
     @pytest.fixture
     def location_ner_tool(self):
         """Create a LocationNERTool instance for testing."""

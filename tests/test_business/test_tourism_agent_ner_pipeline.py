@@ -11,6 +11,8 @@ from business.domains.tourism.agent import TourismMultiAgent
 class TestLocationNERInPipeline:
     """Integration tests for LocationNER in tourism pipeline."""
 
+    pytestmark = pytest.mark.integration
+
     @pytest.fixture
     def mock_openai_key(self, monkeypatch):
         """Mock OpenAI API key."""
@@ -31,18 +33,13 @@ class TestLocationNERInPipeline:
 
     def test_pipeline_includes_location_ner(self, tourism_agent):
         """Test that location NER is executed in the pipeline."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_ner_factory, patch(
-            "business.domains.tourism.tools.nlu_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.accessibility_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.route_planning_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.tourism_info_tool.structlog.get_logger"
+        with (
+            patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_ner_factory,
+            patch("business.domains.tourism.tools.nlu_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.accessibility_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.route_planning_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.tourism_info_tool.structlog.get_logger"),
         ):
-
             # Mock NER service
             mock_ner_service = AsyncMock()
             mock_ner_service.is_service_available.return_value = True
@@ -70,18 +67,13 @@ class TestLocationNERInPipeline:
 
     def test_pipeline_execution_order_includes_ner(self, tourism_agent):
         """Test that LocationNER executes after NLU in pipeline."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_ner_factory, patch(
-            "business.domains.tourism.tools.nlu_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.accessibility_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.route_planning_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.tourism_info_tool.structlog.get_logger"
+        with (
+            patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_ner_factory,
+            patch("business.domains.tourism.tools.nlu_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.accessibility_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.route_planning_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.tourism_info_tool.structlog.get_logger"),
         ):
-
             # Mock NER service
             mock_ner_service = AsyncMock()
             mock_ner_service.is_service_available.return_value = True
@@ -110,18 +102,13 @@ class TestLocationNERInPipeline:
 
     def test_pipeline_with_ner_unavailable_fallback(self, tourism_agent):
         """Test that pipeline continues when NER service is unavailable."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_ner_factory, patch(
-            "business.domains.tourism.tools.nlu_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.accessibility_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.route_planning_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.tourism_info_tool.structlog.get_logger"
+        with (
+            patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_ner_factory,
+            patch("business.domains.tourism.tools.nlu_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.accessibility_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.route_planning_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.tourism_info_tool.structlog.get_logger"),
         ):
-
             # Mock NER service as unavailable
             mock_ner_service = MagicMock()
             mock_ner_service.is_service_available.return_value = False
@@ -141,18 +128,13 @@ class TestLocationNERInPipeline:
 
     def test_ner_result_in_metadata(self, tourism_agent):
         """Test that NER result is properly recorded in metadata."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_ner_factory, patch(
-            "business.domains.tourism.tools.nlu_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.accessibility_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.route_planning_tool.structlog.get_logger"
-        ), patch(
-            "business.domains.tourism.tools.tourism_info_tool.structlog.get_logger"
+        with (
+            patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_ner_factory,
+            patch("business.domains.tourism.tools.nlu_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.accessibility_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.route_planning_tool.structlog.get_logger"),
+            patch("business.domains.tourism.tools.tourism_info_tool.structlog.get_logger"),
         ):
-
             # Mock NER service
             mock_ner_service = AsyncMock()
             mock_ner_service.is_service_available.return_value = True
