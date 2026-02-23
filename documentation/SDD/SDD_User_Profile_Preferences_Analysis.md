@@ -6,6 +6,10 @@
 **Metodología:** Specification-Driven Development (SDD)
 **Branch:** `feature/implement-user-profile-preferences`
 
+> ⚠️ **Documento de análisis (histórico).**
+> Este archivo describe hallazgos y propuestas en un momento del tiempo.
+> Para contrato operativo vigente (endpoints + shape de respuesta + salida NER), usar `documentation/API_REFERENCE.md`.
+
 ---
 
 ## 4.1 Análisis Arquitectónico

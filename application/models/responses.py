@@ -210,6 +210,10 @@ class ChatResponse(BaseResponse):
     pipeline_steps: Optional[List[PipelineStep]] = Field(
         default=None, description="Per-tool pipeline step timing and status"
     )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Execution metadata including tool outputs and additional tracing",
+    )
 
     class Config:
         arbitrary_types_allowed = True

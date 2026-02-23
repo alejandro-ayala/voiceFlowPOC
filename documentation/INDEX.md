@@ -1,6 +1,6 @@
 # Documentacion del Proyecto - VoiceFlow Tourism PoC
 
-**Actualizado**: 12 de Febrero de 2026
+**Actualizado**: 23 de Febrero de 2026
 
 ---
 
@@ -16,6 +16,12 @@
 - **[ARCHITECTURE_VOICE-FLOW-POC.md](ARCHITECTURE_VOICE-FLOW-POC.md)** - Informe arquitectonico completo (4 capas + Docker)
 - **[ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md)** - Diseno del sistema multi-agente LangChain + STT
 - **[API_REFERENCE.md](API_REFERENCE.md)** - Referencia de endpoints REST, interfaces y servicios STT
+
+### NER LOC (fuente de verdad)
+- **Contrato operativo**: [API_REFERENCE.md](API_REFERENCE.md) (`entities.location_ner`, `metadata.tool_outputs.location_ner`)
+- **Arquitectura de pipeline**: [ARCHITECTURE_MULTIAGENT.md](ARCHITECTURE_MULTIAGENT.md)
+- **Estado funcional actual**: [ESTADO_ACTUAL_SISTEMA.md](ESTADO_ACTUAL_SISTEMA.md)
+- **Plan histórico de implementación**: [PLAN_IMPLEMENTACION_NER_5_COMMITS.md](PLAN_IMPLEMENTACION_NER_5_COMMITS.md)
 
 ### Documentos de diseno por capa (SDDs)
 - **[01_shared_layer_design.md](design/01_shared_layer_design.md)** - Interfaces, excepciones, DI

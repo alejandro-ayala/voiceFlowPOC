@@ -1,6 +1,6 @@
 # API Reference - VoiceFlow Tourism PoC
 
-**Actualizado**: 9 de Febrero de 2026
+**Actualizado**: 23 de Febrero de 2026
 **Base URL**: `http://localhost:8000/api/v1`
 
 ---
@@ -151,7 +151,15 @@ Envia un mensaje y obtiene respuesta del asistente de turismo.
   "intent": "route_planning",
   "entities": {
     "location": "Madrid",
-    "accessibility_requirement": "wheelchair"
+    "accessibility_requirement": "wheelchair",
+    "location_ner": {
+      "status": "ok",
+      "locations": ["Museo del Prado", "Madrid"],
+      "top_location": "Museo del Prado",
+      "provider": "spacy",
+      "model": "es_core_news_md",
+      "language": "es"
+    }
   },
   "tourism_data": {
     "venue": {
@@ -179,22 +187,50 @@ Envia un mensaje y obtiene respuesta del asistente de turismo.
   },
   "pipeline_steps": [
     {
-      "name": "Natural Language Understanding",
-      "tool": "nlu",
+      "name": "NLU",
+      "tool": "tourism_nlu",
       "status": "completed",
       "duration_ms": 125,
-      "summary": "Intent: route_planning, Entities: {location, accessibility_requirement}"
+      "summary": "route_planning"
     },
     {
-      "name": "Accessibility Assessment",
-      "tool": "accessibility",
+      "name": "LocationNER",
+      "tool": "location_ner",
+      "status": "completed",
+      "duration_ms": 95,
+      "summary": "locations,top_location,provider"
+    },
+    {
+      "name": "Accessibility",
+      "tool": "accessibility_analysis",
       "status": "completed",
       "duration_ms": 89,
       "summary": "Venue accessibility score: 9.5/10"
     }
-  ]
+  ],
+  "metadata": {
+    "timestamp": "2026-02-23T18:34:34.443284",
+    "session_type": "production",
+    "language": "es-ES",
+    "tool_outputs": {
+      "location_ner": {
+        "status": "ok",
+        "locations": ["Museo del Prado", "Madrid"],
+        "top_location": "Museo del Prado",
+        "provider": "spacy",
+        "model": "es_core_news_md",
+        "language": "es"
+      }
+    }
+  }
 }
 ```
+
+**Notas de trazabilidad NER (Commit 4):**
+- `pipeline_steps` mantiene un resumen de ejecución (`summary`) para visualización.
+- El output consumible por agentes/API se expone en `metadata.tool_outputs.location_ner`.
+- Para compatibilidad con UI, también puede aparecer en `entities.location_ner`.
+- En ejecuciones reales el pipeline incluye `LocationNER` entre `NLU` y `Accessibility`.
 
 #### `GET /api/v1/chat/conversation/{conversation_id}`
 Obtiene historial de una conversacion.

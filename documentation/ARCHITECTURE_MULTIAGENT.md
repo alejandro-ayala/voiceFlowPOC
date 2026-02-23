@@ -1,14 +1,15 @@
 # Arquitectura Multi-Agente: LangChain + STT
 
-**Actualizado**: 18 de Febrero de 2026
-**Version**: 4.1 - Framework reutilizable core/ + domains/
+**Actualizado**: 23 de Febrero de 2026
+**Version**: 4.2 - Pipeline con LocationNER + contrato de salida NER
 
 ---
 
-## ⚠️ ESTADO ACTUAL: Tools con Mock Data (STUBS)
+## ⚠️ ESTADO ACTUAL: Tools con Mock Data (STUBS) + NER funcional
 
-**IMPORTANTE:** Las herramientas (tools) actuales son **prototipos con datos hardcodeados**:
+**IMPORTANTE:** Las herramientas (tools) actuales son **prototipos con datos hardcodeados**, excepto la extracción NER de localizaciones:
 - ❌ **NLU Tool**: Regex + diccionario de ~10 venues de Madrid
+- ✅ **LocationNER Tool**: extracción real de localizaciones con spaCy (si modelo disponible)
 - ❌ **Accessibility Tool**: Lookup en base de datos simulada (4 venues)
 - ❌ **Route Tool**: Rutas predefinidas, no consultan APIs reales
 - ❌ **Tourism Info Tool**: Horarios/precios son MOCK DATA
@@ -106,9 +107,10 @@ El sistema VoiceFlow Tourism PoC combina Speech-to-Text (STT) con un sistema mul
   |   _execute_pipeline()            |
   +----------------------------------+
     |
-    | Ejecuta 4 tools secuencialmente
+       | Ejecuta 5 tools secuencialmente
     |
     +---> TourismNLUTool             (tools/nlu_tool.py)
+       +---> LocationNERTool            (tools/location_ner_tool.py)
     +---> AccessibilityAnalysisTool  (tools/accessibility_tool.py)
     +---> RoutePlanningTool          (tools/route_planning_tool.py)
     +---> TourismInfoTool            (tools/tourism_info_tool.py)
@@ -131,7 +133,7 @@ El sistema VoiceFlow Tourism PoC combina Speech-to-Text (STT) con un sistema mul
 **Hereda de**: `business/core/orchestrator.py` → `MultiAgentOrchestrator`
 **LLM**: ChatOpenAI GPT-4 (temperature=0.3, max_tokens=1500)
 
-El orquestador extiende `MultiAgentOrchestrator` (patron Template Method) e implementa `_execute_pipeline()` que ejecuta los 4 tools en secuencia. El algoritmo base (invoke LLM, gestionar historial, retornar `AgentResponse`) esta en `core/`.
+El orquestador extiende `MultiAgentOrchestrator` (patron Template Method) e implementa `_execute_pipeline()` que ejecuta 5 tools en secuencia. El algoritmo base (invoke LLM, gestionar historial, retornar `AgentResponse`) esta en `core/`.
 
 ```python
 class TourismMultiAgent(MultiAgentOrchestrator):
@@ -139,17 +141,26 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         llm = ChatOpenAI(model="gpt-4", temperature=0.3, max_tokens=1500)
         super().__init__(llm=llm, system_prompt=SYSTEM_PROMPT)
         self.nlu = TourismNLUTool()
+              self.location_ner = LocationNERTool()
         self.accessibility = AccessibilityAnalysisTool()
         self.route = RoutePlanningTool()
         self.tourism_info = TourismInfoTool()
 
-    def _execute_pipeline(self, user_input: str) -> dict[str, str]:
+       def _execute_pipeline(self, user_input: str, profile_context=None) -> tuple[dict[str, str], dict]:
         nlu_result = self.nlu._run(user_input)
+              location_ner_result = self.location_ner._run(user_input)
         accessibility_result = self.accessibility._run(nlu_result)
         route_result = self.route._run(accessibility_result)
         tourism_result = self.tourism_info._run(nlu_result)
-        return {"nlu": nlu_result, "accessibility": accessibility_result,
-                "route": route_result, "tourism_info": tourism_result}
+              tool_results = {
+                     "nlu": nlu_result,
+                     "locationner": location_ner_result,
+                     "accessibility": accessibility_result,
+                     "route": route_result,
+                     "tourism_info": tourism_result,
+              }
+              metadata = {"pipeline_steps": [...], "tool_results_parsed": {...}}
+              return tool_results, metadata
 ```
 
 ### Tools especializados
@@ -157,6 +168,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 | Tool | Clase | Input | Output |
 |------|-------|-------|--------|
 | NLU | `TourismNLUTool` | Texto del usuario | Intent, entities, accessibility type |
+| Location NER | `LocationNERTool` | Texto del usuario (crudo) | `locations`, `top_location`, `provider`, `model`, `status` |
 | Accesibilidad | `AccessibilityAnalysisTool` | Resultado NLU (JSON) | Score, facilities, certification |
 | Rutas | `RoutePlanningTool` | Resultado accesibilidad (JSON) | Rutas metro/bus, costes, pasos |
 | Info turistica | `TourismInfoTool` | Resultado NLU (JSON) | Horarios, precios, servicios |
@@ -205,21 +217,25 @@ Actualmente los tools se ejecutan en secuencia fija porque cada tool recibe el o
    - Destination: `Museo del Prado`
    - Accessibility: `wheelchair`
 
-2. **Accessibility Tool** retorna:
+2. **LocationNER Tool** extrae:
+       - Locations: `["Museo del Prado", "Madrid"]`
+       - Top location: `Museo del Prado`
+
+3. **Accessibility Tool** retorna:
    - Score: 9.2/10
    - Facilities: rampas, banos adaptados, audioguias, caminos tactiles
    - Certification: ONCE
 
-3. **Route Tool** retorna:
+4. **Route Tool** retorna:
    - Metro Linea 2 hasta Banco de Espana (25 min, accesible)
    - Bus 27 hasta Cibeles (35 min, piso bajo)
 
-4. **Tourism Tool** retorna:
+5. **Tourism Tool** retorna:
    - Horario: 10:00-20:00 (L-S), 10:00-19:00 (Dom)
    - Precio: 15 EUR (gratis para visitantes con discapacidad + acompanante)
    - Contacto accesibilidad: +34 91 330 2800
 
-5. **GPT-4** combina todo en respuesta conversacional en espanol.
+6. **GPT-4** combina todo en respuesta conversacional en espanol.
 
 ## Documentacion relacionada
 

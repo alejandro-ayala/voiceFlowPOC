@@ -4,6 +4,8 @@ Implements BackendInterface following SOLID SRP principle.
 """
 
 import asyncio
+import json
+import time
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -14,6 +16,7 @@ from application.services.profile_service import ProfileService
 from integration.configuration.settings import Settings
 from shared.exceptions.exceptions import BackendCommunicationException
 from shared.interfaces.interfaces import BackendInterface
+from shared.interfaces.ner_interface import NERServiceInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -24,11 +27,12 @@ class LocalBackendAdapter(BackendInterface):
     Provides clean interface while maintaining SOLID principles.
     """
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, ner_service: Optional[NERServiceInterface] = None):
         self.settings = settings
         self._backend_instance: Optional[Any] = None
         self._conversation_count = 0
         self._profile_service = ProfileService()
+        self._ner_service = ner_service
 
     async def _get_backend_instance(self):
         """Lazy initialization of backend to avoid import issues."""
@@ -37,7 +41,7 @@ class LocalBackendAdapter(BackendInterface):
                 from business.domains.tourism.agent import TourismMultiAgent
 
                 logger.info("Initializing LocalBackendAdapter with tourism multi-agent system")
-                self._backend_instance = TourismMultiAgent()
+                self._backend_instance = TourismMultiAgent(ner_service=self._ner_service)
                 logger.info("Backend adapter initialized successfully")
 
             except ImportError as e:
@@ -77,6 +81,9 @@ class LocalBackendAdapter(BackendInterface):
                 backend_mode="real" if use_real_agents else "simulated",
             )
 
+            raw_metadata: dict[str, Any] = {}
+            sim_meta: dict[str, Any] = {}
+
             if use_real_agents:
                 ai_response = await self._process_real_query(transcription, profile_context=profile_context)
             else:
@@ -95,21 +102,52 @@ class LocalBackendAdapter(BackendInterface):
             if use_real_agents and isinstance(ai_response, dict):
                 # _process_real_query returns a dict with ai_response, tool_results, metadata
                 response_ai_text = ai_response.get("ai_response")
-                meta = ai_response.get("metadata") or {}
-                response_pipeline_steps = meta.get("pipeline_steps")
-                response_intent = meta.get("intent")
-                response_entities = meta.get("entities")
-                response_tourism_data = meta.get("tourism_data")
+                raw_metadata = ai_response.get("metadata") or {}
+                response_pipeline_steps = raw_metadata.get("pipeline_steps")
+                response_intent = raw_metadata.get("intent")
+                response_entities = raw_metadata.get("entities")
+                response_tourism_data = raw_metadata.get("tourism_data")
             else:
                 # simulation mode: build sim_meta
-                sim_meta = {}
                 if not use_real_agents:
                     sim_meta = self._get_simulation_metadata(transcription.lower())
+                    ner_metadata = await self._run_location_ner(transcription)
+                    sim_steps = sim_meta.get("pipeline_steps") if isinstance(sim_meta, dict) else None
+                    if isinstance(sim_steps, list):
+                        insert_index = 1 if sim_steps and sim_steps[0].get("name") == "NLU" else len(sim_steps)
+                        sim_steps.insert(insert_index, ner_metadata["pipeline_step"])
+
+                    sim_entities = sim_meta.get("entities") if isinstance(sim_meta.get("entities"), dict) else {}
+                    sim_entities["location_ner"] = {
+                        "status": ner_metadata.get("status"),
+                        "locations": ner_metadata.get("locations", []),
+                        "top_location": ner_metadata.get("top_location"),
+                    }
+                    if ner_metadata.get("top_location"):
+                        sim_entities.setdefault("location", ner_metadata["top_location"])
+                    sim_meta["entities"] = sim_entities
+                    sim_meta["tool_outputs"] = {
+                        "location_ner": {
+                            "status": ner_metadata.get("status"),
+                            "locations": ner_metadata.get("locations", []),
+                            "top_location": ner_metadata.get("top_location"),
+                        }
+                    }
                 response_ai_text = ai_response
                 response_pipeline_steps = sim_meta.get("pipeline_steps")
                 response_intent = sim_meta.get("intent")
                 response_entities = sim_meta.get("entities")
                 response_tourism_data = sim_meta.get("tourism_data")
+                raw_metadata = sim_meta
+
+            location_ner_payload = self._extract_location_ner_payload(raw_metadata, response_entities)
+            if location_ner_payload:
+                entities = response_entities if isinstance(response_entities, dict) else {}
+                entities["location_ner"] = location_ner_payload
+                top_location = location_ner_payload.get("top_location")
+                if top_location and "location" not in entities:
+                    entities["location"] = top_location
+                response_entities = entities
 
             # Validate and structure the response for the UI
             structured_response = {
@@ -120,6 +158,7 @@ class LocalBackendAdapter(BackendInterface):
                 "processing_details": {
                     "agents_used": [
                         "tourism_nlu",
+                        "location_ner",
                         "accessibility_analysis",
                         "route_planning",
                         "tourism_info",
@@ -131,6 +170,7 @@ class LocalBackendAdapter(BackendInterface):
                     "timestamp": datetime.now().isoformat(),
                     "session_type": "production" if use_real_agents else "demo",
                     "language": "es-ES",
+                    "tool_outputs": {"location_ner": location_ner_payload} if location_ner_payload else {},
                 },
                 # Attempt to coerce/validate pipeline_steps and tourism_data
                 "pipeline_steps": None,
@@ -158,6 +198,10 @@ class LocalBackendAdapter(BackendInterface):
                         # skip invalid step but keep processing
                         continue
                 structured_response["pipeline_steps"] = cleaned_steps if cleaned_steps else None
+
+            tool_results_parsed = raw_metadata.get("tool_results_parsed") if isinstance(raw_metadata, dict) else None
+            if isinstance(tool_results_parsed, dict):
+                structured_response["metadata"]["tool_results_parsed"] = tool_results_parsed
 
             backend_type = "REAL" if use_real_agents else "SIMULATED"
             # compute response length safely
@@ -758,6 +802,158 @@ Te puedo ayudar con:
 
 ¿En qué más puedo ayudarte con tu experiencia turística accesible en Madrid?"""
             )
+
+    async def _run_location_ner(self, text: str) -> dict[str, Any]:
+        """Run LocationNER tool during simulated mode and return normalized metadata."""
+        start = time.perf_counter()
+
+        try:
+            from business.domains.tourism.tools.location_ner_tool import LocationNERTool
+
+            tool = LocationNERTool(ner_service=self._ner_service)
+            language = getattr(self.settings, "ner_default_language", "es")
+            raw_result = await tool._arun(text, language=language)
+
+            try:
+                parsed_result = json.loads(raw_result)
+            except Exception:
+                parsed_result = {}
+
+            locations_raw = parsed_result.get("locations", []) if isinstance(parsed_result, dict) else []
+            normalized_locations: list[str] = []
+            for item in locations_raw:
+                if isinstance(item, str) and item.strip():
+                    normalized_locations.append(item.strip())
+                elif isinstance(item, dict):
+                    location_name = item.get("name")
+                    if isinstance(location_name, str) and location_name.strip():
+                        normalized_locations.append(location_name.strip())
+
+            seen: set[str] = set()
+            deduplicated_locations: list[str] = []
+            for location in normalized_locations:
+                key = location.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                deduplicated_locations.append(location)
+
+            top_location = parsed_result.get("top_location") if isinstance(parsed_result, dict) else None
+            if not top_location and deduplicated_locations:
+                top_location = deduplicated_locations[0]
+
+            status = parsed_result.get("status", "unknown") if isinstance(parsed_result, dict) else "unknown"
+            duration_ms = int((time.perf_counter() - start) * 1000)
+
+            logger.info(
+                "LocationNER executed in simulated backend",
+                status=status,
+                language=language,
+                locations=deduplicated_locations,
+                top_location=top_location,
+                duration_ms=duration_ms,
+            )
+
+            return {
+                "status": status,
+                "locations": deduplicated_locations,
+                "top_location": top_location,
+                "pipeline_step": {
+                    "name": "LocationNER",
+                    "tool": "location_ner",
+                    "status": "completed" if status != "error" else "error",
+                    "duration_ms": duration_ms,
+                    "summary": f"status={status}, locations={len(deduplicated_locations)}",
+                },
+            }
+
+        except Exception as error:
+            duration_ms = int((time.perf_counter() - start) * 1000)
+            logger.warning("LocationNER failed in simulated backend", error=str(error), duration_ms=duration_ms)
+
+            return {
+                "status": "error",
+                "locations": [],
+                "top_location": None,
+                "pipeline_step": {
+                    "name": "LocationNER",
+                    "tool": "location_ner",
+                    "status": "error",
+                    "duration_ms": duration_ms,
+                    "summary": "status=error, locations=0",
+                },
+            }
+
+    def _extract_location_ner_payload(
+        self,
+        metadata: Optional[dict[str, Any]],
+        entities: Optional[dict[str, Any]] = None,
+    ) -> Optional[dict[str, Any]]:
+        """Extract normalized LocationNER output from metadata/entities if present."""
+        if isinstance(entities, dict) and isinstance(entities.get("location_ner"), dict):
+            normalized = self._normalize_location_ner_payload(entities["location_ner"])
+            if normalized:
+                return normalized
+
+        if not isinstance(metadata, dict):
+            return None
+
+        tool_outputs = metadata.get("tool_outputs")
+        if isinstance(tool_outputs, dict):
+            ner_output = tool_outputs.get("location_ner")
+            if isinstance(ner_output, dict):
+                normalized = self._normalize_location_ner_payload(ner_output)
+                if normalized:
+                    return normalized
+
+        tool_results_parsed = metadata.get("tool_results_parsed")
+        if isinstance(tool_results_parsed, dict):
+            for key in ("locationner", "location_ner", "location ner", "LocationNER"):
+                if key in tool_results_parsed and isinstance(tool_results_parsed[key], dict):
+                    normalized = self._normalize_location_ner_payload(tool_results_parsed[key])
+                    if normalized:
+                        return normalized
+
+        return None
+
+    def _normalize_location_ner_payload(self, payload: dict[str, Any]) -> Optional[dict[str, Any]]:
+        """Normalize LocationNER payload to stable API schema."""
+        raw_locations = payload.get("locations", []) if isinstance(payload, dict) else []
+        normalized_locations: list[str] = []
+
+        if isinstance(raw_locations, list):
+            for item in raw_locations:
+                if isinstance(item, str) and item.strip():
+                    normalized_locations.append(item.strip())
+                elif isinstance(item, dict):
+                    name = item.get("name")
+                    if isinstance(name, str) and name.strip():
+                        normalized_locations.append(name.strip())
+
+        deduplicated_locations: list[str] = []
+        seen: set[str] = set()
+        for location in normalized_locations:
+            key = location.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            deduplicated_locations.append(location)
+
+        top_location = payload.get("top_location") if isinstance(payload, dict) else None
+        if not top_location and deduplicated_locations:
+            top_location = deduplicated_locations[0]
+
+        if not deduplicated_locations and top_location is None and not payload.get("status"):
+            return None
+
+        return {
+            "status": payload.get("status", "unknown"),
+            "locations": deduplicated_locations,
+            "top_location": top_location,
+            "provider": payload.get("provider"),
+            "model": payload.get("model"),
+            "language": payload.get("language"),
+        }
 
     async def get_system_status(self) -> Dict[str, Any]:
         """

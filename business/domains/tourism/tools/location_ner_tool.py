@@ -2,11 +2,14 @@
 
 import asyncio
 import json
+import time
+from typing import Optional
 
 import structlog
 from langchain.tools import BaseTool
 
 from integration.external_apis.ner_factory import NERServiceFactory
+from shared.interfaces.ner_interface import NERServiceInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -16,6 +19,13 @@ class LocationNERTool(BaseTool):
 
     name: str = "location_ner"
     description: str = "Extract location entities (venues, cities, points of interest) using Named Entity Recognition"
+    ner_service: Optional[NERServiceInterface] = None
+
+    def _get_ner_service(self) -> NERServiceInterface:
+        """Return injected NER service or create one from settings."""
+        if self.ner_service is not None:
+            return self.ner_service
+        return NERServiceFactory.create_from_settings()
 
     def _run(self, user_input: str, language: str = "es") -> str:
         """Extract locations from user input using NER service.
@@ -28,10 +38,10 @@ class LocationNERTool(BaseTool):
             JSON string with extracted locations, top_location, provider info, and status
         """
         logger.info("LocationNERTool: Processing user input", input=user_input, language=language)
+        start = time.perf_counter()
 
         try:
-            # Create NER service via factory
-            ner_service = NERServiceFactory.create_from_settings()
+            ner_service = self._get_ner_service()
 
             # Check if NER is available
             if not ner_service.is_service_available():
@@ -63,9 +73,13 @@ class LocationNERTool(BaseTool):
             }
 
             logger.info(
-                "LocationNERTool: NER extraction complete",
-                locations_count=len(response.get("locations", [])),
-                top_location=response.get("top_location"),
+                "location_ner_tool_result",
+                provider=response.get("provider"),
+                model=response.get("model"),
+                language=response.get("language"),
+                latency_ms=int((time.perf_counter() - start) * 1000),
+                location_count=len(response.get("locations", [])),
+                status=response.get("status"),
             )
 
             return json.dumps(response, indent=2, ensure_ascii=False)
@@ -88,10 +102,10 @@ class LocationNERTool(BaseTool):
     async def _arun(self, user_input: str, language: str = "es") -> str:
         """Async version of location NER extraction."""
         logger.info("LocationNERTool: Async processing user input", input=user_input, language=language)
+        start = time.perf_counter()
 
         try:
-            # Create NER service via factory
-            ner_service = NERServiceFactory.create_from_settings()
+            ner_service = self._get_ner_service()
 
             # Check if NER is available
             if not ner_service.is_service_available():
@@ -123,9 +137,13 @@ class LocationNERTool(BaseTool):
             }
 
             logger.info(
-                "LocationNERTool: Async NER extraction complete",
-                locations_count=len(response.get("locations", [])),
-                top_location=response.get("top_location"),
+                "location_ner_tool_result",
+                provider=response.get("provider"),
+                model=response.get("model"),
+                language=response.get("language"),
+                latency_ms=int((time.perf_counter() - start) * 1000),
+                location_count=len(response.get("locations", [])),
+                status=response.get("status"),
             )
 
             return json.dumps(response, indent=2, ensure_ascii=False)

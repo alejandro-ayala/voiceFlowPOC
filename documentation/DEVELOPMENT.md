@@ -263,6 +263,40 @@ poetry run pytest tests/test_application/ -v
 poetry run pytest tests/ --cov --cov-report=html
 ```
 
+### Verificacion de output NER en API (Commit 4)
+
+```bash
+# 1) Mensaje de prueba por endpoint chat
+curl -s -X POST "http://localhost:8000/api/v1/chat/message" \
+   -H "Content-Type: application/json" \
+   -d '{
+      "message": "Busco planes accesibles en Madrid centro"
+   }' | jq
+
+# 2) Output completo consumible de LocationNER
+curl -s -X POST "http://localhost:8000/api/v1/chat/message" \
+   -H "Content-Type: application/json" \
+   -d '{
+      "message": "Busco planes accesibles en Madrid centro"
+   }' | jq '.metadata.tool_outputs.location_ner'
+
+# 3) Paso de pipeline (resumen)
+curl -s -X POST "http://localhost:8000/api/v1/chat/message" \
+   -H "Content-Type: application/json" \
+   -d '{
+      "message": "Busco planes accesibles en Madrid centro"
+   }' | jq '.pipeline_steps[] | select(.name=="LocationNER")'
+```
+
+**Estados esperados en `location_ner.status`:**
+- `ok`: extracción de localizaciones disponible
+- `unavailable`: proveedor/modelo no disponible en runtime
+- `error`: error controlado de ejecución
+
+**Contrato operativo recomendado:**
+- Preferir `metadata.tool_outputs.location_ner` para consumo estable
+- Mantener `entities.location_ner` como acceso directo para UI
+
 ### Verificar servicio STT
 
 ```bash

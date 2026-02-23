@@ -17,6 +17,7 @@ from business.domains.tourism.tools.location_ner_tool import LocationNERTool
 from business.domains.tourism.tools.nlu_tool import TourismNLUTool
 from business.domains.tourism.tools.route_planning_tool import RoutePlanningTool
 from business.domains.tourism.tools.tourism_info_tool import TourismInfoTool
+from shared.interfaces.ner_interface import NERServiceInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -29,7 +30,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
     NLU -> Accessibility -> Route Planning + Tourism Info -> LLM synthesis.
     """
 
-    def __init__(self, openai_api_key: Optional[str] = None):
+    def __init__(self, openai_api_key: Optional[str] = None, ner_service: Optional[NERServiceInterface] = None):
         """Initialize the tourism multi-agent system."""
         logger.info("Initializing Tourism Multi-Agent System")
 
@@ -46,7 +47,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         super().__init__(llm=llm, system_prompt=SYSTEM_PROMPT)
 
         self.nlu = TourismNLUTool()
-        self.location_ner = LocationNERTool()
+        self.location_ner = LocationNERTool(ner_service=ner_service)
         self.accessibility = AccessibilityAnalysisTool()
         self.route = RoutePlanningTool()
         self.tourism_info = TourismInfoTool()
@@ -109,6 +110,30 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                 }
             )
 
+            if name == "LocationNER":
+                location_count = 0
+                provider = None
+                model = None
+                parsed_language = None
+                parsed_status = None
+                if isinstance(parsed, dict):
+                    locations = parsed.get("locations")
+                    location_count = len(locations) if isinstance(locations, list) else 0
+                    provider = parsed.get("provider")
+                    model = parsed.get("model")
+                    parsed_language = parsed.get("language")
+                    parsed_status = parsed.get("status")
+
+                logger.info(
+                    "location_ner_observability",
+                    provider=provider,
+                    model=model,
+                    language=parsed_language,
+                    latency_ms=duration_ms,
+                    location_count=location_count,
+                    status=parsed_status,
+                )
+
             tool_results[name.lower()] = raw
             parsed_tools[name.lower()] = parsed
             logger.info(f"{name} completed", duration_ms=duration_ms)
@@ -118,8 +143,8 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         # NLU
         nlu_raw, nlu_parsed = run_tool("NLU", self.nlu, user_input)
 
-        # Location NER (input: NLU output, which is JSON-structured)
-        run_tool("LocationNER", self.location_ner, nlu_raw)
+        # Location NER (input: raw user text to avoid losing entities normalized by NLU)
+        run_tool("LocationNER", self.location_ner, user_input)
 
         # Accessibility (input: NLU raw)
         nlu_raw = tool_results.get("nlu") or ""

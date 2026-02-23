@@ -88,7 +88,7 @@ Si el build falla con `ReadTimeoutError`:
 Una vez que la imagen está construida:
 
 ```bash
-docker compose run --rm app python -m pytest tests/test_integration/ner_integration_smoke.py -v -s
+docker compose run --rm app poetry run python tests/test_integration/ner_integration_smoke.py "Quiero visitar el Palacio Real" --language es
 ```
 
 **Expected Output:**
@@ -113,18 +113,17 @@ PASSED (no-op test)
 Si el resto del stack está levantado (OpenAI key, etc.):
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "test-user",
-    "message": "¿Cuál es la accesibilidad del Palacio Real?",
-    "domain": "tourism"
-  }'
+curl -X POST http://localhost:8000/api/v1/chat/message \
+   -H "Content-Type: application/json" \
+   -d '{
+      "message": "¿Cuál es la accesibilidad del Palacio Real?"
+   }'
 ```
 
 **Expected Response:**
-- El JSON de respuesta debe incluir un bloque `metadata.pipeline_steps` con un paso `LocationNER`
-- En `metadata.tool_results_parsed.locationner` (o `location_ner`), debe haber un array `locations` con las entidades extraídas de "Palacio Real"
+- El JSON de respuesta debe incluir `pipeline_steps` (top-level) con un paso `LocationNER`
+- En `entities.location_ner` y/o `metadata.tool_outputs.location_ner`, debe existir `locations` con entidades extraídas de "Palacio Real"
+- En `metadata.tool_results_parsed.locationner`, debe mantenerse el payload parseado para trazabilidad
 
 ---
 
@@ -149,7 +148,7 @@ curl -X POST http://localhost:8000/api/v1/chat \
 1. **`business/domains/tourism/agent.py`**
    - Importar: `from business.domains.tourism.tools.location_ner_tool import LocationNERTool`
    - Init: `self.location_ner = LocationNERTool()`
-   - Pipeline: agregado `run_tool("LocationNER", self.location_ner, nlu_raw)` después de NLU
+   - Pipeline: agregado `run_tool("LocationNER", self.location_ner, user_input)` después de NLU
    - Type hint: `_execute_pipeline()` return type corregido a `tuple[dict[str, str], dict]`
 
 ---
@@ -160,7 +159,7 @@ curl -X POST http://localhost:8000/api/v1/chat \
 - [ ] `poetry run pytest tests/test_business/test_location_ner_tool.py -v` → 8 passed
 - [ ] `poetry run pytest tests/test_business/test_tourism_agent_ner_pipeline.py -v` → 5 passed
 - [ ] `docker compose build --no-cache` → Successfully built (timeout-resilient)
-- [ ] `docker compose run --rm app poetry run pytest tests/test_integration/ner_integration_smoke.py -v` → PASSED or no-op PASSED
+- [ ] `docker compose run --rm app poetry run python tests/test_integration/ner_integration_smoke.py "Quiero visitar el Palacio Real" --language es` → Exit code 0 (o fallback controlado)
 
 ---
 
