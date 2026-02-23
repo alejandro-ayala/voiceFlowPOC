@@ -67,6 +67,15 @@ class Settings(BaseSettings):
     ner_fallback_model: str = Field(default="es_core_news_sm", description="Fallback NER model")
     ner_confidence_threshold: float = Field(default=0.6, description="Minimum NER confidence threshold")
 
+    # NLU settings
+    nlu_enabled: bool = Field(default=True, description="Enable NLU service")
+    nlu_provider: str = Field(default="openai", description="NLU provider: openai, keyword")
+    nlu_default_language: str = Field(default="es", description="Default NLU language")
+    nlu_openai_model: str = Field(default="gpt-4o-mini", description="OpenAI model for NLU classification")
+    nlu_confidence_threshold: float = Field(default=0.40, description="Min confidence for non-fallback")
+    nlu_fallback_intent: str = Field(default="general_query", description="Intent when below threshold")
+    nlu_shadow_mode: bool = Field(default=False, description="Run new NLU + old keyword in parallel, compare")
+
     # Azure deployment settings (future)
     azure_webapp_name: Optional[str] = Field(default=None, description="Azure Web App name")
     azure_resource_group: Optional[str] = Field(default=None, description="Azure Resource Group")
