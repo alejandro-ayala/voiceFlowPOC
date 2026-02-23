@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 import structlog
 
 from application.models.responses import PipelineStep, TourismData
+from application.services.profile_service import ProfileService
 from integration.configuration.settings import Settings
 from shared.exceptions.exceptions import BackendCommunicationException
 from shared.interfaces.interfaces import BackendInterface
@@ -27,6 +28,7 @@ class LocalBackendAdapter(BackendInterface):
         self.settings = settings
         self._backend_instance: Optional[Any] = None
         self._conversation_count = 0
+        self._profile_service = ProfileService()
 
     async def _get_backend_instance(self):
         """Lazy initialization of backend to avoid import issues."""
@@ -55,21 +57,30 @@ class LocalBackendAdapter(BackendInterface):
 
         return self._backend_instance
 
-    async def process_query(self, transcription: str) -> Dict[str, Any]:
+    async def process_query(self, transcription: str, active_profile_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Process user query through REAL multi-agent system or SIMULATED for demo.
         Returns structured response with tourism information.
         """
         try:
+            # Resolve profile context from registry
+            profile_context = self._profile_service.resolve_profile(active_profile_id)
+
             # Check if we should use real agents or simulation
             use_real_agents = getattr(self.settings, "use_real_agents", True)
 
+            logger.info(
+                "Processing query",
+                query=transcription,
+                profile_id=active_profile_id or "none",
+                profile_resolved=profile_context is not None,
+                backend_mode="real" if use_real_agents else "simulated",
+            )
+
             if use_real_agents:
-                logger.info("🚀 Processing query through REAL backend", query=transcription)
-                ai_response = await self._process_real_query(transcription)
+                ai_response = await self._process_real_query(transcription, profile_context=profile_context)
             else:
-                logger.info("🚀 Processing query through SIMULATED backend", query=transcription)
-                ai_response = await self._simulate_ai_response(transcription)
+                ai_response = await self._simulate_ai_response(transcription, profile_context=profile_context)
 
             # Increment conversation counter
             self._conversation_count += 1
@@ -172,13 +183,13 @@ class LocalBackendAdapter(BackendInterface):
                 },
             )
 
-    async def _process_real_query(self, transcription: str) -> str:
+    async def _process_real_query(self, transcription: str, profile_context: Optional[Dict[str, Any]] = None) -> str:
         """Process query through REAL LangChain agents with OpenAI."""
         try:
             agent = await self._get_backend_instance()
             logger.info("Calling TourismMultiAgent", query=transcription)
 
-            result = await agent.process_request(transcription)
+            result = await agent.process_request(transcription, profile_context=profile_context)
 
             # result is AgentResponse(response_text, tool_results, metadata)
             ai_text = getattr(result, "response_text", None)
@@ -597,10 +608,11 @@ class LocalBackendAdapter(BackendInterface):
                 },
             }
 
-    async def _simulate_ai_response(self, transcription: str) -> str:
+    async def _simulate_ai_response(self, transcription: str, profile_context: Optional[dict] = None) -> str:
         """
         Simulate AI response based on transcription for demo purposes.
         This avoids OpenAI API calls during development/demo.
+        If profile_context is provided, enrich response with profile directives.
         """
         import random
 
@@ -610,9 +622,20 @@ class LocalBackendAdapter(BackendInterface):
         # Simulate processing delay
         await asyncio.sleep(random.uniform(1, 2))
 
+        # Enrich response with profile directives if available
+        profile_prefix = ""
+        if profile_context and isinstance(profile_context, dict):
+            profile_label = profile_context.get("label", "")
+            directives = profile_context.get("prompt_directives", [])
+            if profile_label and directives:
+                profile_prefix = f"**Perfil activo: {profile_label}**\n"
+                profile_prefix += "\n".join(directives) + "\n\n"
+
         # Generate contextual response based on keywords
         if "prado" in query_lower or "museo del prado" in query_lower:
-            return """El Museo del Prado es una excelente opción accesible en Madrid.
+            return (
+                profile_prefix
+                + """El Museo del Prado es una excelente opción accesible en Madrid.
 
 🏛️ **Información de Accesibilidad:**
 • Acceso completo para sillas de ruedas
@@ -634,9 +657,12 @@ class LocalBackendAdapter(BackendInterface):
 📞 **Contacto de Accesibilidad:**
 • Teléfono: +34 91 330 2800
 • Email: accesibilidad@museodelprado.es"""
+            )
 
         elif any(word in query_lower for word in ["concierto", "música", "musica"]):
-            return """Para conciertos accesibles en Madrid hoy, te recomiendo varios espacios:
+            return (
+                profile_prefix
+                + """Para conciertos accesibles en Madrid hoy, te recomiendo varios espacios:
 
 🎵 **Espacios Musicales Accesibles:**
 • Teatro Real - Ópera y música clásica
@@ -656,9 +682,12 @@ class LocalBackendAdapter(BackendInterface):
 
 💡 **Recomendación:**
 Es necesario reservar con anticipación para servicios de accesibilidad específicos."""
+            )
 
         elif any(word in query_lower for word in ["restaurante", "comer", "comida"]):
-            return """Te ayudo con restaurantes accesibles en Madrid:
+            return (
+                profile_prefix
+                + """Te ayudo con restaurantes accesibles en Madrid:
 
 🍽️ **Restaurantes Accesibles Recomendados:**
 • Muchos restaurantes ahora tienen acceso para sillas de ruedas
@@ -676,9 +705,12 @@ Es necesario reservar con anticipación para servicios de accesibilidad específ
 
 ⚠️ **Importante:**
 Recomendamos llamar con anticipación para confirmar la accesibilidad específica del establecimiento."""
+            )
 
         elif any(word in query_lower for word in ["ruta", "llegar", "transporte"]):
-            return """Te ayudo con rutas accesibles en Madrid:
+            return (
+                profile_prefix
+                + """Te ayudo con rutas accesibles en Madrid:
 
 🚇 **Sistema de Transporte Accesible:**
 • Metro: Líneas 1-12 con acceso por ascensor en la mayoría de estaciones
@@ -697,9 +729,12 @@ Recomendamos llamar con anticipación para confirmar la accesibilidad específic
 
 💡 **Consejo:**
 Planifica tu ruta con tiempo extra y considera las condiciones climáticas para las partes a pie."""
+            )
 
         else:
-            return f"""Entiendo tu consulta sobre "{transcription}".
+            return (
+                profile_prefix
+                + f"""Entiendo tu consulta sobre "{transcription}".
 
 🌍 **Asistente de Turismo Accesible Madrid**
 
@@ -722,6 +757,7 @@ Te puedo ayudar con:
 - "Restaurantes accesibles cerca del centro"
 
 ¿En qué más puedo ayudarte con tu experiencia turística accesible en Madrid?"""
+            )
 
     async def get_system_status(self) -> Dict[str, Any]:
         """

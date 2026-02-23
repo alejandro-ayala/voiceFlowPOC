@@ -48,14 +48,23 @@ async def send_message(
         # Create or get conversation
         conversation_id = request.conversation_id or str(uuid.uuid4())
 
+        # Extract active profile ID (defensively default to None)
+        active_profile_id = None
+        if request.user_preferences:
+            active_profile_id = request.user_preferences.active_profile_id
+
         logger.info(
-            "🗨️ Processing chat message",
+            "Processing chat message",
             conversation_id=conversation_id,
             message_length=len(request.message),
+            active_profile_id=active_profile_id or "none",
         )
 
         # Get AI response from backend (real agents)
-        backend_response = await backend_service.process_query(transcription=request.message.strip())
+        backend_response = await backend_service.process_query(
+            transcription=request.message.strip(),
+            active_profile_id=active_profile_id,
+        )
 
         # Add message pair to conversation service (for session management)
         session_id = await conversation_service.add_message(

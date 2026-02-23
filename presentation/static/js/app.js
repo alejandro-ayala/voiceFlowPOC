@@ -9,6 +9,7 @@ window.VoiceFlowApp = {
     chatHandler: null,
     pipelineVisualizer: null,
     demoHandler: null,
+    profileManager: null,
     isInitialized: false,
 
     /**
@@ -89,6 +90,19 @@ window.VoiceFlowApp = {
             }
         } catch (e) {
             console.error('❌ DemoModeHandler init failed:', e);
+        }
+
+        // Initialize Profile Manager (F3)
+        try {
+            if (typeof ProfileManager !== 'undefined') {
+                this.profileManager = new ProfileManager();
+                await this.profileManager.init();
+                console.log('✅ Profile manager initialized');
+            } else {
+                console.warn('⚠️ ProfileManager not found');
+            }
+        } catch (e) {
+            console.error('❌ ProfileManager init failed:', e);
         }
 
         // Wait a moment for components to fully initialize
@@ -181,6 +195,7 @@ window.VoiceFlowApp = {
             initialized: this.isInitialized,
             audioHandler: this.audioHandler ? 'loaded' : 'not loaded',
             chatHandler: this.chatHandler ? 'loaded' : 'not loaded',
+            profileManager: this.profileManager ? 'loaded' : 'not loaded',
             online: navigator.onLine
         };
     }
@@ -196,7 +211,8 @@ window.showInfo = (message) => VoiceFlowApp.showInfo(message);
 window.DEBUG = {
     app: () => VoiceFlowApp.getStatus(),
     audio: () => VoiceFlowApp.audioHandler,
-    chat: () => VoiceFlowApp.chatHandler
+    chat: () => VoiceFlowApp.chatHandler,
+    profiles: () => VoiceFlowApp.profileManager
 };
 
 console.log('📄 VoiceFlow PoC Application script loaded');
