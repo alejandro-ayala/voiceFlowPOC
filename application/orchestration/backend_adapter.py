@@ -17,6 +17,7 @@ from integration.configuration.settings import Settings
 from shared.exceptions.exceptions import BackendCommunicationException
 from shared.interfaces.interfaces import BackendInterface
 from shared.interfaces.ner_interface import NERServiceInterface
+from shared.interfaces.nlu_interface import NLUServiceInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -31,6 +32,7 @@ class LocalBackendAdapter(BackendInterface):
         self,
         settings: Optional[Settings] = None,
         ner_service: Optional[NERServiceInterface] = None,
+        nlu_service: Optional[NLUServiceInterface] = None,
         use_real_agents: Optional[bool] = None,
     ):
         resolved_settings = settings.model_copy(deep=True) if settings is not None else Settings()
@@ -42,6 +44,24 @@ class LocalBackendAdapter(BackendInterface):
         self._conversation_count = 0
         self._profile_service = ProfileService()
         self._ner_service = ner_service
+        self._nlu_service = nlu_service
+        self._shadow_nlu_service: Optional[NLUServiceInterface] = None
+
+        if self.settings.nlu_enabled and self.settings.nlu_shadow_mode:
+            from integration.external_apis.nlu_factory import NLUServiceFactory
+
+            logger.info(
+                "Shadow mode enabled",
+                primary_provider=self.settings.nlu_provider,
+                shadow_provider=self.settings.nlu_shadow_provider,
+            )
+
+            shadow_settings = self.settings.model_copy(deep=True)
+            shadow_settings.nlu_provider = self.settings.nlu_shadow_provider
+            self._shadow_nlu_service = NLUServiceFactory.create_service(
+                self.settings.nlu_shadow_provider,
+                settings=shadow_settings
+            )
 
     async def _get_backend_instance(self):
         """Lazy initialization of backend to avoid import issues."""
@@ -50,7 +70,7 @@ class LocalBackendAdapter(BackendInterface):
                 from business.domains.tourism.agent import TourismMultiAgent
 
                 logger.info("Initializing LocalBackendAdapter with tourism multi-agent system")
-                self._backend_instance = TourismMultiAgent(ner_service=self._ner_service)
+                self._backend_instance = TourismMultiAgent(ner_service=self._ner_service, nlu_service=self._nlu_service)
                 logger.info("Backend adapter initialized successfully")
 
             except ImportError as e:
@@ -94,6 +114,8 @@ class LocalBackendAdapter(BackendInterface):
             sim_meta: dict[str, Any] = {}
 
             if use_real_agents:
+                if self.settings.nlu_shadow_mode:
+                    self._schedule_shadow_comparison(transcription, profile_context)
                 ai_response = await self._process_real_query(transcription, profile_context=profile_context)
             else:
                 ai_response = await self._simulate_ai_response(transcription, profile_context=profile_context)
@@ -212,6 +234,9 @@ class LocalBackendAdapter(BackendInterface):
             if isinstance(tool_results_parsed, dict):
                 structured_response["metadata"]["tool_results_parsed"] = tool_results_parsed
 
+            if isinstance(raw_metadata, dict) and isinstance(raw_metadata.get("nlu_shadow_comparison"), dict):
+                structured_response["metadata"]["nlu_shadow_comparison"] = raw_metadata["nlu_shadow_comparison"]
+
             backend_type = "REAL" if use_real_agents else "SIMULATED"
             # compute response length safely
             try:
@@ -264,6 +289,58 @@ class LocalBackendAdapter(BackendInterface):
             logger.error("Error in real backend processing", error=str(e))
             logger.warning("Falling back to simulation due to backend error")
             return await self._simulate_ai_response(transcription)
+
+    def _schedule_shadow_comparison(self, transcription: str, profile_context: Optional[Dict[str, Any]] = None) -> None:
+        """Schedule asynchronous shadow NLU comparison without impacting request latency."""
+        if self._nlu_service is None or self._shadow_nlu_service is None:
+            return
+
+        async def run_shadow() -> None:
+            await self._run_shadow_comparison(transcription, profile_context=profile_context)
+
+        task = asyncio.create_task(run_shadow())
+
+        def _consume_exceptions(completed_task: asyncio.Task) -> None:
+            try:
+                completed_task.result()
+            except Exception as error:
+                logger.warning("nlu_shadow_task_failed", error=str(error))
+
+        task.add_done_callback(_consume_exceptions)
+
+    async def _run_shadow_comparison(
+        self,
+        transcription: str,
+        profile_context: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Run primary and shadow NLU providers in parallel and log comparison.
+
+        Primary provider: configured via nlu_provider (respuesta al usuario)
+        Shadow provider: configured via nlu_shadow_provider (logs only, async, no latency impact)
+        """
+        if self._nlu_service is None or self._shadow_nlu_service is None:
+            return
+
+        try:
+            old_result, new_result = await asyncio.gather(
+                self._nlu_service.analyze_text(transcription, language="es", profile_context=profile_context),
+                self._shadow_nlu_service.analyze_text(transcription, language="es", profile_context=profile_context),
+            )
+
+            old_intent = getattr(old_result, "intent", None)
+            new_intent = getattr(new_result, "intent", None)
+            logger.info(
+                "nlu_shadow_comparison",
+                old_provider=getattr(old_result, "provider", "keyword"),
+                old_intent=old_intent,
+                new_provider=getattr(new_result, "provider", "openai"),
+                new_intent=new_intent,
+                new_confidence=getattr(new_result, "confidence", 0.0),
+                agreement=old_intent == new_intent,
+                text_preview=transcription[:120],
+            )
+        except Exception as error:
+            logger.warning("nlu_shadow_comparison_failed", error=str(error))
 
     def _get_simulation_metadata(self, query_lower: str) -> dict:
         """Return pipeline_steps, tourism_data, intent and entities for simulation mode."""

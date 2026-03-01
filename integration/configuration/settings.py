@@ -69,12 +69,21 @@ class Settings(BaseSettings):
 
     # NLU settings
     nlu_enabled: bool = Field(default=True, description="Enable NLU service")
-    nlu_provider: str = Field(default="openai", description="NLU provider: openai, keyword")
+    nlu_provider: str = Field(default="openai", description="NLU provider: openai, keyword, or custom")
     nlu_default_language: str = Field(default="es", description="Default NLU language")
     nlu_openai_model: str = Field(default="gpt-4o-mini", description="OpenAI model for NLU classification")
     nlu_confidence_threshold: float = Field(default=0.40, description="Min confidence for non-fallback")
     nlu_fallback_intent: str = Field(default="general_query", description="Intent when below threshold")
-    nlu_shadow_mode: bool = Field(default=False, description="Run new NLU + old keyword in parallel, compare")
+    nlu_shadow_mode: bool = Field(
+        default=False,
+        description="Enable shadow comparison: run primary + shadow provider in parallel,"
+        " logging results without affecting response",
+    )
+    nlu_shadow_provider: str = Field(
+        default="keyword",
+        description="Shadow comparison provider (used only when nlu_shadow_mode=true)."
+        " Can be different from nlu_provider",
+    )
 
     # Azure deployment settings (future)
     azure_webapp_name: Optional[str] = Field(default=None, description="Azure Web App name")
