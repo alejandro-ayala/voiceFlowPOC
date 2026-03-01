@@ -30,6 +30,7 @@ business/
 │       ├── tools/
 │       │   ├── __init__.py                # Exports: todas las tools
 │       │   ├── nlu_tool.py                # TourismNLUTool
+│       │   ├── location_ner_tool.py       # LocationNERTool
 │       │   ├── accessibility_tool.py      # AccessibilityAnalysisTool
 │       │   ├── route_planning_tool.py     # RoutePlanningTool
 │       │   └── tourism_info_tool.py       # TourismInfoTool
@@ -133,17 +134,20 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         llm = ChatOpenAI(model="gpt-4", temperature=0.3, max_tokens=1500)
         super().__init__(llm=llm, system_prompt=SYSTEM_PROMPT)
         self.nlu = TourismNLUTool()
+        self.location_ner = LocationNERTool()
         self.accessibility = AccessibilityAnalysisTool()
         self.route = RoutePlanningTool()
         self.tourism_info = TourismInfoTool()
 
     def _execute_pipeline(self, user_input: str) -> dict[str, str]:
         nlu_result = self.nlu._run(user_input)
+        location_ner_result = self.location_ner._run(user_input)
         accessibility_result = self.accessibility._run(nlu_result)
         route_result = self.route._run(accessibility_result)
         tourism_result = self.tourism_info._run(nlu_result)
         return {
             "nlu": nlu_result,
+            "locationner": location_ner_result,
             "accessibility": accessibility_result,
             "route": route_result,
             "tourism_info": tourism_result,
@@ -164,6 +168,7 @@ Cada tool extiende `langchain.tools.BaseTool` con:
 | Tool | Archivo | Input | Output |
 |------|---------|-------|--------|
 | NLU | `tools/nlu_tool.py` | Texto del usuario | Intent, entities, accessibility type |
+| Location NER | `tools/location_ner_tool.py` | Texto del usuario (crudo) | locations, top_location, provider, model, status |
 | Accesibilidad | `tools/accessibility_tool.py` | Resultado NLU (JSON) | Score, facilities, certification |
 | Rutas | `tools/route_planning_tool.py` | Resultado accesibilidad (JSON) | Rutas metro/bus, costes |
 | Info turistica | `tools/tourism_info_tool.py` | Resultado NLU (JSON) | Horarios, precios, servicios |
@@ -184,7 +189,7 @@ Los datos de Madrid estan separados en modulos independientes:
 | Modulo | Contenido |
 |--------|-----------|
 | `system_prompt.py` | `SYSTEM_PROMPT` - Instrucciones del asistente de turismo accesible |
-| `response_prompt.py` | `build_response_prompt(user_input, tool_results)` - Construye prompt final con resultados de las 4 tools |
+| `response_prompt.py` | `build_response_prompt(user_input, tool_results)` - Construye prompt final con resultados de las 5 tools |
 
 ## 5. Diagrama de flujo
 
@@ -295,7 +300,7 @@ Los siguientes problemas fueron resueltos en la Fase 2B:
 
 ## 11. Deuda tecnica pendiente
 
-1. **Orquestacion secuencial fija**: `_execute_pipeline()` ejecuta siempre los 4 tools; podria ser selectiva segun intent
+1. **Orquestacion secuencial fija**: `_execute_pipeline()` ejecuta siempre los 5 tools; podria ser selectiva segun intent
 2. **Simulacion en adapter**: `_simulate_ai_response()` (~110 lineas hardcodeadas) deberia estar en un mock service separado
 3. **Sin modelos de dominio tipados**: Los resultados de tools son JSON strings, no dataclasses
 4. **Sin tests unitarios**: Estructura preparada pero 0% coverage

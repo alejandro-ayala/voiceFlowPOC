@@ -269,7 +269,7 @@ VoiceFlowPOC/
 | `core/orchestrator.py` | `/business/core/` | Orquestador base reutilizable (Template Method) | `MultiAgentOrchestrator` |
 | `core/models.py` | `/business/core/` | Modelos de respuesta genericos | `AgentResponse` |
 | `domains/tourism/agent.py` | `/business/domains/tourism/` | Orquestador especifico de turismo accesible | `TourismMultiAgent.process_request()` |
-| `domains/tourism/tools/` | `/business/domains/tourism/` | 4 tools LangChain: NLU, Accessibility, Route, TourismInfo | `BaseTool._run()` |
+| `domains/tourism/tools/` | `/business/domains/tourism/` | 5 tools LangChain: NLU, LocationNER, Accessibility, Route, TourismInfo | `BaseTool._run()` |
 | `domains/tourism/data/` | `/business/domains/tourism/` | Datos estaticos Madrid (venues, rutas, accesibilidad) | Constantes Python |
 | `domains/tourism/prompts/` | `/business/domains/tourism/` | Prompts del sistema y de respuesta | `SYSTEM_PROMPT`, `build_response_prompt()` |
 
@@ -389,7 +389,7 @@ graph TD
     }
 }
 
-# Process: /application/orchestration/backend_adapter.py → /business/ai_agents/ → OpenAI GPT-4
+# Process: /application/orchestration/backend_adapter.py → pipeline de tools (NLU→LocationNER→Accessibility→Routes→VenueInfo) → OpenAI GPT-4
 # Output: Respuesta del asistente turístico
 {
     "status": "success", 
@@ -397,7 +397,27 @@ graph TD
     "ai_response": "Te recomiendo el Museo del Prado que cuenta con...",
     "processing_time": 3.2,
     "intent": "accessibility_tourism_request",
-    "entities": ["museo", "accesibilidad", "silla de ruedas"]
+    "entities": {
+      "destination": "Madrid",
+      "accessibility": "wheelchair",
+      "location_ner": {
+        "status": "ok",
+        "locations": ["Museo del Prado", "Madrid"],
+        "top_location": "Museo del Prado",
+        "provider": "spacy",
+        "model": "es_core_news_md",
+        "language": "es"
+      }
+    },
+    "metadata": {
+      "tool_outputs": {
+        "location_ner": {
+          "status": "ok",
+          "locations": ["Museo del Prado", "Madrid"],
+          "top_location": "Museo del Prado"
+        }
+      }
+    }
 }
 ```
 
