@@ -1,5 +1,6 @@
 """Tourism domain orchestrator - wires core framework with tourism-specific tools and prompts."""
 
+import asyncio
 import json
 import os
 import re
@@ -10,12 +11,17 @@ from langchain_openai import ChatOpenAI
 
 from business.core.canonicalizer import canonicalize_tourism_data
 from business.core.orchestrator import MultiAgentOrchestrator
+from business.domains.tourism.entity_resolver import EntityResolver
 from business.domains.tourism.prompts.response_prompt import build_response_prompt
 from business.domains.tourism.prompts.system_prompt import SYSTEM_PROMPT
 from business.domains.tourism.tools.accessibility_tool import AccessibilityAnalysisTool
+from business.domains.tourism.tools.location_ner_tool import LocationNERTool
 from business.domains.tourism.tools.nlu_tool import TourismNLUTool
 from business.domains.tourism.tools.route_planning_tool import RoutePlanningTool
 from business.domains.tourism.tools.tourism_info_tool import TourismInfoTool
+from shared.interfaces.ner_interface import NERServiceInterface
+from shared.interfaces.nlu_interface import NLUServiceInterface
+from shared.models.nlu_models import NLUResult
 
 logger = structlog.get_logger(__name__)
 
@@ -28,7 +34,12 @@ class TourismMultiAgent(MultiAgentOrchestrator):
     NLU -> Accessibility -> Route Planning + Tourism Info -> LLM synthesis.
     """
 
-    def __init__(self, openai_api_key: Optional[str] = None):
+    def __init__(
+        self,
+        openai_api_key: Optional[str] = None,
+        ner_service: Optional[NERServiceInterface] = None,
+        nlu_service: Optional[NLUServiceInterface] = None,
+    ):
         """Initialize the tourism multi-agent system."""
         logger.info("Initializing Tourism Multi-Agent System")
 
@@ -44,14 +55,16 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         )
         super().__init__(llm=llm, system_prompt=SYSTEM_PROMPT)
 
-        self.nlu = TourismNLUTool()
+        self.nlu = TourismNLUTool(nlu_service=nlu_service)
+        self.location_ner = LocationNERTool(ner_service=ner_service)
         self.accessibility = AccessibilityAnalysisTool()
         self.route = RoutePlanningTool()
         self.tourism_info = TourismInfoTool()
+        self.entity_resolver = EntityResolver()
 
         logger.info("Tourism Multi-Agent System initialized successfully")
 
-    def _execute_pipeline(self, user_input: str, profile_context: Optional[dict] = None) -> dict[str, str]:
+    def _execute_pipeline(self, user_input: str, profile_context: Optional[dict] = None) -> tuple[dict[str, str], dict]:
         """Execute the tourism tool pipeline with timing instrumentation.
 
         Receives profile_context for ranking bias application.
@@ -60,7 +73,6 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         """
         # Store profile context for use in tool execution
         self._current_profile_context = profile_context
-        import json
         import time
 
         logger.info("Executing tourism pipeline (instrumented)", input=user_input)
@@ -105,14 +117,142 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                 }
             )
 
+            if name == "LocationNER":
+                location_count = 0
+                provider = None
+                model = None
+                parsed_language = None
+                parsed_status = None
+                if isinstance(parsed, dict):
+                    locations = parsed.get("locations")
+                    location_count = len(locations) if isinstance(locations, list) else 0
+                    provider = parsed.get("provider")
+                    model = parsed.get("model")
+                    parsed_language = parsed.get("language")
+                    parsed_status = parsed.get("status")
+
+                logger.info(
+                    "location_ner_observability",
+                    provider=provider,
+                    model=model,
+                    language=parsed_language,
+                    latency_ms=duration_ms,
+                    location_count=location_count,
+                    status=parsed_status,
+                )
+
             tool_results[name.lower()] = raw
             parsed_tools[name.lower()] = parsed
             logger.info(f"{name} completed", duration_ms=duration_ms)
 
             return raw, parsed
 
-        # NLU
-        run_tool("NLU", self.nlu, user_input)
+        def record_tool(name: str, tool_name: str, raw: str, duration_ms: int):
+            parsed = None
+            try:
+                parsed = json.loads(raw)
+            except Exception:
+                parsed = None
+
+            summary = None
+            if isinstance(parsed, dict):
+                summary = parsed.get("intent") or parsed.get("accessibility_level") or parsed.get("venue")
+                if summary is None:
+                    keys = list(parsed.keys())[:3]
+                    summary = ",".join(keys)
+            else:
+                summary = (raw or "").strip()[:120]
+
+            pipeline_steps.append(
+                {
+                    "name": name,
+                    "tool": tool_name,
+                    "status": "completed",
+                    "duration_ms": duration_ms,
+                    "summary": summary,
+                }
+            )
+
+            tool_results[name.lower()] = raw
+            parsed_tools[name.lower()] = parsed
+
+            if name == "LocationNER":
+                location_count = 0
+                provider = None
+                model = None
+                parsed_language = None
+                parsed_status = None
+                if isinstance(parsed, dict):
+                    locations = parsed.get("locations")
+                    location_count = len(locations) if isinstance(locations, list) else 0
+                    provider = parsed.get("provider")
+                    model = parsed.get("model")
+                    parsed_language = parsed.get("language")
+                    parsed_status = parsed.get("status")
+
+                logger.info(
+                    "location_ner_observability",
+                    provider=provider,
+                    model=model,
+                    language=parsed_language,
+                    latency_ms=duration_ms,
+                    location_count=location_count,
+                    status=parsed_status,
+                )
+
+            logger.info(f"{name} completed", duration_ms=duration_ms)
+            return parsed
+
+        async def run_nlu_and_ner_parallel() -> tuple[str, str]:
+            nlu_coro = self.nlu._arun(user_input)
+            ner_coro = self.location_ner._arun(user_input)
+            nlu_raw_result, ner_raw_result = await asyncio.gather(nlu_coro, ner_coro)
+            return nlu_raw_result, ner_raw_result
+
+        # NLU + NER in parallel
+        parallel_start = time.perf_counter()
+        nlu_raw, location_ner_raw = asyncio.run(run_nlu_and_ner_parallel())
+        parallel_duration_ms = int((time.perf_counter() - parallel_start) * 1000)
+
+        nlu_parsed = record_tool("NLU", self.nlu.name, nlu_raw, parallel_duration_ms)
+        location_ner_parsed = record_tool("LocationNER", self.location_ner.name, location_ner_raw, parallel_duration_ms)
+
+        nlu_result = None
+        if isinstance(nlu_parsed, dict):
+            try:
+                nlu_result = NLUResult.model_validate(
+                    {
+                        "status": nlu_parsed.get("status", "ok"),
+                        "intent": nlu_parsed.get("intent", "general_query"),
+                        "confidence": nlu_parsed.get("confidence", 0.0),
+                        "entities": nlu_parsed.get("entities", {}),
+                        "alternatives": nlu_parsed.get("alternatives", []),
+                        "provider": nlu_parsed.get("provider", "unknown"),
+                        "model": nlu_parsed.get("model", "unknown"),
+                        "language": nlu_parsed.get("entities", {}).get("language", "es"),
+                        "analysis_version": nlu_parsed.get("analysis_version", "nlu_v3.0"),
+                        "latency_ms": nlu_parsed.get("latency_ms", 0),
+                    }
+                )
+            except Exception:
+                nlu_result = None
+
+        ner_locations: list[str] = []
+        ner_top_location: str | None = None
+        if isinstance(location_ner_parsed, dict):
+            locations_raw = location_ner_parsed.get("locations", [])
+            if isinstance(locations_raw, list):
+                for item in locations_raw:
+                    if isinstance(item, str):
+                        ner_locations.append(item)
+                    elif isinstance(item, dict) and isinstance(item.get("name"), str):
+                        ner_locations.append(item["name"])
+            top_location_value = location_ner_parsed.get("top_location")
+            ner_top_location = top_location_value if isinstance(top_location_value, str) else None
+
+        resolved_entities = None
+        if nlu_result is not None:
+            resolved_entities = self.entity_resolver.resolve(nlu_result, ner_locations, ner_top_location)
 
         # Accessibility (input: NLU raw)
         nlu_raw = tool_results.get("nlu") or ""
@@ -161,7 +301,10 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         nlu_parsed = parsed_tools.get("nlu")
         if isinstance(nlu_parsed, dict):
             intent = nlu_parsed.get("intent")
-            entities = nlu_parsed.get("entities")
+            if resolved_entities is not None:
+                entities = resolved_entities.model_dump()
+            else:
+                entities = nlu_parsed.get("entities")
 
         metadata = {
             "pipeline_steps": pipeline_steps,

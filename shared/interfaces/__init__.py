@@ -7,6 +7,8 @@ from shared.interfaces.interfaces import (
     ConversationInterface,
     StorageInterface,
 )
+from shared.interfaces.ner_interface import NERServiceInterface
+from shared.interfaces.nlu_interface import NLUServiceInterface
 
 __all__ = [
     "AudioProcessorInterface",
@@ -14,4 +16,6 @@ __all__ = [
     "ConversationInterface",
     "AuthInterface",
     "StorageInterface",
+    "NERServiceInterface",
+    "NLUServiceInterface",
 ]

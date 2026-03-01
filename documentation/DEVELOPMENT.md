@@ -216,6 +216,37 @@ poetry run ruff check . && poetry run ruff format --check .
 - **E501**: Línea muy larga → dividir o reformatear
 - **Formato**: Indentación, espacios, saltos de línea inconsistentes
 
+#### 4.1 **Excepciones puntuales con `noqa`**
+
+Cuando una regla es correcta en general pero **no aplica en un caso concreto**, puedes marcar una excepción explícita.
+
+```python
+from integration.external_apis.ner_factory import NERServiceFactory  # noqa: E402
+```
+
+Buenas prácticas:
+
+- Prefiere `# noqa: <REGLA>` en vez de `# noqa` genérico.
+- Usa excepciones solo cuando hay motivo técnico real (por ejemplo, imports después de ajustar `sys.path` en un script ejecutable).
+- Documenta el motivo en el PR o en un comentario breve si no es obvio.
+
+Opciones disponibles:
+
+```python
+# Ignorar todas las reglas en una línea (menos recomendado)
+valor = funcion_compleja()  # noqa
+
+# Ignorar una regla en todo el archivo (Ruff)
+# ruff: noqa: E402
+```
+
+También puedes definir excepciones por archivo en `pyproject.toml`:
+
+```toml
+[tool.ruff.lint.per-file-ignores]
+"tests/test_integration/ner_integration_smoke.py" = ["E402"]
+```
+
 #### 5. **Flujo antes de hacer commit/push**
 
 ```bash
@@ -262,6 +293,89 @@ poetry run pytest tests/test_application/ -v
 # Con coverage
 poetry run pytest tests/ --cov --cov-report=html
 ```
+
+### Verificacion de output NER en API (Commit 4)
+
+```bash
+# 1) Mensaje de prueba por endpoint chat
+curl -s -X POST "http://localhost:8000/api/v1/chat/message" \
+   -H "Content-Type: application/json" \
+   -d '{
+      "message": "Busco planes accesibles en Madrid centro"
+   }' | jq
+
+# 2) Output completo consumible de LocationNER
+curl -s -X POST "http://localhost:8000/api/v1/chat/message" \
+   -H "Content-Type: application/json" \
+   -d '{
+      "message": "Busco planes accesibles en Madrid centro"
+   }' | jq '.metadata.tool_outputs.location_ner'
+
+# 3) Paso de pipeline (resumen)
+curl -s -X POST "http://localhost:8000/api/v1/chat/message" \
+   -H "Content-Type: application/json" \
+   -d '{
+      "message": "Busco planes accesibles en Madrid centro"
+   }' | jq '.pipeline_steps[] | select(.name=="LocationNER")'
+```
+
+**Estados esperados en `location_ner.status`:**
+- `ok`: extracción de localizaciones disponible
+- `unavailable`: proveedor/modelo no disponible en runtime
+- `error`: error controlado de ejecución
+
+**Contrato operativo recomendado:**
+- Preferir `metadata.tool_outputs.location_ner` para consumo estable
+- Mantener `entities.location_ner` como acceso directo para UI
+
+### Verificacion de NLU Shadow Mode (Commit NLU-4)
+
+**Opción 1: OpenAI en producción (sin shadow mode):**
+
+```bash
+# .env configuration
+export VOICEFLOW_NLU_ENABLED=true
+export VOICEFLOW_NLU_PROVIDER=openai
+export VOICEFLOW_NLU_SHADOW_MODE=false  # ← No shadow
+
+# Lanzar app y enviar consulta (respuesta usa OpenAI directamente)
+curl -s -X POST "http://localhost:8000/api/v1/chat/message" \
+   -H "Content-Type: application/json" \
+   -d '{"message":"Ruta accesible al Museo del Prado"}' | jq '.intent'
+```
+
+**Opción 2: Keyword principal + OpenAI como sombra (para comparación):**
+
+```bash
+# .env configuration
+export VOICEFLOW_NLU_ENABLED=true
+export VOICEFLOW_NLU_PROVIDER=keyword           # ← Principal
+export VOICEFLOW_NLU_SHADOW_MODE=true          # ← Habilitar shadow
+export VOICEFLOW_NLU_SHADOW_PROVIDER=openai    # ← Sombra
+
+# Lanzar app y enviar consulta (respuesta usa Keyword)
+curl -s -X POST "http://localhost:8000/api/v1/chat/message" \
+   -H "Content-Type: application/json" \
+   -d '{"message":"Ruta accesible al Museo del Prado"}' | jq '.intent'
+
+# Ver logs de comparación OpenAI vs Keyword (sin afectar latencia)
+grep -E "nlu_shadow_comparison|nlu_shadow_comparison_failed" -n logs/*.log
+```
+
+**Opción 3: OpenAI principal + Keyword como sombra (transición reversa):**
+
+```bash
+export VOICEFLOW_NLU_PROVIDER=openai           # ← Principal (respuesta)
+export VOICEFLOW_NLU_SHADOW_MODE=true
+export VOICEFLOW_NLU_SHADOW_PROVIDER=keyword   # ← Sombra (logs)
+```
+
+**Comportamiento esperado:**
+- Respuesta API usa siempre el proveedor principal (`nlu_provider`)
+- Shadow provider (si configurado) se ejecuta asíncrona en background
+- Comparación queda en logs con evento `nlu_shadow_comparison` (sin bloquear endpoint)
+- Si el proveedor sombra falla, no afecta respuesta del usuario
+- Shadow mode funciona con cualquier combinación de proveedores (ej: futuro `ml_custom` vs `openai`)
 
 ### Verificar servicio STT
 
@@ -338,6 +452,14 @@ Todas las variables de la aplicacion usan el prefijo `VOICEFLOW_` (gestionado po
 | `VOICEFLOW_PORT` | `8000` | Puerto del servidor |
 | `VOICEFLOW_USE_REAL_AGENTS` | `true` | Usar LangChain real o simulacion |
 | `VOICEFLOW_LOG_LEVEL` | `INFO` | Nivel de logging |
+| `VOICEFLOW_NLU_ENABLED` | `true` | Habilita/deshabilita pipeline NLU |
+| `VOICEFLOW_NLU_PROVIDER` | `openai` | Proveedor NLU principal (`keyword`, `openai`, o custom) |
+| `VOICEFLOW_NLU_OPENAI_MODEL` | `gpt-4o-mini` | Modelo OpenAI para proveedor NLU |
+| `VOICEFLOW_NLU_DEFAULT_LANGUAGE` | `es` | Idioma por defecto para análisis NLU |
+| `VOICEFLOW_NLU_CONFIDENCE_THRESHOLD` | `0.40` | Umbral mínimo de confianza para intents no fallback |
+| `VOICEFLOW_NLU_FALLBACK_INTENT` | `general_query` | Intent por defecto cuando no alcanza confianza |
+| `VOICEFLOW_NLU_SHADOW_MODE` | `false` | Ejecuta comparación asíncrona entre principal + shadow (sin latency impact) |
+| `VOICEFLOW_NLU_SHADOW_PROVIDER` | `keyword` | Proveedor para shadow comparison (cualquier provider, solo usado cuando shadow_mode=true) |
 
 Secretos de servicios externos (sin prefijo):
 

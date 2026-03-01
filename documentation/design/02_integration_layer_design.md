@@ -143,6 +143,35 @@ def create_stt_agent(config_path=None, agent_id="stt_agent_001") -> VoiceflowSTT
     # Crea agente usando STTServiceFactory.create_from_config()
 ```
 
+#### 2.1.5 NER (`spacy_ner_service.py`, `ner_factory.py`) - Proveedor NER desacoplado
+
+**Objetivo:** extracción de localizaciones (LOC/GPE/FAC) configurable por entorno, sin acoplar Business/Application a spaCy.
+
+**Componentes:**
+- `SpacyNERService(NERServiceInterface)` en `integration/external_apis/spacy_ner_service.py`
+- `NERServiceFactory` (registry pattern) en `integration/external_apis/ner_factory.py`
+
+**Contrato principal:**
+```python
+class NERServiceInterface(ABC):
+    async def extract_locations(self, text: str, language: str | None = None) -> Dict[str, Any]
+    def is_service_available(self) -> bool
+    def get_supported_languages(self) -> list[str]
+    def get_service_info(self) -> Dict[str, Any]
+```
+
+**Configuración runtime (env):**
+- `VOICEFLOW_NER_ENABLED=true`
+- `VOICEFLOW_NER_PROVIDER=spacy`
+- `VOICEFLOW_NER_DEFAULT_LANGUAGE=es`
+- `VOICEFLOW_NER_MODEL_MAP={"es":"es_core_news_md","en":"en_core_web_sm"}`
+- `VOICEFLOW_NER_FALLBACK_MODEL=es_core_news_sm`
+
+**Comportamiento esperado:**
+- Carga lazy por idioma/modelo y caché interna de pipelines.
+- Degradación graceful cuando el modelo/proveedor no está disponible.
+- Salida canónica: `locations`, `top_location`, `provider`, `model`, `language`, `status`.
+
 ### 2.2 Data Persistence (`integration/data_persistence/`)
 
 #### 2.2.1 `conversation_repository.py` - Repositorio de Conversaciones
@@ -205,6 +234,13 @@ class Settings(BaseSettings):
     azure_speech_region: Optional[str] = None
     stt_service: str = "azure"
     whisper_model: str = "base"
+
+    # NER
+    ner_enabled: bool = True
+    ner_provider: str = "spacy"
+    ner_default_language: str = "es"
+    ner_model_map: str = '{"es":"es_core_news_md","en":"en_core_web_sm"}'
+    ner_fallback_model: str = "es_core_news_sm"
 
     # OpenAI
     openai_api_key: Optional[str] = None

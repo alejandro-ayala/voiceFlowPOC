@@ -19,13 +19,13 @@ run_step() {
     printf "\n${NC}--- %s ---\n" "$label"
     if "$@"; then
         printf "${GREEN}PASS${NC} %s\n" "$label"
-        ((PASSED++))
+        ((PASSED+=1))
     elif [ "$blocking" = "true" ]; then
         printf "${RED}FAIL${NC} %s\n" "$label"
-        ((FAILED++))
+        ((FAILED+=1))
     else
         printf "${YELLOW}WARN${NC} %s (non-blocking)\n" "$label"
-        ((WARNED++))
+        ((WARNED+=1))
     fi
 }
 

@@ -9,11 +9,15 @@ from application.orchestration.backend_adapter import LocalBackendAdapter
 from application.services.audio_service import AudioService
 from application.services.conversation_service import ConversationService
 from integration.configuration.settings import Settings, get_settings
+from integration.external_apis.ner_factory import NERServiceFactory
+from integration.external_apis.nlu_factory import NLUServiceFactory
 from shared.interfaces.interfaces import (
     AudioProcessorInterface,
     BackendInterface,
     ConversationInterface,
 )
+from shared.interfaces.ner_interface import NERServiceInterface
+from shared.interfaces.nlu_interface import NLUServiceInterface
 
 
 def get_audio_processor(
@@ -31,7 +35,28 @@ def get_backend_adapter(settings: Settings = Depends(get_settings)) -> BackendIn
     Dependency injection for backend adapter.
     Can be easily switched to cloud implementation.
     """
-    return LocalBackendAdapter(settings)
+    ner_service = get_ner_service(settings)
+    nlu_service = get_nlu_service(settings)
+    return LocalBackendAdapter(settings, ner_service=ner_service, nlu_service=nlu_service)
+
+
+def get_ner_service(settings: Settings = Depends(get_settings)) -> NERServiceInterface:
+    """
+    Dependency injection for NER provider resolved through registry/factory.
+    """
+    return NERServiceFactory.create_from_settings(settings)
+
+
+def get_nlu_service(settings: Settings = Depends(get_settings)) -> NLUServiceInterface | None:
+    """Dependency injection for NLU provider resolved through registry/factory.
+
+    In shadow mode, returns the primary provider (configured via nlu_provider).
+    The backend adapter separately initializes the shadow provider for async comparison.
+    """
+    if not settings.nlu_enabled:
+        return None
+
+    return NLUServiceFactory.create_from_settings(settings)
 
 
 def get_conversation_service(

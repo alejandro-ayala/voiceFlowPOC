@@ -83,6 +83,7 @@ async def send_message(
             entities=backend_response.get("entities"),
             tourism_data=backend_response.get("tourism_data"),
             pipeline_steps=backend_response.get("pipeline_steps"),
+            metadata=backend_response.get("metadata"),
         )
 
     except BackendCommunicationException as e:
