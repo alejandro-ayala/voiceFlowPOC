@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import os
 import re
 from typing import Optional
 
@@ -19,6 +18,7 @@ from business.domains.tourism.tools.location_ner_tool import LocationNERTool
 from business.domains.tourism.tools.nlu_tool import TourismNLUTool
 from business.domains.tourism.tools.route_planning_tool import RoutePlanningTool
 from business.domains.tourism.tools.tourism_info_tool import TourismInfoTool
+from integration.configuration.settings import Settings
 from shared.interfaces.ner_interface import NERServiceInterface
 from shared.interfaces.nlu_interface import NLUServiceInterface
 from shared.models.nlu_models import NLUResult
@@ -43,7 +43,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         """Initialize the tourism multi-agent system."""
         logger.info("Initializing Tourism Multi-Agent System")
 
-        api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
+        api_key = openai_api_key or Settings().openai_api_key
         if not api_key:
             raise ValueError("OpenAI API key not found. Set OPENAI_API_KEY environment variable.")
 

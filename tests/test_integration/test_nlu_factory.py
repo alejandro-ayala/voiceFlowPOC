@@ -41,6 +41,19 @@ def test_nlu_factory_create_openai_service_from_settings():
 
 
 @pytest.mark.integration
+def test_nlu_factory_uses_canonical_openai_env_key(monkeypatch):
+    """Factory should resolve OpenAI provider when only OPENAI_API_KEY is defined."""
+    monkeypatch.setenv("OPENAI_API_KEY", "dummy-openai-key")
+    monkeypatch.delenv("VOICEFLOW_OPENAI_API_KEY", raising=False)
+
+    settings = Settings(nlu_provider="openai")
+
+    service = NLUServiceFactory.create_from_settings(settings)
+
+    assert isinstance(service, OpenAINLUService)
+
+
+@pytest.mark.integration
 def test_nlu_factory_create_keyword_service_from_settings():
     """Factory should build keyword provider when configured."""
     settings = Settings(nlu_provider="keyword")
