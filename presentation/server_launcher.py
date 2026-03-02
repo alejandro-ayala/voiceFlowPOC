@@ -112,9 +112,11 @@ def main():
         print("All dependencies are satisfied")
         sys.exit(0)
 
-    print("""
+    print(
+        """
 VoiceFlow PoC Web UI
-========================""")
+========================"""
+    )
     print(f"Environment: {os.environ.get('ENVIRONMENT', 'development')}")
     print(f"Debug Mode: {os.environ.get('DEBUG', 'false')}")
     print(f"Server URL: http://{args.host}:{args.port}")

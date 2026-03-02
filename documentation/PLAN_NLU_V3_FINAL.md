@@ -7,6 +7,18 @@
 
 ---
 
+## Estado real de implementación (actualizado 2 Mar 2026)
+
+- ✅ Arquitectura multi-provider NLU implementada
+- ✅ OpenAI function-calling provider + keyword fallback operativo
+- ✅ NLU+NER paralelos con `EntityResolver` en producción
+- ✅ Contrato estable en API: `metadata.tool_outputs.nlu`
+- ✅ Cobertura de tests de integración/contrato/evaluación añadida
+
+Este documento conserva detalle de diseño y decisiones; para estado operativo vigente ver `documentation/API_REFERENCE.md`, `documentation/ESTADO_ACTUAL_SISTEMA.md` y `tests/`.
+
+---
+
 ## Decisiones de diseño ya tomadas
 
 Estas decisiones se debatieron y acordaron previamente. No están abiertas a interpretación:

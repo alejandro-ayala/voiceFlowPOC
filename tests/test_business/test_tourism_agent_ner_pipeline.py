@@ -120,7 +120,10 @@ class TestLocationNERInPipeline:
             # Check that NER result shows unavailable status
             location_ner_key = "locationner" if "locationner" in tool_results else "location_ner"
             ner_result = json.loads(tool_results.get(location_ner_key, "{}"))
-            assert ner_result.get("status") in ["unavailable", "ok"]  # Either unavailable or gracefully handled
+            assert ner_result.get("status") in [
+                "unavailable",
+                "ok",
+            ]  # Either unavailable or gracefully handled
 
             # Pipeline should still complete (other tools succeeded)
             assert "nlu" in tool_results

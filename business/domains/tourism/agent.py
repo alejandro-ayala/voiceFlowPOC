@@ -215,7 +215,12 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         parallel_duration_ms = int((time.perf_counter() - parallel_start) * 1000)
 
         nlu_parsed = record_tool("NLU", self.nlu.name, nlu_raw, parallel_duration_ms)
-        location_ner_parsed = record_tool("LocationNER", self.location_ner.name, location_ner_raw, parallel_duration_ms)
+        location_ner_parsed = record_tool(
+            "LocationNER",
+            self.location_ner.name,
+            location_ner_raw,
+            parallel_duration_ms,
+        )
 
         nlu_result = None
         if isinstance(nlu_parsed, dict):

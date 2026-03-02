@@ -1,7 +1,7 @@
 # Estado Actual del Sistema: Profile-Driven Tourism Recommendations
 
-**Fecha:** 18 de Febrero de 2026  
-**Versión:** 1.0  
+**Fecha:** 2 de Marzo de 2026  
+**Versión:** 1.2  
 **Objetivo:** Documentar claramente qué funciona y qué NO funciona en el sistema actual
 
 ---
@@ -17,7 +17,8 @@
 | **Tools con datos reales** | ❌ Son STUBS | ❌ **NO** funciona | Mock data hardcodeado, solo Madrid |
 | **Profile → Ranking** | ❌ NO implementado | ❌ **NO** funciona | No hay ranking real de venues |
 | **Profile → LLM texto** | ⚠️ Parcial | ⚠️ **PARCIAL** | Solo afecta tono, no contenido estructurado |
-| **JSON extraction** | ⚠️ Regex-based | ⚠️ **FRÁGIL** | Falla si LLM no emite bloque ```json |
+| **NLU Tool** | ✅ Provider-based | ✅ **SÍ** funciona | OpenAI (`gpt-4o-mini`) con fallback keyword y trazabilidad en metadata |
+| **JSON extraction** | ✅ Normalizada en adapter | ✅ **SÍ** funciona | Contrato estable en `metadata.tool_outputs` para NLU/NER |
 
 ---
 
@@ -60,9 +61,9 @@
 
 ---
 
-## 2. Tools (Herramientas): ❌ SON STUBS (Mock Data)
+## 2. Tools (Herramientas): ⚠️ MIX (NLU/NER funcionales + dominio parcialmente stub)
 
-### ⚠️ PROBLEMA CRÍTICO: Las tools NO aportan datos reales
+### Estado real de tools en Marzo 2026
 
 #### 2.1 Estado Actual de las Tools
 
@@ -91,7 +92,7 @@ VENUE_DB = {
 
 | Tool | Problema | Impacto |
 |------|----------|---------|
-| **NLU Tool** | Usa regex + diccionario hardcodeado | Solo reconoce ~10 venues de Madrid |
+| **NLU Tool** | Proveedor configurable (OpenAI/keyword) + fallback graceful | Intent + entidades de negocio con confianza y alternativas |
 | **Accessibility Tool** | Lookup en `ACCESSIBILITY_DB` (4 venues) | Devuelve mock data genérico |
 | **Route Tool** | Lookup en `ROUTE_DB` (rutas predefinidas) | No escala a otras ciudades |
 | **Tourism Info Tool** | Lookup en `VENUE_DB` (4 venues) | Horarios/precios son FAKE |
@@ -147,15 +148,17 @@ VENUE_DB = {
 - ✅ `LocationNER` sí aporta señal estructurada consumible en pipeline
 - ❌ NO hay datos estructurados fiables (tourism_data a menudo null)
 
-### Estado específico de la feature NER (Commit 3/4)
+### Estado específico de NLU/NER (Commit NLU-5)
 
-- `LocationNER` se ejecuta como paso explícito del pipeline después de NLU.
+- `NLU` y `LocationNER` se ejecutan en paralelo y luego se continúa con tools de dominio.
 - Input de `LocationNER` en modo real: **texto crudo del usuario/transcripción** (`user_input`), no `nlu_raw`.
-- Output de NER expuesto en API:
+- Output de NER/NLU expuesto en API:
     - `entities.location_ner`
     - `metadata.tool_outputs.location_ner`
+    - `metadata.tool_outputs.nlu`
+    - `metadata.tool_results_parsed.nlu` (trazabilidad interna)
     - `metadata.tool_results_parsed.locationner` (trazabilidad interna)
-- Este estado permite validación end-to-end de NER aun cuando otras tools sigan en modo stub.
+- Este estado permite validación end-to-end de NLU/NER aun cuando otras tools sigan en modo stub.
 
 ---
 
@@ -215,27 +218,23 @@ Directivas del perfil:
 
 ---
 
-## 4. JSON Extraction: ⚠️ FRÁGIL (Regex-based)
+## 4. Contrato estructurado de salida: ✅ Estable en adapter
 
-### Problema: El LLM no siempre emite JSON
+### Estado actual
 
 ```python
-# agent.py (línea ~182)
-def _extract_structured_data(self, llm_text: str, metadata: dict):
-    match = re.search(r"```json\s*(\{.*?\})\s*```", llm_text, re.DOTALL)
-    if not match:
-        return llm_text, metadata  # ← NO JSON → tourism_data = null
+# application/orchestration/backend_adapter.py
+# contrato estable para consumidores
+metadata.tool_outputs = {
+    "nlu": {...payload normalizado...},
+    "location_ner": {...payload normalizado...}
+}
 ```
 
-**Casos de fallo:**
-1. LLM emite JSON sin bloque ``` → regex no lo detecta
-2. LLM emite JSON con formato incorrecto → JSON.loads() falla
-3. LLM NO emite JSON → Se pierde toda la estructura
-
-**Resultado:**
-- `tourism_data` es `null` en ~60% de los casos
--UI no puede renderizar rich cards
-- Pérdida de información estructurada
+**Resultado actual:**
+- NLU/NER quedan siempre normalizados para consumo API/UI en `metadata.tool_outputs`.
+- Se mantiene `metadata.tool_results_parsed` para diagnóstico interno sin romper contrato público.
+- `tourism_data` continúa condicionado por tools de dominio stub (gap de datos, no de extracción NLU/NER).
 
 ---
 
@@ -253,7 +252,7 @@ def _extract_structured_data(self, llm_text: str, metadata: dict):
 1. **Profile-driven recommendations**: El perfil NO afecta qué se recomienda
 2. **Tools útiles**: Son stubs que NO aportan datos reales
 3. **Escalabilidad**: Solo funciona para <10 venues de Madrid hardcodeados
-4. **Datos estructurados**: tourism_data a menudo null (JSON extraction frágil)
+4. **Datos estructurados de dominio**: `tourism_data` puede seguir null por dependencia en tools stub
 
 ---
 
@@ -278,12 +277,12 @@ def _extract_structured_data(self, llm_text: str, metadata: dict):
 **Estimación:** 2-3 días  
 **Depende de:** Fase 0 completada
 
-### Prioridad 3: JSON Extraction Robusta
-- [ ] Usar function calling (OpenAI) en lugar de regex
-- [ ] Garantizar JSON siempre válido
-- [ ] Canonización con retry logic
+### Prioridad 3: Consolidar contrato de payloads
+- [x] Exponer `metadata.tool_outputs.nlu`
+- [x] Mantener `metadata.tool_results_parsed` para trazabilidad interna
+- [ ] Extender contrato estable a nuevos payloads de tools de dominio cuando dejen de ser stub
 
-**Estimación:** 2-3 días  
+**Estimación pendiente:** 1-2 días para ampliar contrato cuando se integren APIs reales  
 **Depende de:** Fase 0 completada
 
 ---
@@ -303,7 +302,7 @@ def _extract_structured_data(self, llm_text: str, metadata: dict):
 ### Decisión 2: ¿Cuándo implementar Fase 0?
 
 - **Opción A:** Ahora (prerequisito para que profiles funcione)
-- **Opción B:** Después (primero arreglar JSON extraction)
+- **Opción B:** Después (primero ampliar cobertura de APIs externas)
 
 **Recomendación:** **Opción A** - Sin tools reales, el resto del plan no tiene sentido.
 
@@ -319,7 +318,7 @@ El sistema actual es un **prototipo arquitectónico** que demuestra:
 - ✅ El flujo de perfiles está implementado (infraestructura)
 
 **PERO:**
-- ❌ Las tools son stubs (mock data)
+- ⚠️ Accessibility/Route/TourismInfo siguen como stubs (mock data)
 - ❌ El perfil NO afecta realmente las recomendaciones
 - ❌ NO escala a otras ciudades sin hardcodear datos
 
@@ -331,6 +330,6 @@ Sin esto, el sistema es "humo y espejos" - parece funcional pero no lo es.
 
 ---
 
-**Autor:** GitHub Copilot (Claude Sonnet 4.5)  
+**Autor:** GitHub Copilot (GPT-5.3-Codex)  
 **Revisado:** [Tu nombre]  
-**Última actualización:** 18 Feb 2026
+**Última actualización:** 2 Mar 2026

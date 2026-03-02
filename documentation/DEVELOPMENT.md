@@ -80,7 +80,7 @@ voiceFlowPOC-refactor-baseline/
 │   │   └── models.py                #     AgentResponse (dataclass)
 │   ├── domains/tourism/             #   Dominio: turismo accesible Madrid
 │   │   ├── agent.py                 #     TourismMultiAgent(MultiAgentOrchestrator)
-│   │   ├── tools/                   #     4 LangChain tools separadas
+│   │   ├── tools/                   #     5 LangChain tools separadas
 │   │   ├── data/                    #     Datos estaticos Madrid
 │   │   └── prompts/                 #     System + response prompts
 │   └── ai_agents/                   #   Backward compat (facade re-export)
@@ -126,7 +126,7 @@ voiceFlowPOC-refactor-baseline/
 ├── pyproject.toml                   # Dependencias y configuracion (Poetry)
 ├── poetry.lock                      # Lock file de dependencias
 ├── .env.example                     # Template de configuracion
-└── INFORME_FINAL_ARQUITECTONICO.md  # Documento de arquitectura general
+└── documentation/ARCHITECTURE_VOICE-FLOW-POC.md  # Documento de arquitectura general
 ```
 
 ## Comandos de desarrollo
@@ -482,5 +482,5 @@ Secretos de servicios externos (sin prefijo):
 
 - [SDDs por capa](design/) - Documentos de diseno detallados (01-05)
 - [ROADMAP.md](ROADMAP.md) - Plan de evolucion del proyecto
-- [INFORME_FINAL_ARQUITECTONICO.md](../INFORME_FINAL_ARQUITECTONICO.md) - Estado general de la arquitectura
+- [ARCHITECTURE_VOICE-FLOW-POC.md](ARCHITECTURE_VOICE-FLOW-POC.md) - Estado general de la arquitectura
 - [AZURE_SETUP_GUIDE.md](AZURE_SETUP_GUIDE.md) - Configuracion de Azure Speech Services

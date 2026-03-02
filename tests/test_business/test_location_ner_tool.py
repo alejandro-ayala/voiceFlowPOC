@@ -44,7 +44,10 @@ class TestLocationNERTool:
             mock_service = AsyncMock()
             mock_service.is_service_available.return_value = True
             mock_service.extract_locations.return_value = {
-                "locations": [{"name": "Palacio Real", "type": "LOC"}, {"name": "Madrid", "type": "GPE"}],
+                "locations": [
+                    {"name": "Palacio Real", "type": "LOC"},
+                    {"name": "Madrid", "type": "GPE"},
+                ],
                 "top_location": "Palacio Real",
                 "provider": "spacy",
                 "model": "es_core_news_md",

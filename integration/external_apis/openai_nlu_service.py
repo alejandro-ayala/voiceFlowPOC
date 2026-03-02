@@ -42,12 +42,24 @@ NLU_FUNCTION_SCHEMA = {
             },
             "accessibility": {
                 "type": "string",
-                "enum": ["wheelchair", "visual_impairment", "hearing_impairment", "cognitive"],
+                "enum": [
+                    "wheelchair",
+                    "visual_impairment",
+                    "hearing_impairment",
+                    "cognitive",
+                ],
                 "nullable": True,
             },
             "timeframe": {
                 "type": "string",
-                "enum": ["today", "today_morning", "today_afternoon", "today_evening", "tomorrow", "this_weekend"],
+                "enum": [
+                    "today",
+                    "today_morning",
+                    "today_afternoon",
+                    "today_evening",
+                    "tomorrow",
+                    "this_weekend",
+                ],
                 "nullable": True,
             },
             "transport_preference": {
@@ -138,7 +150,10 @@ class OpenAINLUService(NLUServiceInterface):
                     {"role": "user", "content": text},
                 ],
                 tools=[{"type": "function", "function": NLU_FUNCTION_SCHEMA}],
-                tool_choice={"type": "function", "function": {"name": "classify_tourism_request"}},
+                tool_choice={
+                    "type": "function",
+                    "function": {"name": "classify_tourism_request"},
+                },
             )
 
             latency_ms = int((time.perf_counter() - start) * 1000)

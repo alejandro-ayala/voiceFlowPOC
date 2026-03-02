@@ -131,7 +131,7 @@ class MultiAgentOrchestrator(MultiAgentInterface):
 ```python
 class TourismMultiAgent(MultiAgentOrchestrator):
     def __init__(self, openai_api_key=None):
-        llm = ChatOpenAI(model="gpt-4", temperature=0.3, max_tokens=1500)
+        llm = ChatOpenAI(model="gpt-4", temperature=0.3, max_tokens=2500)
         super().__init__(llm=llm, system_prompt=SYSTEM_PROMPT)
         self.nlu = TourismNLUTool()
         self.location_ner = LocationNERTool()
@@ -139,9 +139,11 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         self.route = RoutePlanningTool()
         self.tourism_info = TourismInfoTool()
 
-    def _execute_pipeline(self, user_input: str) -> dict[str, str]:
-        nlu_result = self.nlu._run(user_input)
-        location_ner_result = self.location_ner._run(user_input)
+    def _execute_pipeline(self, user_input: str, profile_context: Optional[dict] = None) -> dict[str, str]:
+        nlu_result, location_ner_result = asyncio.gather(
+            self.nlu._arun(user_input),
+            self.location_ner._arun(user_input),
+        )
         accessibility_result = self.accessibility._run(nlu_result)
         route_result = self.route._run(accessibility_result)
         tourism_result = self.tourism_info._run(nlu_result)
@@ -300,7 +302,7 @@ Los siguientes problemas fueron resueltos en la Fase 2B:
 
 ## 11. Deuda tecnica pendiente
 
-1. **Orquestacion secuencial fija**: `_execute_pipeline()` ejecuta siempre los 5 tools; podria ser selectiva segun intent
+1. **Orquestacion fija por etapas**: NLU+NER corren en paralelo, pero el pipeline sigue fijo y podria ser selectivo segun intent
 2. **Simulacion en adapter**: `_simulate_ai_response()` (~110 lineas hardcodeadas) deberia estar en un mock service separado
 3. **Sin modelos de dominio tipados**: Los resultados de tools son JSON strings, no dataclasses
 4. **Sin tests unitarios**: Estructura preparada pero 0% coverage

@@ -77,7 +77,12 @@ class PipelineStep(BaseModel):
 
     @validator("status")
     def validate_status(cls, v):
-        allowed = {PipelineStatus.PENDING, PipelineStatus.PROCESSING, PipelineStatus.COMPLETED, PipelineStatus.ERROR}
+        allowed = {
+            PipelineStatus.PENDING,
+            PipelineStatus.PROCESSING,
+            PipelineStatus.COMPLETED,
+            PipelineStatus.ERROR,
+        }
         if v not in allowed:
             return PipelineStatus.PENDING
         return v

@@ -12,7 +12,14 @@ logger = structlog.get_logger(__name__)
 class EntityResolver:
     """Merge NLU entities with NER location extraction using deterministic rules."""
 
-    GENERIC_DESTINATIONS = {"general", "general_query", "madrid centro", "none", "null", ""}
+    GENERIC_DESTINATIONS = {
+        "general",
+        "general_query",
+        "madrid centro",
+        "none",
+        "null",
+        "",
+    }
 
     def resolve(
         self,

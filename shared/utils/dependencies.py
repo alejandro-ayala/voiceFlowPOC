@@ -47,7 +47,9 @@ def get_ner_service(settings: Settings = Depends(get_settings)) -> NERServiceInt
     return NERServiceFactory.create_from_settings(settings)
 
 
-def get_nlu_service(settings: Settings = Depends(get_settings)) -> NLUServiceInterface | None:
+def get_nlu_service(
+    settings: Settings = Depends(get_settings),
+) -> NLUServiceInterface | None:
     """Dependency injection for NLU provider resolved through registry/factory.
 
     In shadow mode, returns the primary provider (configured via nlu_provider).

@@ -8,7 +8,7 @@
 
 > ⚠️ **Documento de análisis (histórico).**
 > Este archivo describe hallazgos y propuestas en un momento del tiempo.
-> Para contrato operativo vigente (endpoints + shape de respuesta + salida NER), usar `documentation/API_REFERENCE.md`.
+> Para contrato operativo vigente (endpoints + shape de respuesta + salida NER/NLU), usar `documentation/API_REFERENCE.md`.
 
 ---
 

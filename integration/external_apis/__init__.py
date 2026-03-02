@@ -21,6 +21,7 @@ def __getattr__(name: str):
         return import_module("integration.external_apis.keyword_nlu_service").KeywordNLUService
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
+
 __all__ = [
     "NERServiceFactory",
     "NLUServiceFactory",
