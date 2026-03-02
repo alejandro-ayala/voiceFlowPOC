@@ -17,6 +17,7 @@ from integration.configuration.settings import Settings
 from shared.exceptions.exceptions import BackendCommunicationException
 from shared.interfaces.interfaces import BackendInterface
 from shared.interfaces.ner_interface import NERServiceInterface
+from shared.interfaces.tourism_data_provider_interface import TourismDataProviderInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -31,6 +32,7 @@ class LocalBackendAdapter(BackendInterface):
         self,
         settings: Optional[Settings] = None,
         ner_service: Optional[NERServiceInterface] = None,
+        tourism_data_provider: Optional[TourismDataProviderInterface] = None,
         use_real_agents: Optional[bool] = None,
     ):
         resolved_settings = settings.model_copy(deep=True) if settings is not None else Settings()
@@ -42,6 +44,7 @@ class LocalBackendAdapter(BackendInterface):
         self._conversation_count = 0
         self._profile_service = ProfileService()
         self._ner_service = ner_service
+        self._tourism_data_provider = tourism_data_provider
 
     async def _get_backend_instance(self):
         """Lazy initialization of backend to avoid import issues."""
@@ -50,7 +53,10 @@ class LocalBackendAdapter(BackendInterface):
                 from business.domains.tourism.agent import TourismMultiAgent
 
                 logger.info("Initializing LocalBackendAdapter with tourism multi-agent system")
-                self._backend_instance = TourismMultiAgent(ner_service=self._ner_service)
+                self._backend_instance = TourismMultiAgent(
+                    ner_service=self._ner_service,
+                    tourism_data_provider=self._tourism_data_provider,
+                )
                 logger.info("Backend adapter initialized successfully")
 
             except ImportError as e:
@@ -150,6 +156,7 @@ class LocalBackendAdapter(BackendInterface):
                 raw_metadata = sim_meta
 
             location_ner_payload = self._extract_location_ner_payload(raw_metadata, response_entities)
+            high_level_payload = self._extract_high_level_tools_payload(raw_metadata)
             if location_ner_payload:
                 entities = response_entities if isinstance(response_entities, dict) else {}
                 entities["location_ner"] = location_ner_payload
@@ -179,7 +186,10 @@ class LocalBackendAdapter(BackendInterface):
                     "timestamp": datetime.now().isoformat(),
                     "session_type": "production" if use_real_agents else "demo",
                     "language": "es-ES",
-                    "tool_outputs": {"location_ner": location_ner_payload} if location_ner_payload else {},
+                    "tool_outputs": {
+                        **({"location_ner": location_ner_payload} if location_ner_payload else {}),
+                        **({"high_level_tools": high_level_payload} if high_level_payload else {}),
+                    },
                 },
                 # Attempt to coerce/validate pipeline_steps and tourism_data
                 "pipeline_steps": None,
@@ -963,6 +973,23 @@ Te puedo ayudar con:
             "model": payload.get("model"),
             "language": payload.get("language"),
         }
+
+    def _extract_high_level_tools_payload(self, metadata: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+        """Extract normalized high-level tools payload from metadata when available."""
+        if not isinstance(metadata, dict):
+            return None
+
+        payload = metadata.get("high_level_tools")
+        if isinstance(payload, dict):
+            return payload
+
+        tool_outputs = metadata.get("tool_outputs")
+        if isinstance(tool_outputs, dict):
+            candidate = tool_outputs.get("high_level_tools")
+            if isinstance(candidate, dict):
+                return candidate
+
+        return None
 
     async def get_system_status(self) -> Dict[str, Any]:
         """

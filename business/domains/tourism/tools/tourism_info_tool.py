@@ -7,6 +7,7 @@ import structlog
 from langchain.tools import BaseTool
 
 from business.domains.tourism.data.venue_data import DEFAULT_VENUE, VENUE_DB
+from shared.interfaces.tourism_data_provider_interface import TourismDataProviderInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -16,16 +17,29 @@ class TourismInfoTool(BaseTool):
 
     name: str = "tourism_info"
     description: str = "Fetch current tourism information, schedules, prices, and accessibility reviews"
+    tourism_data_provider: TourismDataProviderInterface | None = None
 
-    def _run(self, venue_info: str) -> str:
+    def _run(self, venue_info: str, profile_context: dict | None = None) -> str:
         """Get comprehensive tourism information."""
         logger.info("Tourism Info Tool: Fetching venue information", venue_input=venue_info)
 
         venue_name = self._extract_venue_name(venue_info)
+
+        if self.tourism_data_provider is not None and self.tourism_data_provider.is_service_available():
+            result = self.tourism_data_provider.get_tourism_info(
+                destination=venue_name,
+                query_text=venue_info,
+                profile_context=profile_context,
+                language="es",
+            )
+            logger.info("Tourism Info Tool: Provider information retrieved", result=result)
+            return json.dumps(result, indent=2, ensure_ascii=False)
+
         venue_data = VENUE_DB.get(venue_name, DEFAULT_VENUE)
         venue_type = self._infer_venue_type(venue_name)
 
         result = {
+            "status": "fallback",
             "venue": {
                 "name": venue_name,
                 "type": venue_type,
@@ -43,9 +57,9 @@ class TourismInfoTool(BaseTool):
         logger.info("Tourism Info Tool: Information retrieved", result=result)
         return json.dumps(result, indent=2, ensure_ascii=False)
 
-    async def _arun(self, venue_info: str) -> str:
+    async def _arun(self, venue_info: str, profile_context: dict | None = None) -> str:
         """Async version of tourism info retrieval."""
-        return self._run(venue_info)
+        return self._run(venue_info, profile_context=profile_context)
 
     @staticmethod
     def _extract_venue_name(venue_info: str) -> str:

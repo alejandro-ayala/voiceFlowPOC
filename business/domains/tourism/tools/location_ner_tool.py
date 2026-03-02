@@ -27,7 +27,7 @@ class LocationNERTool(BaseTool):
             return self.ner_service
         return NERServiceFactory.create_from_settings()
 
-    def _run(self, user_input: str, language: str = "es") -> str:
+    def _run(self, user_input: str, language: str = "es", profile_context: dict | None = None) -> str:
         """Extract locations from user input using NER service.
 
         Args:
@@ -37,6 +37,7 @@ class LocationNERTool(BaseTool):
         Returns:
             JSON string with extracted locations, top_location, provider info, and status
         """
+        del profile_context
         logger.info("LocationNERTool: Processing user input", input=user_input, language=language)
         start = time.perf_counter()
 
@@ -99,8 +100,9 @@ class LocationNERTool(BaseTool):
                 ensure_ascii=False,
             )
 
-    async def _arun(self, user_input: str, language: str = "es") -> str:
+    async def _arun(self, user_input: str, language: str = "es", profile_context: dict | None = None) -> str:
         """Async version of location NER extraction."""
+        del profile_context
         logger.info("LocationNERTool: Async processing user input", input=user_input, language=language)
         start = time.perf_counter()
 

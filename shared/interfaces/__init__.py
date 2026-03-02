@@ -8,6 +8,7 @@ from shared.interfaces.interfaces import (
     StorageInterface,
 )
 from shared.interfaces.ner_interface import NERServiceInterface
+from shared.interfaces.tourism_data_provider_interface import TourismDataProviderInterface
 
 __all__ = [
     "AudioProcessorInterface",
@@ -16,4 +17,5 @@ __all__ = [
     "AuthInterface",
     "StorageInterface",
     "NERServiceInterface",
+    "TourismDataProviderInterface",
 ]

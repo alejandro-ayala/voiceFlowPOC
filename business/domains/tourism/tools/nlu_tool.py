@@ -23,8 +23,9 @@ class TourismNLUTool(BaseTool):
     name: str = "tourism_nlu"
     description: str = "Analyze user intent and extract tourism entities from Spanish text"
 
-    def _run(self, user_input: str) -> str:
+    def _run(self, user_input: str, profile_context: dict | None = None) -> str:
         """Analyze Spanish tourism request and extract structured information."""
+        del profile_context
         logger.info("NLU Tool: Processing user input", input=user_input)
 
         user_lower = user_input.lower()
@@ -48,9 +49,9 @@ class TourismNLUTool(BaseTool):
         logger.info("NLU Tool: Analysis complete", result=result)
         return json.dumps(result, indent=2, ensure_ascii=False)
 
-    async def _arun(self, user_input: str) -> str:
+    async def _arun(self, user_input: str, profile_context: dict | None = None) -> str:
         """Async version of NLU processing."""
-        return self._run(user_input)
+        return self._run(user_input, profile_context=profile_context)
 
     @staticmethod
     def _match_pattern(text: str, patterns: dict[str, list[str]], default: str) -> str:

@@ -10,12 +10,14 @@ from application.services.audio_service import AudioService
 from application.services.conversation_service import ConversationService
 from integration.configuration.settings import Settings, get_settings
 from integration.external_apis.ner_factory import NERServiceFactory
+from integration.external_apis.tourism_data_provider_factory import TourismDataProviderFactory
 from shared.interfaces.interfaces import (
     AudioProcessorInterface,
     BackendInterface,
     ConversationInterface,
 )
 from shared.interfaces.ner_interface import NERServiceInterface
+from shared.interfaces.tourism_data_provider_interface import TourismDataProviderInterface
 
 
 def get_audio_processor(
@@ -34,7 +36,8 @@ def get_backend_adapter(settings: Settings = Depends(get_settings)) -> BackendIn
     Can be easily switched to cloud implementation.
     """
     ner_service = get_ner_service(settings)
-    return LocalBackendAdapter(settings, ner_service=ner_service)
+    tourism_data_provider = get_tourism_data_provider(settings)
+    return LocalBackendAdapter(settings, ner_service=ner_service, tourism_data_provider=tourism_data_provider)
 
 
 def get_ner_service(settings: Settings = Depends(get_settings)) -> NERServiceInterface:
@@ -42,6 +45,13 @@ def get_ner_service(settings: Settings = Depends(get_settings)) -> NERServiceInt
     Dependency injection for NER provider resolved through registry/factory.
     """
     return NERServiceFactory.create_from_settings(settings)
+
+
+def get_tourism_data_provider(
+    settings: Settings = Depends(get_settings),
+) -> TourismDataProviderInterface | None:
+    """Dependency injection for abstract tourism data provider."""
+    return TourismDataProviderFactory.create_from_settings(settings)
 
 
 def get_conversation_service(

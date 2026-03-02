@@ -67,6 +67,16 @@ class Settings(BaseSettings):
     ner_fallback_model: str = Field(default="es_core_news_sm", description="Fallback NER model")
     ner_confidence_threshold: float = Field(default=0.6, description="Minimum NER confidence threshold")
 
+    # High-level tools (profile-driven tourism capabilities)
+    high_level_tools_enabled: bool = Field(
+        default=False,
+        description="Enable profile-driven high-level tourism tool capabilities",
+    )
+    tourism_data_provider: str = Field(
+        default="mock",
+        description="Tourism data provider name (mock for current phase)",
+    )
+
     # Azure deployment settings (future)
     azure_webapp_name: Optional[str] = Field(default=None, description="Azure Web App name")
     azure_resource_group: Optional[str] = Field(default=None, description="Azure Resource Group")

@@ -18,6 +18,7 @@ from business.domains.tourism.tools.nlu_tool import TourismNLUTool
 from business.domains.tourism.tools.route_planning_tool import RoutePlanningTool
 from business.domains.tourism.tools.tourism_info_tool import TourismInfoTool
 from shared.interfaces.ner_interface import NERServiceInterface
+from shared.interfaces.tourism_data_provider_interface import TourismDataProviderInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -30,7 +31,12 @@ class TourismMultiAgent(MultiAgentOrchestrator):
     NLU -> Accessibility -> Route Planning + Tourism Info -> LLM synthesis.
     """
 
-    def __init__(self, openai_api_key: Optional[str] = None, ner_service: Optional[NERServiceInterface] = None):
+    def __init__(
+        self,
+        openai_api_key: Optional[str] = None,
+        ner_service: Optional[NERServiceInterface] = None,
+        tourism_data_provider: Optional[TourismDataProviderInterface] = None,
+    ):
         """Initialize the tourism multi-agent system."""
         logger.info("Initializing Tourism Multi-Agent System")
 
@@ -48,9 +54,10 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 
         self.nlu = TourismNLUTool()
         self.location_ner = LocationNERTool(ner_service=ner_service)
-        self.accessibility = AccessibilityAnalysisTool()
-        self.route = RoutePlanningTool()
-        self.tourism_info = TourismInfoTool()
+        self.accessibility = AccessibilityAnalysisTool(tourism_data_provider=tourism_data_provider)
+        self.route = RoutePlanningTool(tourism_data_provider=tourism_data_provider)
+        self.tourism_info = TourismInfoTool(tourism_data_provider=tourism_data_provider)
+        self._tourism_data_provider = tourism_data_provider
 
         logger.info("Tourism Multi-Agent System initialized successfully")
 
@@ -75,7 +82,10 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         # helper to run a tool and capture timing + parsed output
         def run_tool(name: str, tool, input_data: str):
             start = time.perf_counter()
-            raw = tool._run(input_data)
+            try:
+                raw = tool._run(input_data, profile_context=self._current_profile_context)
+            except TypeError:
+                raw = tool._run(input_data)
             end = time.perf_counter()
             duration_ms = int((end - start) * 1000)
 
@@ -148,20 +158,18 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         nlu_raw = tool_results.get("nlu") or ""
         run_tool("Accessibility", self.accessibility, nlu_raw)
 
-        # Routes (input: accessibility raw)
+        # Route (input: accessibility raw)
         accessibility_raw = tool_results.get("accessibility") or ""
-        run_tool("Routes", self.route, accessibility_raw)
+        run_tool("Route", self.route, accessibility_raw)
 
         # Tourism info (input: NLU raw)
-        run_tool("Venue Info", self.tourism_info, nlu_raw)
+        run_tool("Tourism_Info", self.tourism_info, nlu_raw)
 
         # Build tourism_data from parsed tools where possible
         tourism_data = None
         try:
-            tourism_info = (
-                parsed_tools.get("venue info") or parsed_tools.get("tourism_info") or parsed_tools.get("venue")
-            )
-            routes = parsed_tools.get("routes") or parsed_tools.get("route")
+            tourism_info = parsed_tools.get("tourism_info") or parsed_tools.get("venue info") or parsed_tools.get("venue")
+            routes = parsed_tools.get("route") or parsed_tools.get("routes")
             accessibility = parsed_tools.get("accessibility")
 
             # normalize names
@@ -193,12 +201,34 @@ class TourismMultiAgent(MultiAgentOrchestrator):
             intent = nlu_parsed.get("intent")
             entities = nlu_parsed.get("entities")
 
+        high_level_status = "disabled"
+        high_level_provider = None
+        if self._tourism_data_provider is not None:
+            high_level_provider = self._tourism_data_provider.get_service_info().get("provider")
+            high_level_status = "active" if self._tourism_data_provider.is_service_available() else "fallback"
+
+        accessibility_payload = parsed_tools.get("accessibility") if isinstance(parsed_tools.get("accessibility"), dict) else {}
+        profile_accessibility_match = None
+        if isinstance(accessibility_payload, dict):
+            profile_accessibility_match = accessibility_payload.get("profile_accessibility_match")
+
         metadata = {
             "pipeline_steps": pipeline_steps,
             "tourism_data": tourism_data,
             "intent": intent,
             "entities": entities,
             "tool_results_parsed": parsed_tools,
+            "high_level_tools": {
+                "status": high_level_status,
+                "provider": high_level_provider,
+                "profile_id": (self._current_profile_context or {}).get("id") if isinstance(self._current_profile_context, dict) else None,
+                "profile_label": (self._current_profile_context or {}).get("label") if isinstance(self._current_profile_context, dict) else None,
+                "accessibility_match": profile_accessibility_match,
+                "degradation": {
+                    "enabled": high_level_status != "active",
+                    "reason": None if high_level_status == "active" else "provider_unavailable_or_disabled",
+                },
+            },
         }
 
         return tool_results, metadata
