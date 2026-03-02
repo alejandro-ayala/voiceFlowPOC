@@ -4,6 +4,12 @@
 FROM python:3.11-slim AS builder
 WORKDIR /build
 
+# Network/download hardening for long dependency installs
+ENV PIP_DEFAULT_TIMEOUT=300 \
+    PIP_RETRIES=10 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    POETRY_REQUESTS_TIMEOUT=300
+
 # Dependencias de compilación
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -23,12 +29,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_CREATE=false
 RUN pip install --no-cache-dir poetry
+RUN poetry config installer.max-workers 4
+
+# Force CPU-only torch wheels to avoid massive CUDA dependency downloads in Docker
+RUN pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.7.1
 
 # Copiar solo archivos de dependencias para cache de Docker layers
 COPY pyproject.toml poetry.lock ./
 
 # Instalar dependencias de producción al site-packages del sistema
 RUN poetry install --only main --no-root
+
+# Instalar modelos spaCy (configurable por build arg)
+ARG SPACY_MODELS="es_core_news_md"
+RUN set -eux; \
+        for model in $SPACY_MODELS; do \
+            python -m spacy download "$model"; \
+        done
 
 
 #############################################

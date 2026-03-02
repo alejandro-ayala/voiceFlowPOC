@@ -4,6 +4,10 @@
 **Objetivo:** Añadir una **página modal de configuración** para seleccionar un **perfil activo** que **especializa (ranking/bias)** las respuestas del sistema multi-agente (LangChain), de forma **metadata-driven** y **escalable** (sin cambios de código o mínimo) con persistencia inicial en **LocalStorage** y futura en **BBDD**.
 **Actualizado:** 2026-02-17 — Propuesta SDD (pre-implementación)
 
+> ⚠️ **Propuesta pre-implementación (histórica).**
+> Este documento contiene decisiones de diseño y alcance, no el contrato operativo final de API.
+> Para comportamiento y payload vigente del sistema, consultar `documentation/API_REFERENCE.md` y `documentation/ESTADO_ACTUAL_SISTEMA.md`.
+
 ---
 
 ## 0. Principios SDD y Reglas

@@ -4,6 +4,10 @@
 **Objetivo:** Contrato de datos entre el `LocalBackendAdapter` (Capa 2) y el `CardRenderer` (Capa 1) para Rich Response Cards.
 **Actualizado:** 2026-02-16 — Alineado con implementacion real (post-auditoria SDD)
 
+> ℹ️ **Especificación de diseño.**
+> Este documento guía la evolución de UI/contratos de tarjetas, pero no reemplaza la referencia API operativa.
+> Para contrato vigente de salida (`entities`, `pipeline_steps`, `metadata.tool_outputs.location_ner`), usar `documentation/API_REFERENCE.md`.
+
 ---
 
 ## 1. Contrato de Datos (Schema)

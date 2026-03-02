@@ -118,8 +118,9 @@ VENUE_DB = {
 └────────────────────┬─────────────────────────────────────┘
                      │
         ┌────────────▼──────────────────┐
-        │ Tools (Mock Data)              │
-        │ - NLU: "general"               │  ← NO reconoce Alhambra
+        │ Tools (POC: mix real + stub)   │
+        │ - NLU: heurístico/mock         │  ← Limitado por patterns
+        │ - LocationNER: spaCy (real)    │  ← Extrae LOC/GPE/FAC
         │ - Accessibility: mock generic  │  ← Datos fake
         │ - Routes: Madrid centro        │  ← INCORRECTO
         │ - Info: "General Madrid"       │  ← IRRELEVANTE
@@ -142,8 +143,19 @@ VENUE_DB = {
 
 **Conclusión:** 
 - ✅ El LLM puede responder sobre cualquier ciudad (usa su conocimiento)
-- ❌ Las tools NO aportan nada, son "teatro arquitectónico"
+- ⚠️ Las tools de dominio (excepto NER) siguen siendo mayoritariamente stub
+- ✅ `LocationNER` sí aporta señal estructurada consumible en pipeline
 - ❌ NO hay datos estructurados fiables (tourism_data a menudo null)
+
+### Estado específico de la feature NER (Commit 3/4)
+
+- `LocationNER` se ejecuta como paso explícito del pipeline después de NLU.
+- Input de `LocationNER` en modo real: **texto crudo del usuario/transcripción** (`user_input`), no `nlu_raw`.
+- Output de NER expuesto en API:
+    - `entities.location_ner`
+    - `metadata.tool_outputs.location_ner`
+    - `metadata.tool_results_parsed.locationner` (trazabilidad interna)
+- Este estado permite validación end-to-end de NER aun cuando otras tools sigan en modo stub.
 
 ---
 

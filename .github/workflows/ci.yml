@@ -37,6 +37,38 @@ jobs:
         continue-on-error: true  # Type errors don't block, just informational
 
   # ====================
+  # TESTS
+  # ====================
+  tests:
+    runs-on: ubuntu-latest
+    name: Run pytest suite
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies (main + dev)
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Remove repository .env (CI safety)
+        run: rm -f .env
+
+      - name: Run pytest (excluding slow/e2e)
+        env:
+          OPENAI_API_KEY: dummy_key
+          VOICEFLOW_OPENAI_API_KEY: dummy_key
+          VOICEFLOW_USE_REAL_AGENTS: "false"
+        run: poetry run pytest tests/ -m "not slow and not e2e" -v
+
+  # ====================
   # DOCKER BUILD & VALIDATE
   # ====================
   docker-build-validate:
@@ -140,7 +172,7 @@ jobs:
   ci-summary:
     runs-on: ubuntu-latest
     name: CI Status Summary
-    needs: [lint-format, docker-build-validate, secrets-check]
+    needs: [lint-format, tests, docker-build-validate, secrets-check]
     if: always()
     steps:
       - name: Check CI status
@@ -153,6 +185,13 @@ jobs:
             FAILED_JOBS="${FAILED_JOBS}lint-format "
           else
             echo "✅ lint-format: passed"
+          fi
+
+          if [ "${{ needs.tests.result }}" != "success" ]; then
+            echo "❌ tests: ${{ needs.tests.result }}"
+            FAILED_JOBS="${FAILED_JOBS}tests "
+          else
+            echo "✅ tests: passed"
           fi
 
           if [ "${{ needs.docker-build-validate.result }}" != "success" ]; then

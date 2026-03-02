@@ -1,226 +1,85 @@
-# VoiceFlow PoC - Sistema de Turismo Accesible con IA
+# VoiceFlow PoC - Turismo Accesible con STT + Multi-Agent Pipeline
 
-**Sistema completo de Speech-to-Text y Multi-Agentes IA para Turismo Accesible**
+PoC de asistente de turismo accesible con entrada por voz y pipeline multi-tool sobre LangChain.
 
-[![Status](https://img# Validación básica (testing)
-./venv/Scripts/python.exe test_voiceflow.py --test
+## Estado actual (Feb 2026)
 
-# Validación completa (pre-release)  
-./venv/Scripts/python.exe test_voiceflow.py --prod
+- STT real con Azure Speech Services funcionando.
+- Pipeline de tools en dominio turismo funcionando.
+- `LocationNER` integrado y expuesto en salida API.
+- Varias tools de dominio siguen en modo stub/mock (gap conocido POC→producción).
 
-# Aplicación web principal (usuarios finales)
-python run-ui.py
-```badge/status-production_ready-green.svg)](https://github.com/your-repo/voiceflow-poc)
-[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)
-[![Azure](https://img.shields.io/badge/azure-speech_services-blue.svg)](https://azure.microsoft.com/en-us/services/cognitive-services/)
-[![OpenAI](https://img.shields.io/badge/openai-gpt4-green.svg)](https://openai.com)
-[![LangChain](https://img.shields.io/badge/langchain-multi_agent-orange.svg)](https://langchain.com)
+## Pipeline actual
 
----
+`Audio/UI -> Azure STT -> Chat API -> NLU -> LocationNER -> Accessibility -> Routes -> Venue Info -> LLM Synthesis`
 
-## 🎯 Descripción del Sistema
+### Salida NER en API
 
-VoiceFlow PoC es un sistema de inteligencia artificial completamente funcional para turismo accesible que integra:
+La respuesta de `POST /api/v1/chat/message` incluye:
 
-- **🎙️ Speech-to-Text**: Azure Speech Services para procesamiento de voz en español
-- **🤖 Sistema Multi-Agente**: LangChain + OpenAI GPT-4 con 4 agentes especializados
-- **♿ Especialización en Accesibilidad**: Turismo para personas con movilidad reducida
-- **🏛️ Casos de Uso Reales**: Museos, parques, restaurantes, transporte público
+- `entities.location_ner`
+- `metadata.tool_outputs.location_ner`
 
-### 🏗️ Arquitectura del Sistema
+Con shape típico:
 
+```json
+{
+  "status": "ok",
+  "locations": ["Barcelona"],
+  "top_location": "Barcelona",
+  "provider": "spacy",
+  "model": "es_core_news_md",
+  "language": "es"
+}
 ```
-🎙️ Audio Input → 🗣️ Azure STT → 🧠 NLU Agent → ♿ Accessibility Agent → 🗺️ Route Agent → ℹ️ Info Agent → 🤖 GPT-4 Response
-```
 
-**Agentes Multi-Especializados:**
-1. **NLU Agent**: Análisis de intención y entidades
-2. **Accessibility Agent**: Evaluación de accesibilidad de venues
-3. **Route Planning Agent**: Planificación de rutas accesibles
-4. **Tourism Info Agent**: Información detallada de destinos
+## Inicio rápido
 
----
+### Opción recomendada (Docker)
 
-## 🚀 Inicio Rápido
-
-### Sistema de Testing Consolidado
-
-El proyecto incluye un **sistema de testing consolidado** que valida todas las integraciones:
-
-#### 🔧 Modo TEST (Validación sin créditos)
 ```bash
-cd VoiceFlowPOC
-./venv/Scripts/python.exe test_voiceflow.py --test
-```
-**Resultado**: Valida todas las conexiones y configuraciones sin consumir APIs.
-
-#### 🚀 Modo PRODUCCIÓN (Test completo)
-```bash
-./venv/Scripts/python.exe test_voiceflow.py --prod
-```
-**Resultado**: Test completo con llamadas reales a GPT-4 y escenarios de turismo accesible.
-
-#### 🎙️ Test con Audio Real (End-to-End)
-```bash
-./venv/Scripts/python.exe production_test.py
-```
-**Resultado**: Grabación → Transcripción → Multi-Agente → Respuesta inteligente.
-
-#### 🎯 Aplicación Principal (Web UI Moderna)
-```bash
-# Iniciar servidor web
-python run-ui.py
-
-# El servidor estará disponible en:
-# http://localhost:8000
-```
-**Resultado**: Interfaz web moderna con workflow completo de turismo accesible.
-
----
-
-## ⚙️ Configuración
-
-### Variables de Entorno (.env)
-```properties
-# OpenAI API (GPT-4)
-OPENAI_API_KEY=your_openai_key_here
-
-# Azure Speech Services  
-AZURE_SPEECH_KEY=your_azure_speech_key_here
-AZURE_SPEECH_REGION=italynorth
-
-# Configuración STT
-STT_SERVICE=azure
-DEFAULT_SAMPLE_RATE=16000
-DEFAULT_CHANNELS=1
-LOG_LEVEL=INFO
-```
-
-### Instalación de Dependencias
-```bash
-cd VoiceFlowPOC
-
-# Instalar dependencias con Poetry
-poetry install
-
-# O ejecutar directamente con Docker (recomendado)
+cd /home/alex/Documentos/Code/voiceFlowPOC
 docker compose up --build
 ```
 
----
+- UI: `http://localhost:8000`
+- API docs: `http://localhost:8000/api/docs`
 
-## 📊 Estado del Sistema
-
-### ✅ Componentes Validados
-- **OpenAI API**: ✅ GPT-4 operativo con créditos recargados
-- **Azure Speech**: ✅ STT configurado para español (es-ES)  
-- **LangChain Multi-Agent**: ✅ 4 agentes coordinados perfectamente
-- **Sistema de Audio**: ✅ 29 dispositivos detectados
-- **Pipeline End-to-End**: ✅ Workflow completo funcional
-
-### 🎯 Escenarios Validados
-1. **Museo del Prado**: Ruta accesible en silla de ruedas ✅
-2. **Parque del Retiro**: Visita con problemas de visión ✅
-3. **Gran Vía**: Restaurantes accesibles ✅
-4. **Metro Madrid**: Información para personas con muletas ✅
-
----
-
-## 📁 Estructura del Proyecto
-
-```
-VoiceFlowPOC/
-├── presentation/              # Capa 1 - UI & Web Server
-├── application/               # Capa 2 - APIs & Orchestration
-├── business/                  # Capa 3 - Logica de Negocio
-│   ├── core/                  #   Framework reutilizable multi-agente
-│   │   ├── interfaces.py      #     MultiAgentInterface (ABC)
-│   │   ├── orchestrator.py    #     MultiAgentOrchestrator (Template Method)
-│   │   └── models.py          #     AgentResponse (dataclass)
-│   ├── domains/tourism/       #   Dominio: turismo accesible Madrid
-│   │   ├── agent.py           #     TourismMultiAgent
-│   │   ├── tools/             #     4 LangChain tools
-│   │   ├── data/              #     Datos estaticos Madrid
-│   │   └── prompts/           #     System + response prompts
-│   └── ai_agents/             #   Backward compatibility
-├── integration/               # Capa 4 - APIs Externas & Config
-├── shared/                    # Cross-cutting (interfaces, exceptions, DI)
-├── pyproject.toml             # Dependencias (Poetry)
-├── docker-compose.yml         # Orquestacion Docker
-└── documentation/             # Documentacion completa + SDDs
-```
-
----
-
-## 🎯 Casos de Uso Principales
-
-### 1. Turista con Silla de Ruedas
-**Input**: "Necesito ir al Museo del Prado en silla de ruedas"  
-**Output**: Rutas accesibles (metro/bus), información de accesibilidad del museo, precios, horarios, contactos de coordinación.
-
-### 2. Persona con Problemas de Visión  
-**Input**: "¿Cómo visitar el Parque del Retiro con problemas de visión?"  
-**Output**: Transporte con guías táctiles, servicios de audio, rutas adaptadas, información de apoyo.
-
-### 3. Búsqueda de Restaurantes Accesibles
-**Input**: "Restaurantes accesibles cerca de Gran Vía"  
-**Output**: Opciones de dining accesible, información de transporte, certificaciones ONCE.
-
----
-
-## 🔧 Comandos Esenciales
+### Opción local (Poetry)
 
 ```bash
-# Validación diaria (desarrollo)
-./venv/Scripts/python.exe test_voiceflow.py --test
-
-# Validación completa (pre-release)  
-./venv/Scripts/python.exe test_voiceflow.py --prod
-
-# Demo con audio real (presentaciones)
-./venv/Scripts/python.exe production_test.py
-
-# Aplicación de usuario final
-./venv/Scripts/python.exe main.py
+cd /home/alex/Documentos/Code/voiceFlowPOC
+poetry install
+poetry run python presentation/server_launcher.py
 ```
 
----
+## Verificación rápida de NER
 
-## 📚 Documentación Completa
+```bash
+curl -s -X POST "http://localhost:8000/api/v1/chat/message" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Turismo cultural en el centro de Barcelona"}' \
+| jq '{entities: .entities.location_ner, ner: .metadata.tool_outputs.location_ner}'
+```
 
-- **[TESTING_SYSTEM_README.md](documentation/TESTING_SYSTEM_README.md)** - Guía completa del sistema de testing
-- **[SISTEMA_CONSOLIDADO_FINAL.md](documentation/SISTEMA_CONSOLIDADO_FINAL.md)** - Estado final y consolidación
-- **[ARCHITECTURE_MULTIAGENT.md](documentation/ARCHITECTURE_MULTIAGENT.md)** - Arquitectura del sistema multi-agente  
-- **[AZURE_SETUP_GUIDE.md](documentation/AZURE_SETUP_GUIDE.md)** - Configuración de Azure Speech Services
+## Estructura de capas
 
----
+- `presentation/`: UI web y factory FastAPI
+- `application/`: endpoints API, servicios y backend adapter
+- `business/`: orquestador y tools por dominio
+- `integration/`: STT, NER providers/factories y configuración
+- `shared/`: interfaces, excepciones y DI
 
-## 🏆 Logros del Proyecto
+## Documentación clave
 
-### ✅ Sistema Completamente Funcional
-- **Pipeline End-to-End**: Desde voz hasta recomendaciones inteligentes
-- **Multi-Agente IA**: 4 agentes especializados coordinados
-- **Testing Automatizado**: Sistema de validación consolidado
-- **Arquitectura Robusta**: Código limpio, mantenible y escalable
+- `documentation/API_REFERENCE.md`
+- `documentation/ARCHITECTURE_MULTIAGENT.md`
+- `documentation/ARCHITECTURE_VOICE-FLOW-POC.md`
+- `documentation/ESTADO_ACTUAL_SISTEMA.md`
+- `documentation/PLAN_IMPLEMENTACION_NER_5_COMMITS.md`
+- `documentation/DEVELOPMENT.md`
 
-### ✅ Validación Real
-- **Audio Real**: Grabación y procesamiento de voz en español
-- **APIs Productivas**: OpenAI GPT-4 y Azure Speech Services
-- **Casos de Uso Reales**: Escenarios de turismo accesible validados
-- **Sistema Consolidado**: De 15+ archivos de test a 2 archivos potentes
+## Nota de alcance
 
----
-
-## 🚀 Estado: LISTO PARA PRODUCCIÓN
-
-**El sistema VoiceFlow PoC está completamente desarrollado, validado y listo para uso en producción.**
-
-### Próximos Pasos Sugeridos
-1. **Integración con APIs reales**: Google Maps, bases de datos de accesibilidad
-2. **Interfaz de usuario**: Web app o aplicación móvil
-3. **Memoria conversacional**: Sistema de seguimiento de contexto
-4. **Nuevos agentes**: Clima, eventos, transporte especializado
-
----
-
-*Desarrollado con ❤️ para hacer el turismo más accesible para todos*
+Esta iteración cierra integración de `LocationNER` en pipeline y contrato API.
+No implica productización de todas las tools de dominio (stubs documentados).
