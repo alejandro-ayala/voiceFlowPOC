@@ -37,7 +37,9 @@ class BackendInterface(ABC):
     """
 
     @abstractmethod
-    async def process_query(self, transcription: str, active_profile_id: Optional[str] = None) -> Dict[str, Any]:
+    async def process_query(
+        self, transcription: str, active_profile_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Process user query through multi-agent system"""
         pass
 
@@ -64,7 +66,9 @@ class ConversationInterface(ABC):
         pass
 
     @abstractmethod
-    async def get_conversation_history(self, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_conversation_history(
+        self, session_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Get conversation history"""
         pass
 
@@ -98,12 +102,16 @@ class StorageInterface(ABC):
     """
 
     @abstractmethod
-    async def save_conversation(self, session_id: str, conversation: List[Dict[str, Any]]) -> bool:
+    async def save_conversation(
+        self, session_id: str, conversation: List[Dict[str, Any]]
+    ) -> bool:
         """Save conversation to storage"""
         pass
 
     @abstractmethod
-    async def load_conversation(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
+    async def load_conversation(
+        self, session_id: str
+    ) -> Optional[List[Dict[str, Any]]]:
         """Load conversation from storage"""
         pass
 

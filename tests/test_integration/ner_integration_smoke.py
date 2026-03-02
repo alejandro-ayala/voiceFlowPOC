@@ -63,9 +63,13 @@ async def run_smoke_test(text: str, language: str | None = None) -> int:
 
 def main() -> int:
     """CLI entrypoint for quick integration validation."""
-    parser = argparse.ArgumentParser(description="NER integration smoke test (LOC detection)")
+    parser = argparse.ArgumentParser(
+        description="NER integration smoke test (LOC detection)"
+    )
     parser.add_argument("text", help="Input text to analyze")
-    parser.add_argument("--language", default=None, help="Language code override, e.g. es/en")
+    parser.add_argument(
+        "--language", default=None, help="Language code override, e.g. es/en"
+    )
     args = parser.parse_args()
 
     return asyncio.run(run_smoke_test(text=args.text, language=args.language))

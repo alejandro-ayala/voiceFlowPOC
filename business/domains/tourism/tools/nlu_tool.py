@@ -26,7 +26,9 @@ class TourismNLUTool(BaseTool):
     """Extract intents and entities from Spanish tourism requests."""
 
     name: str = "tourism_nlu"
-    description: str = "Analyze user intent and extract tourism entities from Spanish text"
+    description: str = (
+        "Analyze user intent and extract tourism entities from Spanish text"
+    )
     nlu_service: Optional[NLUServiceInterface] = None
 
     def _get_nlu_service(self) -> NLUServiceInterface:
@@ -39,7 +41,9 @@ class TourismNLUTool(BaseTool):
 
         intent = self._match_pattern(user_lower, INTENT_PATTERNS, "general_query")
         destination = self._extract_destination(user_lower)
-        accessibility = self._match_pattern(user_lower, ACCESSIBILITY_PATTERNS, "general")
+        accessibility = self._match_pattern(
+            user_lower, ACCESSIBILITY_PATTERNS, "general"
+        )
 
         confidence = 0.70 if intent != "general_query" else 0.0
         status = "ok" if intent != "general_query" else "fallback"
@@ -92,7 +96,9 @@ class TourismNLUTool(BaseTool):
                 return self._legacy_result(user_input, language=language)
             return result
         except Exception as error:
-            logger.warning("nlu_service_exception_using_keyword_fallback", error=str(error))
+            logger.warning(
+                "nlu_service_exception_using_keyword_fallback", error=str(error)
+            )
             return self._legacy_result(user_input, language=language)
 
     def _run(self, user_input: str) -> str:

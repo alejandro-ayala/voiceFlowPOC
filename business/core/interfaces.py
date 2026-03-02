@@ -14,12 +14,16 @@ class MultiAgentInterface(ABC):
     """
 
     @abstractmethod
-    def process_request_sync(self, user_input: str, profile_context: Optional[dict] = None) -> AgentResponse:
+    def process_request_sync(
+        self, user_input: str, profile_context: Optional[dict] = None
+    ) -> AgentResponse:
         """Process a query synchronously through the tool pipeline + LLM."""
         ...
 
     @abstractmethod
-    async def process_request(self, user_input: str, profile_context: Optional[dict] = None) -> AgentResponse:
+    async def process_request(
+        self, user_input: str, profile_context: Optional[dict] = None
+    ) -> AgentResponse:
         """Process a query asynchronously (async wrapper over sync)."""
         ...
 

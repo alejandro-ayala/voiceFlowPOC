@@ -49,7 +49,9 @@ async def test_spacy_service_extracts_locations_spanish(monkeypatch):
         ),
     )
 
-    result = await service.extract_locations("Quiero visitar Barcelona y el Palacio Real", language="es")
+    result = await service.extract_locations(
+        "Quiero visitar Barcelona y el Palacio Real", language="es"
+    )
 
     assert result["status"] == "ok"
     assert result["language"] == "es"
@@ -74,7 +76,9 @@ async def test_spacy_service_supports_english_model_map(monkeypatch):
     monkeypatch.setattr(
         spacy_ner_service,
         "spacy",
-        SimpleNamespace(load=lambda model: _build_fake_nlp([("London", "GPE"), ("Paris", "GPE")])),
+        SimpleNamespace(
+            load=lambda model: _build_fake_nlp([("London", "GPE"), ("Paris", "GPE")])
+        ),
     )
 
     result = await service.extract_locations("Trip from London to Paris", language="en")
@@ -127,7 +131,9 @@ async def test_spacy_service_returns_model_unavailable_when_no_model_loads(monke
     monkeypatch.setattr(
         spacy_ner_service,
         "spacy",
-        SimpleNamespace(load=lambda _model: (_ for _ in ()).throw(OSError("model not found"))),
+        SimpleNamespace(
+            load=lambda _model: (_ for _ in ()).throw(OSError("model not found"))
+        ),
     )
 
     result = await service.extract_locations("Sevilla", language="es")

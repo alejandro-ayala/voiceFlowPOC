@@ -29,7 +29,11 @@ class ProfileService:
             return
 
         registry_path = (
-            Path(__file__).resolve().parent.parent.parent / "presentation" / "static" / "config" / "profiles.json"
+            Path(__file__).resolve().parent.parent.parent
+            / "presentation"
+            / "static"
+            / "config"
+            / "profiles.json"
         )
 
         try:

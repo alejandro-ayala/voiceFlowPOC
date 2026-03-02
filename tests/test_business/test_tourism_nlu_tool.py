@@ -25,7 +25,9 @@ class MockNLUService(NLUServiceInterface):
             status=self.status,
             intent="route_planning",
             confidence=0.95,
-            entities=NLUEntitySet(destination="Museo del Prado", accessibility="wheelchair"),
+            entities=NLUEntitySet(
+                destination="Museo del Prado", accessibility="wheelchair"
+            ),
             provider="mock",
             model="mock-model",
             language=language or "es",

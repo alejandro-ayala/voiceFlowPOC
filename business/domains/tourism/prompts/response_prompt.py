@@ -23,7 +23,9 @@ TOURISM_DATA_SCHEMA = """{
 
 def _build_profile_section(profile_context: dict) -> str:
     """Build the profile directives + ranking bias section for prompt injection."""
-    directives = "\n".join(f"- {d}" for d in profile_context.get("prompt_directives", []))
+    directives = "\n".join(
+        f"- {d}" for d in profile_context.get("prompt_directives", [])
+    )
 
     # Summarize ranking bias for the LLM
     bias = profile_context.get("ranking_bias", {})

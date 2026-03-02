@@ -78,7 +78,9 @@ class WhisperLocalService(STTServiceInterface):
             logger.info("Modelo Whisper cargado exitosamente")
 
         except Exception as e:
-            raise ServiceConfigurationError(f"Error cargando modelo Whisper: {str(e)}", "whisper_local", e)
+            raise ServiceConfigurationError(
+                f"Error cargando modelo Whisper: {str(e)}", "whisper_local", e
+            )
 
     async def transcribe_audio(self, audio_path: Path, **kwargs) -> str:
         """
@@ -92,10 +94,14 @@ class WhisperLocalService(STTServiceInterface):
             str: Texto transcrito
         """
         if not audio_path.exists():
-            raise STTServiceError(f"Archivo de audio no encontrado: {audio_path}", "whisper_local")
+            raise STTServiceError(
+                f"Archivo de audio no encontrado: {audio_path}", "whisper_local"
+            )
 
         if not self._is_supported_format(audio_path):
-            raise AudioFormatError(f"Formato de audio no soportado: {audio_path.suffix}", "whisper_local")
+            raise AudioFormatError(
+                f"Formato de audio no soportado: {audio_path.suffix}", "whisper_local"
+            )
 
         try:
             # Configurar opciones de transcripción
@@ -113,7 +119,9 @@ class WhisperLocalService(STTServiceInterface):
 
             # Ejecutar transcripción en un executor para no bloquear el loop
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, lambda: self._model.transcribe(str(audio_path), **options))
+            result = await loop.run_in_executor(
+                None, lambda: self._model.transcribe(str(audio_path), **options)
+            )
 
             transcribed_text = result.get("text", "").strip()
 
@@ -126,7 +134,9 @@ class WhisperLocalService(STTServiceInterface):
 
         except Exception as e:
             logger.error("Error en transcripción Whisper local", error=str(e))
-            raise STTServiceError(f"Error durante la transcripción: {str(e)}", "whisper_local", e)
+            raise STTServiceError(
+                f"Error durante la transcripción: {str(e)}", "whisper_local", e
+            )
 
     def _is_supported_format(self, audio_path: Path) -> bool:
         """Verifica si el formato de audio es soportado."""
@@ -186,7 +196,9 @@ class WhisperAPIService(STTServiceInterface):
             self._client = openai.OpenAI(api_key=self.api_key)
             logger.info("Cliente OpenAI Whisper API inicializado correctamente")
         except Exception as e:
-            raise ServiceConfigurationError(f"Error inicializando cliente OpenAI: {str(e)}", "whisper_api", e)
+            raise ServiceConfigurationError(
+                f"Error inicializando cliente OpenAI: {str(e)}", "whisper_api", e
+            )
 
     async def transcribe_audio(self, audio_path: Path, **kwargs) -> str:
         """
@@ -200,10 +212,14 @@ class WhisperAPIService(STTServiceInterface):
             str: Texto transcrito
         """
         if not audio_path.exists():
-            raise STTServiceError(f"Archivo de audio no encontrado: {audio_path}", "whisper_api")
+            raise STTServiceError(
+                f"Archivo de audio no encontrado: {audio_path}", "whisper_api"
+            )
 
         if not self._is_supported_format(audio_path):
-            raise AudioFormatError(f"Formato de audio no soportado: {audio_path.suffix}", "whisper_api")
+            raise AudioFormatError(
+                f"Formato de audio no soportado: {audio_path.suffix}", "whisper_api"
+            )
 
         # Verificar tamaño del archivo
         file_size = audio_path.stat().st_size
@@ -214,11 +230,15 @@ class WhisperAPIService(STTServiceInterface):
             )
 
         try:
-            logger.info("Iniciando transcripción con Whisper API", audio_file=str(audio_path))
+            logger.info(
+                "Iniciando transcripción con Whisper API", audio_file=str(audio_path)
+            )
 
             # Ejecutar llamada API en un executor
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, self._transcribe_sync, audio_path, kwargs)
+            result = await loop.run_in_executor(
+                None, self._transcribe_sync, audio_path, kwargs
+            )
 
             transcribed_text = result.text.strip()
 
@@ -231,7 +251,9 @@ class WhisperAPIService(STTServiceInterface):
 
         except Exception as e:
             logger.error("Error en transcripción Whisper API", error=str(e))
-            raise STTServiceError(f"Error durante la transcripción: {str(e)}", "whisper_api", e)
+            raise STTServiceError(
+                f"Error durante la transcripción: {str(e)}", "whisper_api", e
+            )
 
     def _transcribe_sync(self, audio_path: Path, kwargs: Dict[str, Any]):
         """Método síncrono para la transcripción API."""

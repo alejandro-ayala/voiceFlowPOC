@@ -33,7 +33,9 @@ class SpacyNERService(NERServiceInterface):
         if not SPACY_AVAILABLE:
             logger.warning("spaCy is not installed; NER provider unavailable")
 
-    async def extract_locations(self, text: str, language: Optional[str] = None) -> Dict[str, Any]:
+    async def extract_locations(
+        self, text: str, language: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Extract location entities (GPE/LOC/FAC) from input text."""
         if not text or not text.strip():
             return {
@@ -116,7 +118,11 @@ class SpacyNERService(NERServiceInterface):
 
     def _resolve_model_for_language(self, language: str) -> str:
         """Resolve model name for language, fallback to default language mapping."""
-        return self._model_map.get(language) or self._model_map.get(self._default_language) or self._fallback_model
+        return (
+            self._model_map.get(language)
+            or self._model_map.get(self._default_language)
+            or self._fallback_model
+        )
 
     def _load_model(self, model_name: str, language: str) -> Any:
         """Load and cache spaCy model; fallback to configured fallback model if needed."""

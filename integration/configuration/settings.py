@@ -18,7 +18,9 @@ class Settings(BaseSettings):
     """
 
     # Application settings
-    app_name: str = Field(default="VoiceFlow Tourism PoC", description="Application name")
+    app_name: str = Field(
+        default="VoiceFlow Tourism PoC", description="Application name"
+    )
     app_description: str = Field(
         default="Accessible Tourism Multi-Agent Assistant",
         description="Application description",
@@ -37,22 +39,40 @@ class Settings(BaseSettings):
     cors_headers: list[str] = Field(default=["*"], description="CORS allowed headers")
 
     # Backend integration settings
-    backend_timeout: int = Field(default=30, description="Backend request timeout in seconds")
-    max_audio_duration: int = Field(default=30, description="Maximum audio recording duration in seconds")
-    max_audio_size_mb: int = Field(default=10, description="Maximum audio file size in MB")
+    backend_timeout: int = Field(
+        default=30, description="Backend request timeout in seconds"
+    )
+    max_audio_duration: int = Field(
+        default=30, description="Maximum audio recording duration in seconds"
+    )
+    max_audio_size_mb: int = Field(
+        default=10, description="Maximum audio file size in MB"
+    )
     use_real_agents: bool = Field(
         default=True,
         description="Use real LangChain agents (True) or simulation (False)",
     )
 
     # Audio processing settings
-    azure_speech_key: Optional[str] = Field(default=None, description="Azure Speech Services API key")
-    azure_speech_region: Optional[str] = Field(default=None, description="Azure Speech Services region")
-    stt_service: str = Field(default="azure", description="Speech-to-text service provider")
-    supported_formats: str = Field(default="wav,mp3,m4a,flac,ogg", description="Supported audio formats")
-    default_sample_rate: int = Field(default=16000, description="Default audio sample rate")
+    azure_speech_key: Optional[str] = Field(
+        default=None, description="Azure Speech Services API key"
+    )
+    azure_speech_region: Optional[str] = Field(
+        default=None, description="Azure Speech Services region"
+    )
+    stt_service: str = Field(
+        default="azure", description="Speech-to-text service provider"
+    )
+    supported_formats: str = Field(
+        default="wav,mp3,m4a,flac,ogg", description="Supported audio formats"
+    )
+    default_sample_rate: int = Field(
+        default=16000, description="Default audio sample rate"
+    )
     default_channels: int = Field(default=1, description="Default audio channels")
-    whisper_model: str = Field(default="base", description="Whisper model to use for STT")
+    whisper_model: str = Field(
+        default="base", description="Whisper model to use for STT"
+    )
 
     # OpenAI settings (for backend service)
     openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key")
@@ -65,16 +85,28 @@ class Settings(BaseSettings):
         default='{"es":"es_core_news_md","en":"en_core_web_sm"}',
         description="JSON mapping language->model for NER providers",
     )
-    ner_fallback_model: str = Field(default="es_core_news_sm", description="Fallback NER model")
-    ner_confidence_threshold: float = Field(default=0.6, description="Minimum NER confidence threshold")
+    ner_fallback_model: str = Field(
+        default="es_core_news_sm", description="Fallback NER model"
+    )
+    ner_confidence_threshold: float = Field(
+        default=0.6, description="Minimum NER confidence threshold"
+    )
 
     # NLU settings
     nlu_enabled: bool = Field(default=True, description="Enable NLU service")
-    nlu_provider: str = Field(default="openai", description="NLU provider: openai, keyword, or custom")
+    nlu_provider: str = Field(
+        default="openai", description="NLU provider: openai, keyword, or custom"
+    )
     nlu_default_language: str = Field(default="es", description="Default NLU language")
-    nlu_openai_model: str = Field(default="gpt-4o-mini", description="OpenAI model for NLU classification")
-    nlu_confidence_threshold: float = Field(default=0.40, description="Min confidence for non-fallback")
-    nlu_fallback_intent: str = Field(default="general_query", description="Intent when below threshold")
+    nlu_openai_model: str = Field(
+        default="gpt-4o-mini", description="OpenAI model for NLU classification"
+    )
+    nlu_confidence_threshold: float = Field(
+        default=0.40, description="Min confidence for non-fallback"
+    )
+    nlu_fallback_intent: str = Field(
+        default="general_query", description="Intent when below threshold"
+    )
     nlu_shadow_mode: bool = Field(
         default=False,
         description="Enable shadow comparison: run primary + shadow provider in parallel,"
@@ -87,21 +119,33 @@ class Settings(BaseSettings):
     )
 
     # Azure deployment settings (future)
-    azure_webapp_name: Optional[str] = Field(default=None, description="Azure Web App name")
-    azure_resource_group: Optional[str] = Field(default=None, description="Azure Resource Group")
-    azure_storage_account: Optional[str] = Field(default=None, description="Azure Storage Account")
+    azure_webapp_name: Optional[str] = Field(
+        default=None, description="Azure Web App name"
+    )
+    azure_resource_group: Optional[str] = Field(
+        default=None, description="Azure Resource Group"
+    )
+    azure_storage_account: Optional[str] = Field(
+        default=None, description="Azure Storage Account"
+    )
 
     # Authentication settings (future)
     auth_enabled: bool = Field(default=False, description="Enable authentication")
-    auth_provider: Optional[str] = Field(default=None, description="Authentication provider")
+    auth_provider: Optional[str] = Field(
+        default=None, description="Authentication provider"
+    )
 
     # Database settings (future)
     database_enabled: bool = Field(default=False, description="Enable database")
-    database_url: Optional[str] = Field(default=None, description="Database connection URL")
+    database_url: Optional[str] = Field(
+        default=None, description="Database connection URL"
+    )
 
     # Logging settings
     log_level: str = Field(default="INFO", description="Logging level")
-    log_format: str = Field(default="%(levelname)s - %(message)s", description="Log format")
+    log_format: str = Field(
+        default="%(levelname)s - %(message)s", description="Log format"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -190,7 +234,12 @@ def get_ner_model_map(raw_value: Optional[str] = None) -> dict[str, str]:
 
         normalized_map: dict[str, str] = {}
         for key, value in parsed.items():
-            if isinstance(key, str) and isinstance(value, str) and key.strip() and value.strip():
+            if (
+                isinstance(key, str)
+                and isinstance(value, str)
+                and key.strip()
+                and value.strip()
+            ):
                 normalized_map[key.strip().lower()] = value.strip()
 
         return normalized_map or default_map

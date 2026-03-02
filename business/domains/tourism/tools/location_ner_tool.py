@@ -18,7 +18,9 @@ class LocationNERTool(BaseTool):
     """Extract location entities from user input using NER service (spaCy-based)."""
 
     name: str = "location_ner"
-    description: str = "Extract location entities (venues, cities, points of interest) using Named Entity Recognition"
+    description: str = (
+        "Extract location entities (venues, cities, points of interest) using Named Entity Recognition"
+    )
     ner_service: Optional[NERServiceInterface] = None
 
     def _get_ner_service(self) -> NERServiceInterface:
@@ -37,7 +39,11 @@ class LocationNERTool(BaseTool):
         Returns:
             JSON string with extracted locations, top_location, provider info, and status
         """
-        logger.info("LocationNERTool: Processing user input", input=user_input, language=language)
+        logger.info(
+            "LocationNERTool: Processing user input",
+            input=user_input,
+            language=language,
+        )
         start = time.perf_counter()
 
         try:
@@ -45,7 +51,9 @@ class LocationNERTool(BaseTool):
 
             # Check if NER is available
             if not ner_service.is_service_available():
-                logger.warning("LocationNERTool: NER service not available, returning empty result")
+                logger.warning(
+                    "LocationNERTool: NER service not available, returning empty result"
+                )
                 return json.dumps(
                     {
                         "locations": [],
@@ -60,7 +68,9 @@ class LocationNERTool(BaseTool):
                 )
 
             # Run NER extraction asynchronously
-            result = asyncio.run(ner_service.extract_locations(text=user_input, language=language))
+            result = asyncio.run(
+                ner_service.extract_locations(text=user_input, language=language)
+            )
 
             # Normalize result to expected schema
             response = {
@@ -85,7 +95,11 @@ class LocationNERTool(BaseTool):
             return json.dumps(response, indent=2, ensure_ascii=False)
 
         except Exception as e:
-            logger.error("LocationNERTool: Error during NER extraction", error=str(e), exc_info=True)
+            logger.error(
+                "LocationNERTool: Error during NER extraction",
+                error=str(e),
+                exc_info=True,
+            )
             return json.dumps(
                 {
                     "locations": [],
@@ -101,7 +115,11 @@ class LocationNERTool(BaseTool):
 
     async def _arun(self, user_input: str, language: str = "es") -> str:
         """Async version of location NER extraction."""
-        logger.info("LocationNERTool: Async processing user input", input=user_input, language=language)
+        logger.info(
+            "LocationNERTool: Async processing user input",
+            input=user_input,
+            language=language,
+        )
         start = time.perf_counter()
 
         try:
@@ -109,7 +127,9 @@ class LocationNERTool(BaseTool):
 
             # Check if NER is available
             if not ner_service.is_service_available():
-                logger.warning("LocationNERTool: NER service not available (async), returning empty result")
+                logger.warning(
+                    "LocationNERTool: NER service not available (async), returning empty result"
+                )
                 return json.dumps(
                     {
                         "locations": [],
@@ -124,7 +144,9 @@ class LocationNERTool(BaseTool):
                 )
 
             # Run NER extraction asynchronously
-            result = await ner_service.extract_locations(text=user_input, language=language)
+            result = await ner_service.extract_locations(
+                text=user_input, language=language
+            )
 
             # Normalize result to expected schema
             response = {
@@ -149,7 +171,11 @@ class LocationNERTool(BaseTool):
             return json.dumps(response, indent=2, ensure_ascii=False)
 
         except Exception as e:
-            logger.error("LocationNERTool: Error during async NER extraction", error=str(e), exc_info=True)
+            logger.error(
+                "LocationNERTool: Error during async NER extraction",
+                error=str(e),
+                exc_info=True,
+            )
             return json.dumps(
                 {
                     "locations": [],

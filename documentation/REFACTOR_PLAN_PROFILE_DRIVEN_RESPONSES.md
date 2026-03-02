@@ -4,6 +4,10 @@
 **Versión:** 2.0  
 **Objetivo:** Que el sistema recomiende venues/actividades basándose en el perfil activo del usuario, con datos estructurados fiables.
 
+> ⚠️ **Documento de roadmap/análisis histórico.**
+> Incluye hipótesis y gaps de una fase previa; no debe usarse como contrato operativo actual.
+> Fuente de verdad actual: `documentation/ESTADO_ACTUAL_SISTEMA.md` y `documentation/API_REFERENCE.md`.
+
 ---
 
 ## 📋 Tabla de Contenidos

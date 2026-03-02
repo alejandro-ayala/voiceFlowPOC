@@ -35,7 +35,9 @@ class LocalBackendAdapter(BackendInterface):
         nlu_service: Optional[NLUServiceInterface] = None,
         use_real_agents: Optional[bool] = None,
     ):
-        resolved_settings = settings.model_copy(deep=True) if settings is not None else Settings()
+        resolved_settings = (
+            settings.model_copy(deep=True) if settings is not None else Settings()
+        )
         if use_real_agents is not None:
             resolved_settings.use_real_agents = use_real_agents
 
@@ -59,8 +61,7 @@ class LocalBackendAdapter(BackendInterface):
             shadow_settings = self.settings.model_copy(deep=True)
             shadow_settings.nlu_provider = self.settings.nlu_shadow_provider
             self._shadow_nlu_service = NLUServiceFactory.create_service(
-                self.settings.nlu_shadow_provider,
-                settings=shadow_settings
+                self.settings.nlu_shadow_provider, settings=shadow_settings
             )
 
     async def _get_backend_instance(self):
@@ -69,8 +70,12 @@ class LocalBackendAdapter(BackendInterface):
             try:
                 from business.domains.tourism.agent import TourismMultiAgent
 
-                logger.info("Initializing LocalBackendAdapter with tourism multi-agent system")
-                self._backend_instance = TourismMultiAgent(ner_service=self._ner_service, nlu_service=self._nlu_service)
+                logger.info(
+                    "Initializing LocalBackendAdapter with tourism multi-agent system"
+                )
+                self._backend_instance = TourismMultiAgent(
+                    ner_service=self._ner_service, nlu_service=self._nlu_service
+                )
                 logger.info("Backend adapter initialized successfully")
 
             except ImportError as e:
@@ -90,7 +95,9 @@ class LocalBackendAdapter(BackendInterface):
 
         return self._backend_instance
 
-    async def process_query(self, transcription: str, active_profile_id: Optional[str] = None) -> Dict[str, Any]:
+    async def process_query(
+        self, transcription: str, active_profile_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Process user query through REAL multi-agent system or SIMULATED for demo.
         Returns structured response with tourism information.
@@ -116,9 +123,13 @@ class LocalBackendAdapter(BackendInterface):
             if use_real_agents:
                 if self.settings.nlu_shadow_mode:
                     self._schedule_shadow_comparison(transcription, profile_context)
-                ai_response = await self._process_real_query(transcription, profile_context=profile_context)
+                ai_response = await self._process_real_query(
+                    transcription, profile_context=profile_context
+                )
             else:
-                ai_response = await self._simulate_ai_response(transcription, profile_context=profile_context)
+                ai_response = await self._simulate_ai_response(
+                    transcription, profile_context=profile_context
+                )
 
             # Increment conversation counter
             self._conversation_count += 1
@@ -143,19 +154,33 @@ class LocalBackendAdapter(BackendInterface):
                 if not use_real_agents:
                     sim_meta = self._get_simulation_metadata(transcription.lower())
                     ner_metadata = await self._run_location_ner(transcription)
-                    sim_steps = sim_meta.get("pipeline_steps") if isinstance(sim_meta, dict) else None
+                    sim_steps = (
+                        sim_meta.get("pipeline_steps")
+                        if isinstance(sim_meta, dict)
+                        else None
+                    )
                     if isinstance(sim_steps, list):
-                        insert_index = 1 if sim_steps and sim_steps[0].get("name") == "NLU" else len(sim_steps)
+                        insert_index = (
+                            1
+                            if sim_steps and sim_steps[0].get("name") == "NLU"
+                            else len(sim_steps)
+                        )
                         sim_steps.insert(insert_index, ner_metadata["pipeline_step"])
 
-                    sim_entities = sim_meta.get("entities") if isinstance(sim_meta.get("entities"), dict) else {}
+                    sim_entities = (
+                        sim_meta.get("entities")
+                        if isinstance(sim_meta.get("entities"), dict)
+                        else {}
+                    )
                     sim_entities["location_ner"] = {
                         "status": ner_metadata.get("status"),
                         "locations": ner_metadata.get("locations", []),
                         "top_location": ner_metadata.get("top_location"),
                     }
                     if ner_metadata.get("top_location"):
-                        sim_entities.setdefault("location", ner_metadata["top_location"])
+                        sim_entities.setdefault(
+                            "location", ner_metadata["top_location"]
+                        )
                     sim_meta["entities"] = sim_entities
                     sim_meta["tool_outputs"] = {
                         "location_ner": {
@@ -171,14 +196,27 @@ class LocalBackendAdapter(BackendInterface):
                 response_tourism_data = sim_meta.get("tourism_data")
                 raw_metadata = sim_meta
 
-            location_ner_payload = self._extract_location_ner_payload(raw_metadata, response_entities)
+            location_ner_payload = self._extract_location_ner_payload(
+                raw_metadata, response_entities
+            )
+            nlu_payload = self._extract_nlu_payload(
+                raw_metadata, response_intent, response_entities
+            )
             if location_ner_payload:
-                entities = response_entities if isinstance(response_entities, dict) else {}
+                entities = (
+                    response_entities if isinstance(response_entities, dict) else {}
+                )
                 entities["location_ner"] = location_ner_payload
                 top_location = location_ner_payload.get("top_location")
                 if top_location and "location" not in entities:
                     entities["location"] = top_location
                 response_entities = entities
+
+            stable_tool_outputs: dict[str, Any] = {}
+            if location_ner_payload:
+                stable_tool_outputs["location_ner"] = location_ner_payload
+            if nlu_payload:
+                stable_tool_outputs["nlu"] = nlu_payload
 
             # Validate and structure the response for the UI
             structured_response = {
@@ -194,14 +232,16 @@ class LocalBackendAdapter(BackendInterface):
                         "route_planning",
                         "tourism_info",
                     ],
-                    "backend_type": ("real_langchain" if use_real_agents else "simulated_demo"),
+                    "backend_type": (
+                        "real_langchain" if use_real_agents else "simulated_demo"
+                    ),
                     "model": "gpt-4" if use_real_agents else "demo_simulation",
                 },
                 "metadata": {
                     "timestamp": datetime.now().isoformat(),
                     "session_type": "production" if use_real_agents else "demo",
                     "language": "es-ES",
-                    "tool_outputs": {"location_ner": location_ner_payload} if location_ner_payload else {},
+                    "tool_outputs": stable_tool_outputs,
                 },
                 # Attempt to coerce/validate pipeline_steps and tourism_data
                 "pipeline_steps": None,
@@ -216,7 +256,9 @@ class LocalBackendAdapter(BackendInterface):
                     td = TourismData.model_validate(response_tourism_data)
                     structured_response["tourism_data"] = td.model_dump()
                 except Exception as e:
-                    logger.warning("Invalid tourism_data received, dropping to None", error=str(e))
+                    logger.warning(
+                        "Invalid tourism_data received, dropping to None", error=str(e)
+                    )
 
             # Validate pipeline_steps entries
             if response_pipeline_steps and isinstance(response_pipeline_steps, list):
@@ -228,14 +270,26 @@ class LocalBackendAdapter(BackendInterface):
                     except Exception:
                         # skip invalid step but keep processing
                         continue
-                structured_response["pipeline_steps"] = cleaned_steps if cleaned_steps else None
+                structured_response["pipeline_steps"] = (
+                    cleaned_steps if cleaned_steps else None
+                )
 
-            tool_results_parsed = raw_metadata.get("tool_results_parsed") if isinstance(raw_metadata, dict) else None
+            tool_results_parsed = (
+                raw_metadata.get("tool_results_parsed")
+                if isinstance(raw_metadata, dict)
+                else None
+            )
             if isinstance(tool_results_parsed, dict):
-                structured_response["metadata"]["tool_results_parsed"] = tool_results_parsed
+                structured_response["metadata"][
+                    "tool_results_parsed"
+                ] = tool_results_parsed
 
-            if isinstance(raw_metadata, dict) and isinstance(raw_metadata.get("nlu_shadow_comparison"), dict):
-                structured_response["metadata"]["nlu_shadow_comparison"] = raw_metadata["nlu_shadow_comparison"]
+            if isinstance(raw_metadata, dict) and isinstance(
+                raw_metadata.get("nlu_shadow_comparison"), dict
+            ):
+                structured_response["metadata"]["nlu_shadow_comparison"] = raw_metadata[
+                    "nlu_shadow_comparison"
+                ]
 
             backend_type = "REAL" if use_real_agents else "SIMULATED"
             # compute response length safely
@@ -261,13 +315,17 @@ class LocalBackendAdapter(BackendInterface):
                 },
             )
 
-    async def _process_real_query(self, transcription: str, profile_context: Optional[Dict[str, Any]] = None) -> str:
+    async def _process_real_query(
+        self, transcription: str, profile_context: Optional[Dict[str, Any]] = None
+    ) -> str:
         """Process query through REAL LangChain agents with OpenAI."""
         try:
             agent = await self._get_backend_instance()
             logger.info("Calling TourismMultiAgent", query=transcription)
 
-            result = await agent.process_request(transcription, profile_context=profile_context)
+            result = await agent.process_request(
+                transcription, profile_context=profile_context
+            )
 
             # result is AgentResponse(response_text, tool_results, metadata)
             ai_text = getattr(result, "response_text", None)
@@ -290,13 +348,17 @@ class LocalBackendAdapter(BackendInterface):
             logger.warning("Falling back to simulation due to backend error")
             return await self._simulate_ai_response(transcription)
 
-    def _schedule_shadow_comparison(self, transcription: str, profile_context: Optional[Dict[str, Any]] = None) -> None:
+    def _schedule_shadow_comparison(
+        self, transcription: str, profile_context: Optional[Dict[str, Any]] = None
+    ) -> None:
         """Schedule asynchronous shadow NLU comparison without impacting request latency."""
         if self._nlu_service is None or self._shadow_nlu_service is None:
             return
 
         async def run_shadow() -> None:
-            await self._run_shadow_comparison(transcription, profile_context=profile_context)
+            await self._run_shadow_comparison(
+                transcription, profile_context=profile_context
+            )
 
         task = asyncio.create_task(run_shadow())
 
@@ -323,8 +385,12 @@ class LocalBackendAdapter(BackendInterface):
 
         try:
             old_result, new_result = await asyncio.gather(
-                self._nlu_service.analyze_text(transcription, language="es", profile_context=profile_context),
-                self._shadow_nlu_service.analyze_text(transcription, language="es", profile_context=profile_context),
+                self._nlu_service.analyze_text(
+                    transcription, language="es", profile_context=profile_context
+                ),
+                self._shadow_nlu_service.analyze_text(
+                    transcription, language="es", profile_context=profile_context
+                ),
             )
 
             old_intent = getattr(old_result, "intent", None)
@@ -390,7 +456,10 @@ class LocalBackendAdapter(BackendInterface):
             return {
                 "pipeline_steps": base_steps,
                 "intent": "venue_search",
-                "entities": {"destination": "Museo del Prado", "accessibility": "wheelchair"},
+                "entities": {
+                    "destination": "Museo del Prado",
+                    "accessibility": "wheelchair",
+                },
                 "tourism_data": {
                     "venue": {
                         "name": "Museo del Prado",
@@ -461,7 +530,9 @@ class LocalBackendAdapter(BackendInterface):
             }
 
         elif "granada" in query_lower or "granada" in query_lower:
-            base_steps[0]["summary"] = "Intent: venue_search | Dest: Turismo Accesible Granada"
+            base_steps[0][
+                "summary"
+            ] = "Intent: venue_search | Dest: Turismo Accesible Granada"
             base_steps[1]["summary"] = "Score: 7.8/10 — Varied access"
             base_steps[2]["summary"] = "Routes: Bus, Walking"
             base_steps[3]["summary"] = "Local attractions and schedules"
@@ -533,14 +604,19 @@ class LocalBackendAdapter(BackendInterface):
                 },
             }
         elif any(w in query_lower for w in ["reina", "sof\u00eda", "sofia"]):
-            base_steps[0]["summary"] = "Intent: route_search | Dest: Museo Reina Sof\u00eda"
+            base_steps[0][
+                "summary"
+            ] = "Intent: route_search | Dest: Museo Reina Sof\u00eda"
             base_steps[1]["summary"] = "Score: 8.8/10 — Full wheelchair access"
             base_steps[2]["summary"] = "2 routes: Metro L1, Bus 14"
             base_steps[3]["summary"] = "Hours, pricing, exhibitions loaded"
             return {
                 "pipeline_steps": base_steps,
                 "intent": "route_search",
-                "entities": {"destination": "Museo Reina Sof\u00eda", "accessibility": "wheelchair"},
+                "entities": {
+                    "destination": "Museo Reina Sof\u00eda",
+                    "accessibility": "wheelchair",
+                },
                 "tourism_data": {
                     "venue": {
                         "name": "Museo Reina Sof\u00eda",
@@ -677,7 +753,10 @@ class LocalBackendAdapter(BackendInterface):
             return {
                 "pipeline_steps": base_steps,
                 "intent": "recommendation",
-                "entities": {"destination": "Restaurants Madrid", "accessibility": "general"},
+                "entities": {
+                    "destination": "Restaurants Madrid",
+                    "accessibility": "general",
+                },
                 "tourism_data": {
                     "venue": {
                         "name": "Restaurantes Accesibles Madrid",
@@ -685,7 +764,10 @@ class LocalBackendAdapter(BackendInterface):
                         "accessibility_score": 6.5,
                         "certification": "mixed",
                         "facilities": ["wheelchair_ramps", "adapted_bathrooms"],
-                        "opening_hours": {"lunch": "13:00-16:00", "dinner": "20:00-24:00"},
+                        "opening_hours": {
+                            "lunch": "13:00-16:00",
+                            "dinner": "20:00-24:00",
+                        },
                         "pricing": {"range": "15\u20ac-60\u20ac per person"},
                     },
                     "routes": [
@@ -706,7 +788,9 @@ class LocalBackendAdapter(BackendInterface):
                         "score": 6.5,
                         "certification": "mixed",
                         "facilities": ["wheelchair_ramps", "adapted_bathrooms"],
-                        "services": {"advance_booking": "Recommended for accessibility needs"},
+                        "services": {
+                            "advance_booking": "Recommended for accessibility needs"
+                        },
                     },
                 },
             }
@@ -738,7 +822,9 @@ class LocalBackendAdapter(BackendInterface):
                 },
             }
 
-    async def _simulate_ai_response(self, transcription: str, profile_context: Optional[dict] = None) -> str:
+    async def _simulate_ai_response(
+        self, transcription: str, profile_context: Optional[dict] = None
+    ) -> str:
         """
         Simulate AI response based on transcription for demo purposes.
         This avoids OpenAI API calls during development/demo.
@@ -905,7 +991,11 @@ Te puedo ayudar con:
             except Exception:
                 parsed_result = {}
 
-            locations_raw = parsed_result.get("locations", []) if isinstance(parsed_result, dict) else []
+            locations_raw = (
+                parsed_result.get("locations", [])
+                if isinstance(parsed_result, dict)
+                else []
+            )
             normalized_locations: list[str] = []
             for item in locations_raw:
                 if isinstance(item, str) and item.strip():
@@ -924,11 +1014,19 @@ Te puedo ayudar con:
                 seen.add(key)
                 deduplicated_locations.append(location)
 
-            top_location = parsed_result.get("top_location") if isinstance(parsed_result, dict) else None
+            top_location = (
+                parsed_result.get("top_location")
+                if isinstance(parsed_result, dict)
+                else None
+            )
             if not top_location and deduplicated_locations:
                 top_location = deduplicated_locations[0]
 
-            status = parsed_result.get("status", "unknown") if isinstance(parsed_result, dict) else "unknown"
+            status = (
+                parsed_result.get("status", "unknown")
+                if isinstance(parsed_result, dict)
+                else "unknown"
+            )
             duration_ms = int((time.perf_counter() - start) * 1000)
 
             logger.info(
@@ -955,7 +1053,11 @@ Te puedo ayudar con:
 
         except Exception as error:
             duration_ms = int((time.perf_counter() - start) * 1000)
-            logger.warning("LocationNER failed in simulated backend", error=str(error), duration_ms=duration_ms)
+            logger.warning(
+                "LocationNER failed in simulated backend",
+                error=str(error),
+                duration_ms=duration_ms,
+            )
 
             return {
                 "status": "error",
@@ -976,7 +1078,9 @@ Te puedo ayudar con:
         entities: Optional[dict[str, Any]] = None,
     ) -> Optional[dict[str, Any]]:
         """Extract normalized LocationNER output from metadata/entities if present."""
-        if isinstance(entities, dict) and isinstance(entities.get("location_ner"), dict):
+        if isinstance(entities, dict) and isinstance(
+            entities.get("location_ner"), dict
+        ):
             normalized = self._normalize_location_ner_payload(entities["location_ner"])
             if normalized:
                 return normalized
@@ -995,16 +1099,130 @@ Te puedo ayudar con:
         tool_results_parsed = metadata.get("tool_results_parsed")
         if isinstance(tool_results_parsed, dict):
             for key in ("locationner", "location_ner", "location ner", "LocationNER"):
-                if key in tool_results_parsed and isinstance(tool_results_parsed[key], dict):
-                    normalized = self._normalize_location_ner_payload(tool_results_parsed[key])
+                if key in tool_results_parsed and isinstance(
+                    tool_results_parsed[key], dict
+                ):
+                    normalized = self._normalize_location_ner_payload(
+                        tool_results_parsed[key]
+                    )
                     if normalized:
                         return normalized
 
         return None
 
-    def _normalize_location_ner_payload(self, payload: dict[str, Any]) -> Optional[dict[str, Any]]:
+    def _extract_nlu_payload(
+        self,
+        metadata: Optional[dict[str, Any]],
+        intent: Optional[str] = None,
+        entities: Optional[dict[str, Any]] = None,
+    ) -> Optional[dict[str, Any]]:
+        """Extract normalized NLU output from metadata and fallback runtime fields."""
+        if isinstance(metadata, dict):
+            tool_outputs = metadata.get("tool_outputs")
+            if isinstance(tool_outputs, dict) and isinstance(
+                tool_outputs.get("nlu"), dict
+            ):
+                normalized = self._normalize_nlu_payload(
+                    tool_outputs["nlu"],
+                    fallback_intent=intent,
+                    fallback_entities=entities,
+                )
+                if normalized:
+                    return normalized
+
+            tool_results_parsed = metadata.get("tool_results_parsed")
+            if isinstance(tool_results_parsed, dict) and isinstance(
+                tool_results_parsed.get("nlu"), dict
+            ):
+                normalized = self._normalize_nlu_payload(
+                    tool_results_parsed["nlu"],
+                    fallback_intent=intent,
+                    fallback_entities=entities,
+                )
+                if normalized:
+                    return normalized
+
+        if intent is not None or isinstance(entities, dict):
+            normalized = self._normalize_nlu_payload(
+                {}, fallback_intent=intent, fallback_entities=entities
+            )
+            if normalized:
+                return normalized
+
+        return None
+
+    def _normalize_nlu_payload(
+        self,
+        payload: dict[str, Any],
+        fallback_intent: Optional[str] = None,
+        fallback_entities: Optional[dict[str, Any]] = None,
+    ) -> Optional[dict[str, Any]]:
+        """Normalize NLU payload to stable API schema."""
+
+        def _as_float(value: Any) -> Optional[float]:
+            if value is None:
+                return None
+            if isinstance(value, (int, float)):
+                return float(value)
+            if isinstance(value, dict) and "parsedValue" in value:
+                parsed_value = value.get("parsedValue")
+                if isinstance(parsed_value, (int, float)):
+                    return float(parsed_value)
+            return None
+
+        entities_value = (
+            payload.get("entities")
+            if isinstance(payload.get("entities"), dict)
+            else None
+        )
+        normalized_entities = entities_value if isinstance(entities_value, dict) else {}
+        if not normalized_entities and isinstance(fallback_entities, dict):
+            normalized_entities = {
+                key: fallback_entities.get(key)
+                for key in (
+                    "destination",
+                    "accessibility",
+                    "timeframe",
+                    "transport_preference",
+                    "budget",
+                )
+                if key in fallback_entities
+            }
+
+        normalized_intent = payload.get("intent") or fallback_intent
+        normalized_confidence = _as_float(payload.get("confidence"))
+
+        if (
+            normalized_intent is None
+            and not normalized_entities
+            and payload.get("status") is None
+            and payload.get("provider") is None
+        ):
+            return None
+
+        return {
+            "status": payload.get("status", "unknown"),
+            "intent": normalized_intent,
+            "confidence": normalized_confidence,
+            "entities": normalized_entities,
+            "provider": payload.get("provider"),
+            "model": payload.get("model"),
+            "analysis_version": payload.get("analysis_version"),
+            "latency_ms": payload.get("latency_ms"),
+            "alternatives": (
+                payload.get("alternatives")
+                if isinstance(payload.get("alternatives"), list)
+                else []
+            ),
+        }
+
+    def _normalize_location_ner_payload(
+        self, payload: dict[str, Any]
+    ) -> Optional[dict[str, Any]]:
         """Normalize LocationNER payload to stable API schema."""
-        raw_locations = payload.get("locations", []) if isinstance(payload, dict) else []
+        raw_locations = (
+            payload.get("locations", []) if isinstance(payload, dict) else []
+        )
         normalized_locations: list[str] = []
 
         if isinstance(raw_locations, list):
@@ -1025,11 +1243,17 @@ Te puedo ayudar con:
             seen.add(key)
             deduplicated_locations.append(location)
 
-        top_location = payload.get("top_location") if isinstance(payload, dict) else None
+        top_location = (
+            payload.get("top_location") if isinstance(payload, dict) else None
+        )
         if not top_location and deduplicated_locations:
             top_location = deduplicated_locations[0]
 
-        if not deduplicated_locations and top_location is None and not payload.get("status"):
+        if (
+            not deduplicated_locations
+            and top_location is None
+            and not payload.get("status")
+        ):
             return None
 
         return {

@@ -50,7 +50,9 @@ def test_entity_resolver_rule_3_only_nlu_available():
 def test_entity_resolver_rule_4_exact_agreement():
     resolver = EntityResolver()
 
-    result = resolver.resolve(_nlu_result("Museo del Prado"), ["Museo del Prado"], "Museo del Prado")
+    result = resolver.resolve(
+        _nlu_result("Museo del Prado"), ["Museo del Prado"], "Museo del Prado"
+    )
 
     assert result.destination == "Museo del Prado"
     assert result.resolution_source["destination"] == "both_agree"

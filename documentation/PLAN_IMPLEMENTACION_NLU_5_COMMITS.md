@@ -6,6 +6,18 @@
 
 ---
 
+## Estado de ejecución (actualizado 2 Mar 2026)
+
+- ✅ Commit 1 implementado (contratos + settings)
+- ✅ Commit 2 implementado (provider/factory pluggable)
+- ✅ Commit 3 implementado (tool desacoplada + merge policy NLU/NER)
+- ✅ Commit 4 implementado (wiring DI + runtime + shadow mode)
+- ✅ Commit 5 implementado (tests de contrato/integración/evaluación + corpus)
+
+Nota: este documento mantiene checklists históricos de planificación; el estado operativo vigente se valida en `tests/` y `documentation/API_REFERENCE.md`.
+
+---
+
 ## 1) Alcance y principios de implementación
 
 ### Requisitos obligatorios

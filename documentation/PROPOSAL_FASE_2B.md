@@ -4,6 +4,10 @@
 **Estado**: ✅ IMPLEMENTADA (12 Feb 2026)
 **Branch**: `feature/docker-migration`
 
+> ⚠️ **Documento de propuesta/implementación histórica.**
+> Los snippets de código representan el estado de esa fase y pueden diferir del runtime actual.
+> Fuente de verdad actual: `documentation/ARCHITECTURE_MULTIAGENT.md`, `documentation/ESTADO_ACTUAL_SISTEMA.md` y `documentation/API_REFERENCE.md`.
+
 ---
 
 ## 1. Contexto y problema

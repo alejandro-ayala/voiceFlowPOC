@@ -8,7 +8,9 @@ class NERServiceInterface(ABC):
     """Contract for Named Entity Recognition services focused on locations."""
 
     @abstractmethod
-    async def extract_locations(self, text: str, language: Optional[str] = None) -> Dict[str, Any]:
+    async def extract_locations(
+        self, text: str, language: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Extract location entities (LOC/GPE-like) from free text."""
         pass
 

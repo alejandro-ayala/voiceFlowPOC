@@ -1,14 +1,14 @@
 # Arquitectura Multi-Agente: LangChain + STT
 
-**Actualizado**: 23 de Febrero de 2026
-**Version**: 4.2 - Pipeline con LocationNER + contrato de salida NER
+**Actualizado**: 2 de Marzo de 2026
+**Version**: 4.3 - Pipeline NLU+NER paralelo + contrato de salida NER/NLU
 
 ---
 
-## ⚠️ ESTADO ACTUAL: Tools con Mock Data (STUBS) + NER funcional
+## ⚠️ ESTADO ACTUAL: NLU/NER funcionales + tools de dominio parcialmente STUB
 
-**IMPORTANTE:** Las herramientas (tools) actuales son **prototipos con datos hardcodeados**, excepto la extracción NER de localizaciones:
-- ❌ **NLU Tool**: Regex + diccionario de ~10 venues de Madrid
+**IMPORTANTE:** El pipeline ya integra NLU por proveedor configurable y NER real, pero varias tools de dominio siguen con datos estáticos/mock:
+- ✅ **NLU Tool**: proveedor configurable (`openai` principal, `keyword` fallback) con contrato tipado
 - ✅ **LocationNER Tool**: extracción real de localizaciones con spaCy (si modelo disponible)
 - ❌ **Accessibility Tool**: Lookup en base de datos simulada (4 venues)
 - ❌ **Route Tool**: Rutas predefinidas, no consultan APIs reales
@@ -107,7 +107,7 @@ El sistema VoiceFlow Tourism PoC combina Speech-to-Text (STT) con un sistema mul
   |   _execute_pipeline()            |
   +----------------------------------+
     |
-       | Ejecuta 5 tools secuencialmente
+       | Ejecuta pipeline de 5 tools (NLU+NER en paralelo)
     |
     +---> TourismNLUTool             (tools/nlu_tool.py)
        +---> LocationNERTool            (tools/location_ner_tool.py)
@@ -131,14 +131,14 @@ El sistema VoiceFlow Tourism PoC combina Speech-to-Text (STT) con un sistema mul
 
 **Ubicacion**: `business/domains/tourism/agent.py`
 **Hereda de**: `business/core/orchestrator.py` → `MultiAgentOrchestrator`
-**LLM**: ChatOpenAI GPT-4 (temperature=0.3, max_tokens=1500)
+**LLM**: ChatOpenAI GPT-4 (temperature=0.3, max_tokens=2500)
 
-El orquestador extiende `MultiAgentOrchestrator` (patron Template Method) e implementa `_execute_pipeline()` que ejecuta 5 tools en secuencia. El algoritmo base (invoke LLM, gestionar historial, retornar `AgentResponse`) esta en `core/`.
+El orquestador extiende `MultiAgentOrchestrator` (patron Template Method) e implementa `_execute_pipeline()` con NLU y NER en paralelo (`asyncio.gather`) y el resto de tools en secuencia. El algoritmo base (invoke LLM, gestionar historial, retornar `AgentResponse`) esta en `core/`.
 
 ```python
 class TourismMultiAgent(MultiAgentOrchestrator):
     def __init__(self, openai_api_key=None):
-        llm = ChatOpenAI(model="gpt-4", temperature=0.3, max_tokens=1500)
+              llm = ChatOpenAI(model="gpt-4", temperature=0.3, max_tokens=2500)
         super().__init__(llm=llm, system_prompt=SYSTEM_PROMPT)
         self.nlu = TourismNLUTool()
               self.location_ner = LocationNERTool()
@@ -147,8 +147,10 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         self.tourism_info = TourismInfoTool()
 
        def _execute_pipeline(self, user_input: str, profile_context=None) -> tuple[dict[str, str], dict]:
-        nlu_result = self.nlu._run(user_input)
-              location_ner_result = self.location_ner._run(user_input)
+              nlu_result, location_ner_result = asyncio.gather(
+                     self.nlu._arun(user_input),
+                     self.location_ner._arun(user_input),
+              )
         accessibility_result = self.accessibility._run(nlu_result)
         route_result = self.route._run(accessibility_result)
         tourism_result = self.tourism_info._run(nlu_result)
@@ -200,9 +202,9 @@ El STT es infraestructura, no logica de negocio:
 - Fallback chain independiente (Azure -> Whisper -> simulacion)
 - Testeable sin API keys de OpenAI
 
-### Orquestacion secuencial (no paralela)
+### Orquestacion híbrida (paralela + secuencial)
 
-Actualmente los tools se ejecutan en secuencia fija porque cada tool recibe el output del anterior. Esto es una limitacion conocida; la Fase 1 del ROADMAP propone orquestacion selectiva basada en intent.
+Actualmente NLU y LocationNER se ejecutan en paralelo para reducir latencia, y luego se continúa en secuencia con Accessibility/Route/Tourism Info. La orquestación sigue siendo fija (no selectiva por intent), lo cual permanece como deuda técnica.
 
 ### Modo simulacion en el adapter
 

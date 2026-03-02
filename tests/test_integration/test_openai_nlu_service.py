@@ -12,7 +12,9 @@ from integration.external_apis.openai_nlu_service import OpenAINLUService
 
 
 def _build_mock_response(arguments: dict) -> SimpleNamespace:
-    tool_call = SimpleNamespace(function=SimpleNamespace(arguments=json.dumps(arguments)))
+    tool_call = SimpleNamespace(
+        function=SimpleNamespace(arguments=json.dumps(arguments))
+    )
     message = SimpleNamespace(tool_calls=[tool_call])
     choice = SimpleNamespace(message=message)
     return SimpleNamespace(choices=[choice])

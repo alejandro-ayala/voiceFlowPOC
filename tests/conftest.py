@@ -2,6 +2,9 @@
 Shared test fixtures for VoiceFlow PoC tests.
 """
 
+import json
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -24,3 +27,13 @@ def mock_settings():
         debug=True,
         use_real_agents=False,
     )
+
+
+@pytest.fixture
+def nlu_evaluation_corpus():
+    """Load labeled corpus used by NLU evaluation tests."""
+    corpus_path = (
+        Path(__file__).resolve().parent / "fixtures" / "nlu_evaluation_corpus.json"
+    )
+    with corpus_path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)

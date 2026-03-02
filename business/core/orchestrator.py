@@ -31,11 +31,15 @@ class MultiAgentOrchestrator(MultiAgentInterface):
         self.system_prompt = system_prompt
         self.conversation_history: list[dict[str, str]] = []
 
-    def process_request_sync(self, user_input: str, profile_context: Optional[dict] = None) -> AgentResponse:
+    def process_request_sync(
+        self, user_input: str, profile_context: Optional[dict] = None
+    ) -> AgentResponse:
         """Execute tool pipeline + LLM synchronously."""
         try:
             logger.info("Processing request", input=user_input)
-            exec_result = self._execute_pipeline(user_input, profile_context=profile_context)
+            exec_result = self._execute_pipeline(
+                user_input, profile_context=profile_context
+            )
 
             # _execute_pipeline may return either tool_results (dict) or (tool_results, metadata)
             if isinstance(exec_result, tuple) and len(exec_result) == 2:
@@ -44,7 +48,9 @@ class MultiAgentOrchestrator(MultiAgentInterface):
                 tool_results = exec_result
                 metadata = {}
 
-            prompt = self._build_response_prompt(user_input, tool_results, profile_context=profile_context)
+            prompt = self._build_response_prompt(
+                user_input, tool_results, profile_context=profile_context
+            )
 
             # Measure LLM invocation time
             import time
@@ -60,7 +66,9 @@ class MultiAgentOrchestrator(MultiAgentInterface):
             text, metadata = self._extract_structured_data(text, metadata)
 
             # Append LLM step to pipeline_steps in metadata
-            pipeline_steps = metadata.get("pipeline_steps") if isinstance(metadata, dict) else None
+            pipeline_steps = (
+                metadata.get("pipeline_steps") if isinstance(metadata, dict) else None
+            )
             if pipeline_steps is None:
                 pipeline_steps = []
                 metadata["pipeline_steps"] = pipeline_steps
@@ -77,19 +85,28 @@ class MultiAgentOrchestrator(MultiAgentInterface):
 
             self.conversation_history.append({"user": user_input, "assistant": text})
             logger.info("Request processed successfully", response_length=len(text))
-            return AgentResponse(response_text=text, tool_results=tool_results, metadata=metadata)
+            return AgentResponse(
+                response_text=text, tool_results=tool_results, metadata=metadata
+            )
         except Exception as e:
             logger.error("Error processing request", error=str(e))
             error_text = f"Lo siento, hubo un error procesando tu solicitud: {str(e)}"
             return AgentResponse(response_text=error_text, tool_results={})
 
-    async def process_request(self, user_input: str, profile_context: Optional[dict] = None) -> AgentResponse:
+    async def process_request(
+        self, user_input: str, profile_context: Optional[dict] = None
+    ) -> AgentResponse:
         """Execute tool pipeline + LLM asynchronously (runs sync in thread)."""
-        return await asyncio.to_thread(self.process_request_sync, user_input, profile_context)
+        return await asyncio.to_thread(
+            self.process_request_sync, user_input, profile_context
+        )
 
     def get_conversation_history(self) -> list[dict[str, Any]]:
         """Return conversation history."""
-        return [{"user": m["user"], "assistant": m["assistant"]} for m in self.conversation_history]
+        return [
+            {"user": m["user"], "assistant": m["assistant"]}
+            for m in self.conversation_history
+        ]
 
     def clear_conversation(self) -> None:
         """Clear conversation history."""
@@ -97,7 +114,9 @@ class MultiAgentOrchestrator(MultiAgentInterface):
         logger.info("Conversation history cleared")
 
     @abstractmethod
-    def _execute_pipeline(self, user_input: str, profile_context: Optional[dict] = None) -> dict[str, str]:
+    def _execute_pipeline(
+        self, user_input: str, profile_context: Optional[dict] = None
+    ) -> dict[str, str]:
         """Execute domain tools. Receive profile_context for ranking/filtering.
         Return {tool_name: json_result_string}."""
         ...
@@ -112,7 +131,9 @@ class MultiAgentOrchestrator(MultiAgentInterface):
         """Build the final prompt for LLM synthesis from tool results."""
         ...
 
-    def _extract_structured_data(self, llm_text: str, metadata: dict) -> tuple[str, dict]:
+    def _extract_structured_data(
+        self, llm_text: str, metadata: dict
+    ) -> tuple[str, dict]:
         """Hook for subclasses to extract structured data from LLM response.
 
         Override this to parse structured output (e.g. JSON blocks) from the

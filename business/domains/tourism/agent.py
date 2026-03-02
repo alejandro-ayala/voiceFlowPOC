@@ -45,7 +45,9 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 
         api_key = openai_api_key or Settings().openai_api_key
         if not api_key:
-            raise ValueError("OpenAI API key not found. Set OPENAI_API_KEY environment variable.")
+            raise ValueError(
+                "OpenAI API key not found. Set OPENAI_API_KEY environment variable."
+            )
 
         llm = ChatOpenAI(
             model="gpt-4",
@@ -64,7 +66,9 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 
         logger.info("Tourism Multi-Agent System initialized successfully")
 
-    def _execute_pipeline(self, user_input: str, profile_context: Optional[dict] = None) -> tuple[dict[str, str], dict]:
+    def _execute_pipeline(
+        self, user_input: str, profile_context: Optional[dict] = None
+    ) -> tuple[dict[str, str], dict]:
         """Execute the tourism tool pipeline with timing instrumentation.
 
         Receives profile_context for ranking bias application.
@@ -99,7 +103,11 @@ class TourismMultiAgent(MultiAgentOrchestrator):
             summary = None
             if isinstance(parsed, dict):
                 # prefer concise known keys
-                summary = parsed.get("intent") or parsed.get("accessibility_level") or parsed.get("venue")
+                summary = (
+                    parsed.get("intent")
+                    or parsed.get("accessibility_level")
+                    or parsed.get("venue")
+                )
                 if summary is None:
                     # fallback to presence of keys
                     keys = list(parsed.keys())[:3]
@@ -125,7 +133,9 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                 parsed_status = None
                 if isinstance(parsed, dict):
                     locations = parsed.get("locations")
-                    location_count = len(locations) if isinstance(locations, list) else 0
+                    location_count = (
+                        len(locations) if isinstance(locations, list) else 0
+                    )
                     provider = parsed.get("provider")
                     model = parsed.get("model")
                     parsed_language = parsed.get("language")
@@ -156,7 +166,11 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 
             summary = None
             if isinstance(parsed, dict):
-                summary = parsed.get("intent") or parsed.get("accessibility_level") or parsed.get("venue")
+                summary = (
+                    parsed.get("intent")
+                    or parsed.get("accessibility_level")
+                    or parsed.get("venue")
+                )
                 if summary is None:
                     keys = list(parsed.keys())[:3]
                     summary = ",".join(keys)
@@ -184,7 +198,9 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                 parsed_status = None
                 if isinstance(parsed, dict):
                     locations = parsed.get("locations")
-                    location_count = len(locations) if isinstance(locations, list) else 0
+                    location_count = (
+                        len(locations) if isinstance(locations, list) else 0
+                    )
                     provider = parsed.get("provider")
                     model = parsed.get("model")
                     parsed_language = parsed.get("language")
@@ -215,7 +231,12 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         parallel_duration_ms = int((time.perf_counter() - parallel_start) * 1000)
 
         nlu_parsed = record_tool("NLU", self.nlu.name, nlu_raw, parallel_duration_ms)
-        location_ner_parsed = record_tool("LocationNER", self.location_ner.name, location_ner_raw, parallel_duration_ms)
+        location_ner_parsed = record_tool(
+            "LocationNER",
+            self.location_ner.name,
+            location_ner_raw,
+            parallel_duration_ms,
+        )
 
         nlu_result = None
         if isinstance(nlu_parsed, dict):
@@ -229,8 +250,12 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                         "alternatives": nlu_parsed.get("alternatives", []),
                         "provider": nlu_parsed.get("provider", "unknown"),
                         "model": nlu_parsed.get("model", "unknown"),
-                        "language": nlu_parsed.get("entities", {}).get("language", "es"),
-                        "analysis_version": nlu_parsed.get("analysis_version", "nlu_v3.0"),
+                        "language": nlu_parsed.get("entities", {}).get(
+                            "language", "es"
+                        ),
+                        "analysis_version": nlu_parsed.get(
+                            "analysis_version", "nlu_v3.0"
+                        ),
                         "latency_ms": nlu_parsed.get("latency_ms", 0),
                     }
                 )
@@ -248,11 +273,15 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                     elif isinstance(item, dict) and isinstance(item.get("name"), str):
                         ner_locations.append(item["name"])
             top_location_value = location_ner_parsed.get("top_location")
-            ner_top_location = top_location_value if isinstance(top_location_value, str) else None
+            ner_top_location = (
+                top_location_value if isinstance(top_location_value, str) else None
+            )
 
         resolved_entities = None
         if nlu_result is not None:
-            resolved_entities = self.entity_resolver.resolve(nlu_result, ner_locations, ner_top_location)
+            resolved_entities = self.entity_resolver.resolve(
+                nlu_result, ner_locations, ner_top_location
+            )
 
         # Accessibility (input: NLU raw)
         nlu_raw = tool_results.get("nlu") or ""
@@ -269,13 +298,19 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         tourism_data = None
         try:
             tourism_info = (
-                parsed_tools.get("venue info") or parsed_tools.get("tourism_info") or parsed_tools.get("venue")
+                parsed_tools.get("venue info")
+                or parsed_tools.get("tourism_info")
+                or parsed_tools.get("venue")
             )
             routes = parsed_tools.get("routes") or parsed_tools.get("route")
             accessibility = parsed_tools.get("accessibility")
 
             # normalize names
-            if isinstance(tourism_info, dict) or isinstance(routes, dict) or isinstance(accessibility, dict):
+            if (
+                isinstance(tourism_info, dict)
+                or isinstance(routes, dict)
+                or isinstance(accessibility, dict)
+            ):
                 routes_val = None
                 if isinstance(routes, dict) and routes.get("routes"):
                     routes_val = routes.get("routes")
@@ -284,14 +319,18 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                 tourism_data = {
                     "venue": (tourism_info if isinstance(tourism_info, dict) else None),
                     "routes": routes_val,
-                    "accessibility": (accessibility if isinstance(accessibility, dict) else None),
+                    "accessibility": (
+                        accessibility if isinstance(accessibility, dict) else None
+                    ),
                 }
         except Exception:
             tourism_data = None
 
         # Canonicalize tourism_data into the SSOT used by the API/UI.
         try:
-            tourism_data = canonicalize_tourism_data(tourism_data) if tourism_data else None
+            tourism_data = (
+                canonicalize_tourism_data(tourism_data) if tourism_data else None
+            )
         except Exception:
             tourism_data = None
 
@@ -329,7 +368,9 @@ class TourismMultiAgent(MultiAgentOrchestrator):
             profile_context=profile_context,
         )
 
-    def _extract_structured_data(self, llm_text: str, metadata: dict) -> tuple[str, dict]:
+    def _extract_structured_data(
+        self, llm_text: str, metadata: dict
+    ) -> tuple[str, dict]:
         """Extract JSON tourism_data block from LLM response and merge into metadata."""
         match = re.search(r"```json\s*(\{.*?\})\s*```", llm_text, re.DOTALL)
         if not match:
@@ -365,7 +406,9 @@ class TourismMultiAgent(MultiAgentOrchestrator):
             )
             if is_default:
                 metadata["tourism_data"] = llm_tourism_data
-                logger.info("Replaced default tool tourism_data with LLM-generated data")
+                logger.info(
+                    "Replaced default tool tourism_data with LLM-generated data"
+                )
             else:
                 logger.info("Keeping tool-derived tourism_data (specific venue data)")
 

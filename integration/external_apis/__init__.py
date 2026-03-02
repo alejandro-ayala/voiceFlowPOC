@@ -14,12 +14,19 @@ def __getattr__(name: str):
     if name == "NLUServiceFactory":
         return import_module("integration.external_apis.nlu_factory").NLUServiceFactory
     if name == "SpacyNERService":
-        return import_module("integration.external_apis.spacy_ner_service").SpacyNERService
+        return import_module(
+            "integration.external_apis.spacy_ner_service"
+        ).SpacyNERService
     if name == "OpenAINLUService":
-        return import_module("integration.external_apis.openai_nlu_service").OpenAINLUService
+        return import_module(
+            "integration.external_apis.openai_nlu_service"
+        ).OpenAINLUService
     if name == "KeywordNLUService":
-        return import_module("integration.external_apis.keyword_nlu_service").KeywordNLUService
+        return import_module(
+            "integration.external_apis.keyword_nlu_service"
+        ).KeywordNLUService
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "NERServiceFactory",
