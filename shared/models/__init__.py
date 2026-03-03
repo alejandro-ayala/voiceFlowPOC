@@ -6,10 +6,24 @@ from shared.models.nlu_models import (
     NLUResult,
     ResolvedEntities,
 )
+from shared.models.tool_models import (
+    AccessibilityInfo,
+    PlaceCandidate,
+    RouteOption,
+    ToolError,
+    ToolPipelineContext,
+    VenueDetail,
+)
 
 __all__ = [
     "NLUAlternative",
     "NLUEntitySet",
     "NLUResult",
     "ResolvedEntities",
+    "AccessibilityInfo",
+    "PlaceCandidate",
+    "RouteOption",
+    "ToolError",
+    "ToolPipelineContext",
+    "VenueDetail",
 ]

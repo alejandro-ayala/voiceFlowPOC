@@ -6,6 +6,7 @@ import structlog
 from langchain.tools import BaseTool
 
 from business.domains.tourism.data.route_data import DEFAULT_ROUTE, ROUTE_DB
+from shared.models.tool_models import RouteOption, ToolPipelineContext
 
 logger = structlog.get_logger(__name__)
 
@@ -46,6 +47,30 @@ class RoutePlanningTool(BaseTool):
     async def _arun(self, accessibility_info: str) -> str:
         """Async version of route planning."""
         return self._run(accessibility_info)
+
+    async def execute(self, ctx: ToolPipelineContext) -> ToolPipelineContext:
+        """Execute with typed pipeline context. Populates ctx.routes."""
+        accessibility_input = ctx.raw_tool_results.get("accessibility", "")
+        raw_result = self._run(accessibility_input)
+        ctx.raw_tool_results["routes"] = raw_result
+        try:
+            parsed = json.loads(raw_result)
+            raw_routes = parsed.get("routes", [])
+            for r in raw_routes:
+                if isinstance(r, dict):
+                    ctx.routes.append(
+                        RouteOption(
+                            transport_type=r.get("type", "unknown"),
+                            duration_minutes=r.get("duration_minutes"),
+                            accessibility_score=parsed.get("accessibility_score"),
+                            description=r.get("description"),
+                            estimated_cost=r.get("cost"),
+                            source="local_db",
+                        )
+                    )
+        except Exception as e:
+            logger.warning("Failed to parse route result", error=str(e))
+        return ctx
 
     @staticmethod
     def _extract_destination(accessibility_info: str) -> str:

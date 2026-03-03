@@ -24,7 +24,14 @@ class MultiAgentInterface(ABC):
     async def process_request(
         self, user_input: str, profile_context: Optional[dict] = None
     ) -> AgentResponse:
-        """Process a query asynchronously (async wrapper over sync)."""
+        """Process a query asynchronously."""
+        ...
+
+    @abstractmethod
+    async def process_request_async(
+        self, user_input: str, profile_context: Optional[dict] = None
+    ) -> AgentResponse:
+        """Process a query through the async-native pipeline + LLM."""
         ...
 
     @abstractmethod

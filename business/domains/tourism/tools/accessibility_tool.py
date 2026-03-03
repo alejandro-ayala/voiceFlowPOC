@@ -10,6 +10,7 @@ from business.domains.tourism.data.accessibility_data import (
     ACCESSIBILITY_DB,
     DEFAULT_ACCESSIBILITY,
 )
+from shared.models.tool_models import AccessibilityInfo, ToolPipelineContext
 
 logger = structlog.get_logger(__name__)
 
@@ -50,3 +51,23 @@ class AccessibilityAnalysisTool(BaseTool):
     async def _arun(self, nlu_result: str) -> str:
         """Async version of accessibility analysis."""
         return self._run(nlu_result)
+
+    async def execute(self, ctx: ToolPipelineContext) -> ToolPipelineContext:
+        """Execute with typed pipeline context. Populates ctx.accessibility."""
+        nlu_input = ctx.raw_tool_results.get("nlu", "{}")
+        raw_result = self._run(nlu_input)
+        ctx.raw_tool_results["accessibility"] = raw_result
+        try:
+            parsed = json.loads(raw_result)
+            ctx.accessibility = AccessibilityInfo(
+                accessibility_level=parsed.get("accessibility_level", "general"),
+                venue_rating=parsed.get("venue_rating"),
+                facilities=parsed.get("facilities", []),
+                warnings=parsed.get("warnings", []),
+                accessibility_score=parsed.get("accessibility_score", 0.0),
+                certification=parsed.get("certification"),
+                source="local_db",
+            )
+        except Exception as e:
+            logger.warning("Failed to parse accessibility result", error=str(e))
+        return ctx
