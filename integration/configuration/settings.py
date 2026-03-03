@@ -86,6 +86,17 @@ class Settings(BaseSettings):
         " Can be different from nlu_provider",
     )
 
+    # LLM synthesis settings
+    llm_model: str = Field(
+        default="gpt-4", description="LLM model for response synthesis"
+    )
+    llm_temperature: float = Field(
+        default=0.3, description="LLM temperature for synthesis"
+    )
+    llm_max_tokens: int = Field(
+        default=2500, description="LLM max tokens for synthesis"
+    )
+
     # Azure deployment settings (future)
     azure_webapp_name: Optional[str] = Field(default=None, description="Azure Web App name")
     azure_resource_group: Optional[str] = Field(default=None, description="Azure Resource Group")

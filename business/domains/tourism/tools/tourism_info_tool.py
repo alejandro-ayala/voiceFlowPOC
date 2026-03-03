@@ -7,6 +7,7 @@ import structlog
 from langchain.tools import BaseTool
 
 from business.domains.tourism.data.venue_data import DEFAULT_VENUE, VENUE_DB
+from shared.models.tool_models import ToolPipelineContext, VenueDetail
 
 logger = structlog.get_logger(__name__)
 
@@ -46,6 +47,28 @@ class TourismInfoTool(BaseTool):
     async def _arun(self, venue_info: str) -> str:
         """Async version of tourism info retrieval."""
         return self._run(venue_info)
+
+    async def execute(self, ctx: ToolPipelineContext) -> ToolPipelineContext:
+        """Execute with typed pipeline context. Populates ctx.venue_detail."""
+        nlu_input = ctx.raw_tool_results.get("nlu", "{}")
+        raw_result = self._run(nlu_input)
+        ctx.raw_tool_results["venue info"] = raw_result
+        try:
+            parsed = json.loads(raw_result)
+            venue = parsed.get("venue", {})
+            ctx.venue_detail = VenueDetail(
+                name=venue.get("name", "unknown"),
+                venue_type=venue.get("type"),
+                opening_hours=parsed.get("opening_hours"),
+                pricing=parsed.get("pricing"),
+                accessibility_reviews=parsed.get("accessibility_reviews"),
+                accessibility_services=parsed.get("accessibility_services", []),
+                contact=parsed.get("contact"),
+                source="local_db",
+            )
+        except Exception as e:
+            logger.warning("Failed to parse venue result", error=str(e))
+        return ctx
 
     @staticmethod
     def _extract_venue_name(venue_info: str) -> str:
