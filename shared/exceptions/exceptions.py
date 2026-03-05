@@ -51,6 +51,30 @@ class AuthenticationException(VoiceFlowException):
     pass
 
 
+class ExternalAPIException(VoiceFlowException):
+    """Exception raised when an external API call fails."""
+
+    pass
+
+
+class CircuitBreakerOpenException(ExternalAPIException):
+    """Exception raised when circuit breaker is open for a service."""
+
+    pass
+
+
+class RateLimitExceededException(ExternalAPIException):
+    """Exception raised when API rate limit is exceeded."""
+
+    pass
+
+
+class BudgetExceededException(ExternalAPIException):
+    """Exception raised when API budget is exceeded."""
+
+    pass
+
+
 # Aliases for backward compatibility
 AudioProcessingError = AudioProcessingException
 ValidationError = ValidationException
@@ -63,5 +87,9 @@ EXCEPTION_STATUS_CODES = {
     ValidationException: 400,
     ConfigurationException: 500,
     AuthenticationException: 401,
+    ExternalAPIException: 502,
+    CircuitBreakerOpenException: 503,
+    RateLimitExceededException: 429,
+    BudgetExceededException: 503,
     VoiceFlowException: 500,
 }

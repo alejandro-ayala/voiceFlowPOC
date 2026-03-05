@@ -18,6 +18,11 @@ class AccessibilityInfo(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     accessibility_score: float = 0.0
     certification: Optional[str] = None
+    # Google Places API (New) wheelchair fields
+    wheelchair_accessible_entrance: Optional[bool] = None
+    wheelchair_accessible_parking: Optional[bool] = None
+    wheelchair_accessible_restroom: Optional[bool] = None
+    wheelchair_accessible_seating: Optional[bool] = None
     source: str = "unknown"
 
 
@@ -26,9 +31,11 @@ class RouteOption(BaseModel):
 
     transport_type: str
     duration_minutes: Optional[int] = None
+    distance_meters: Optional[int] = None
     accessibility_score: Optional[float] = None
     description: Optional[str] = None
     alternatives: list[str] = Field(default_factory=list)
+    steps: list[dict[str, Any]] = Field(default_factory=list)
     estimated_cost: Optional[str] = None
     source: str = "unknown"
 
@@ -50,8 +57,14 @@ class PlaceCandidate(BaseModel):
     """A resolved place/venue for the pipeline to operate on."""
 
     name: str
+    place_id: Optional[str] = None
     place_type: Optional[str] = None
+    address: Optional[str] = None
     destination: Optional[str] = None
+    location_lat: Optional[float] = None
+    location_lng: Optional[float] = None
+    rating: Optional[float] = None
+    types: list[str] = Field(default_factory=list)
     source: str = "nlu"
 
 

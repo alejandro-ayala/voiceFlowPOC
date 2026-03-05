@@ -1,8 +1,8 @@
 # Software Design Document: Application Layer
 
 **Capa**: APIs, servicios y orquestación (`application/`)
-**Fecha**: 4 de Febrero de 2026
-**Estado**: Implementado
+**Fecha**: 5 de Marzo de 2026
+**Estado**: Implementado (actualizado Post Fase 0 + Fase 1)
 
 ---
 
@@ -130,7 +130,7 @@ class LocalBackendAdapter(BackendInterface):
     async def clear_conversation(self) -> bool
 
     # Internos
-    async def _get_backend_instance(self)  # Lazy init de TourismMultiAgent
+    async def _get_backend_instance(self)  # Lazy init de TourismMultiAgent + service wiring
     async def _process_real_query(self, transcription: str) -> str
     async def _simulate_ai_response(self, transcription: str) -> str
 ```
@@ -147,6 +147,26 @@ process_query()
 ```
 
 **Contrato con Business Layer:** Desde la Fase 2B, el adapter usa directamente `MultiAgentInterface.process_request()` que retorna `AgentResponse(response_text, tool_results, metadata)`. Se elimino la cadena de `hasattr()` con 5 fallbacks.
+
+**Wiring de servicios (Fase 0 + Fase 1):** `_get_backend_instance()` ahora crea y conecta todos los servicios via DI:
+
+```python
+async def _get_backend_instance(self):
+    # Fase 0: NLU + NER services
+    nlu_service = NLUServiceFactory.create_from_settings()
+    ner_service = NERServiceFactory.create_from_settings()
+    # Fase 1: Domain services via factories
+    resilience = ResilienceManager(...)
+    places_service = PlacesServiceFactory.create_from_settings(resilience=resilience)
+    directions_service = DirectionsServiceFactory.create_from_settings(resilience=resilience)
+    accessibility_service = AccessibilityServiceFactory.create_from_settings(resilience=resilience)
+    # Wire everything into TourismMultiAgent
+    return TourismMultiAgent(
+        nlu_service=nlu_service, ner_service=ner_service,
+        places_service=places_service, directions_service=directions_service,
+        accessibility_service=accessibility_service,
+    )
+```
 
 **Simulacion:** `_simulate_ai_response()` contiene ~110 lineas de respuestas hardcodeadas en espanol sobre turismo accesible en Madrid.
 
@@ -212,6 +232,10 @@ application/orchestration/backend_adapter.py
     → shared/interfaces (BackendInterface)
     → shared/exceptions (BackendCommunicationException)
     → integration/configuration/settings (Settings)
+    → integration/external_apis/resilience (ResilienceManager) [Phase 1]
+    → integration/external_apis/*_factory (PlacesServiceFactory, DirectionsServiceFactory, AccessibilityServiceFactory) [Phase 1]
+    → integration/external_apis/nlu_factory (NLUServiceFactory) [Phase 0]
+    → integration/external_apis/ner_factory (NERServiceFactory) [Phase 0]
     → business/domains/tourism/agent (TourismMultiAgent) [lazy import]
 
 application/services/audio_service.py

@@ -87,14 +87,34 @@ class Settings(BaseSettings):
     )
 
     # LLM synthesis settings
-    llm_model: str = Field(
-        default="gpt-4", description="LLM model for response synthesis"
+    llm_model: str = Field(default="gpt-4", description="LLM model for response synthesis")
+    llm_temperature: float = Field(default=0.3, description="LLM temperature for synthesis")
+    llm_max_tokens: int = Field(default=2500, description="LLM max tokens for synthesis")
+
+    # External API settings (Phase 1)
+    google_api_key: Optional[str] = Field(default=None, description="Google API key for Places + Routes APIs")
+    google_places_cache_ttl: int = Field(default=86400, description="Google Places cache TTL in seconds (24h)")
+    openroute_api_key: Optional[str] = Field(
+        default=None,
+        description="OpenRouteService API key (optional, for higher limits)",
     )
-    llm_temperature: float = Field(
-        default=0.3, description="LLM temperature for synthesis"
+    tool_timeout_seconds: float = Field(default=3.0, description="External API tool call timeout in seconds")
+
+    # Resilience settings
+    circuit_breaker_threshold: int = Field(default=5, description="Consecutive failures before circuit opens")
+    circuit_breaker_recovery_seconds: int = Field(default=60, description="Seconds before circuit breaker half-opens")
+    api_rate_limit_rps: int = Field(default=10, description="API calls per second limit")
+    api_budget_per_hour: float = Field(default=1.0, description="Max estimated API cost per hour in USD")
+
+    # Provider selection (local = fallback to mock data)
+    places_provider: str = Field(default="local", description="Places provider: google, local")
+    directions_provider: str = Field(
+        default="local",
+        description="Directions provider: google, openroute, local",
     )
-    llm_max_tokens: int = Field(
-        default=2500, description="LLM max tokens for synthesis"
+    accessibility_provider: str = Field(
+        default="local",
+        description="Accessibility provider: google, overpass, local",
     )
 
     # Azure deployment settings (future)

@@ -1,6 +1,6 @@
 # Quick Start - VoiceFlow Tourism PoC
 
-**Actualizado**: 12 de Febrero de 2026
+**Actualizado**: 5 de Marzo de 2026
 
 ---
 
@@ -21,6 +21,13 @@ cp .env.example .env
 # AZURE_SPEECH_KEY=tu_key
 # AZURE_SPEECH_REGION=tu_region
 # OPENAI_API_KEY=tu_key (solo si use_real_agents=true)
+#
+# Phase 1 — APIs externas (opcional, fallback a datos mock si no se configuran):
+# VOICEFLOW_GOOGLE_API_KEY=tu_key (Google Places + Routes)
+# VOICEFLOW_OPENROUTE_API_KEY=tu_key (OpenRouteService, free tier)
+# VOICEFLOW_PLACES_PROVIDER=google (default: local)
+# VOICEFLOW_DIRECTIONS_PROVIDER=google (default: local)
+# VOICEFLOW_ACCESSIBILITY_PROVIDER=overpass (default: local)
 ```
 
 ### 3. Ejecutar la aplicacion
@@ -49,6 +56,8 @@ VOICEFLOW_USE_REAL_AGENTS=false
 
 El chat respondera con respuestas hardcodeadas sobre turismo accesible en Madrid y la transcripcion de audio retornara texto simulado.
 
+**Nota (Phase 1):** Con `VOICEFLOW_PLACES_PROVIDER=local` (default), las tools de dominio usan datos mock de Madrid. Si configuras API keys de Google/OpenRoute y cambias los providers, obtendrás datos reales de cualquier ciudad.
+
 ## Arquitectura
 
 ```
@@ -59,10 +68,11 @@ Browser (index.html)
     |
     +-- Chat: POST /api/v1/chat/message
             +-- LocalBackendAdapter -> TourismMultiAgent (core/ + domains/tourism/)
-                    +-- TourismNLUTool          (domains/tourism/tools/)
-                    +-- AccessibilityAnalysisTool
-                    +-- RoutePlanningTool
-                    +-- TourismInfoTool
+                    +-- TourismNLUTool          (Foundation — OpenAI/keyword)
+                    +-- LocationNERTool         (Foundation — spaCy)
+                    +-- PlacesSearchTool        (Phase 1 — Google Places / Local)
+                    +-- AccessibilityEnrichmentTool (Phase 1 — Overpass / Local)
+                    +-- DirectionsTool          (Phase 1 — Google Routes+ORS / Local)
 ```
 
 ## Archivos clave

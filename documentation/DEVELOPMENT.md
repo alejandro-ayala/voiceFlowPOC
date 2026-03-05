@@ -1,6 +1,6 @@
 # Guia de Desarrollo - VoiceFlow Tourism PoC
 
-**Actualizado**: 12 de Febrero de 2026
+**Actualizado**: 5 de Marzo de 2026
 **Arquitectura**: 4 capas (shared, integration, business, application) + presentation + CI/CD Pipeline
 
 ---
@@ -56,7 +56,12 @@ voiceFlowPOC-refactor-baseline/
 ├── shared/                          # Contratos e infraestructura transversal
 │   ├── interfaces/
 │   │   ├── interfaces.py            #   AudioProcessorInterface, BackendInterface, ConversationInterface
-│   │   └── stt_interface.py         #   STTServiceInterface + excepciones STT
+│   │   ├── stt_interface.py         #   STTServiceInterface + excepciones STT
+│   │   ├── nlu_interface.py         #   NLUServiceInterface (Fase 0)
+│   │   ├── ner_interface.py         #   NERServiceInterface (Fase 0)
+│   │   ├── places_interface.py      #   PlacesServiceInterface (Fase 1)
+│   │   ├── directions_interface.py  #   DirectionsServiceInterface (Fase 1)
+│   │   └── accessibility_interface.py # AccessibilityServiceInterface (Fase 1)
 │   ├── exceptions/
 │   │   └── exceptions.py            #   VoiceFlowException hierarchy + HTTP mapping
 │   └── utils/
@@ -69,7 +74,21 @@ voiceFlowPOC-refactor-baseline/
 │   │   ├── azure_stt_client.py      #   AzureSpeechService (STTServiceInterface)
 │   │   ├── whisper_services.py      #   WhisperLocalService, WhisperAPIService
 │   │   ├── stt_factory.py           #   STTServiceFactory (patron Factory)
-│   │   └── stt_agent.py             #   VoiceflowSTTAgent + create_stt_agent()
+│   │   ├── stt_agent.py             #   VoiceflowSTTAgent + create_stt_agent()
+│   │   ├── spacy_ner_service.py     #   SpacyNERService (Fase 0)
+│   │   ├── ner_factory.py           #   NERServiceFactory (Fase 0)
+│   │   ├── nlu_factory.py           #   NLUServiceFactory (Fase 0)
+│   │   ├── google_places_client.py  #   GooglePlacesService (Fase 1)
+│   │   ├── google_directions_client.py # GoogleDirectionsService (Fase 1)
+│   │   ├── openroute_client.py      #   OpenRouteDirectionsService (Fase 1)
+│   │   ├── overpass_client.py       #   OverpassAccessibilityService (Fase 1)
+│   │   ├── local_places_service.py  #   LocalPlacesService — fallback (Fase 1)
+│   │   ├── local_directions_service.py # LocalDirectionsService — fallback (Fase 1)
+│   │   ├── local_accessibility_service.py # LocalAccessibilityService — fallback (Fase 1)
+│   │   ├── places_factory.py        #   PlacesServiceFactory (Fase 1)
+│   │   ├── directions_factory.py    #   DirectionsServiceFactory (Fase 1)
+│   │   ├── accessibility_factory.py #   AccessibilityServiceFactory (Fase 1)
+│   │   └── resilience.py            #   CircuitBreaker, RateLimiter, BudgetTracker (Fase 1)
 │   └── data_persistence/
 │       └── conversation_repository.py  # ConversationService (in-memory)
 │
@@ -79,9 +98,9 @@ voiceFlowPOC-refactor-baseline/
 │   │   ├── orchestrator.py          #     MultiAgentOrchestrator (Template Method)
 │   │   └── models.py                #     AgentResponse (dataclass)
 │   ├── domains/tourism/             #   Dominio: turismo accesible Madrid
-│   │   ├── agent.py                 #     TourismMultiAgent(MultiAgentOrchestrator)
-│   │   ├── tools/                   #     5 LangChain tools separadas
-│   │   ├── data/                    #     Datos estaticos Madrid
+│   │   ├── agent.py                 #     TourismMultiAgent (DI: NLU, NER, Places, Directions, Accessibility)
+│   │   ├── tools/                   #     2 Foundation + 3 Phase 1 + 3 Legacy tools
+│   │   ├── data/                    #     Datos estaticos Madrid (fallback)
 │   │   └── prompts/                 #     System + response prompts
 │   └── ai_agents/                   #   Backward compat (facade re-export)
 │
@@ -460,6 +479,19 @@ Todas las variables de la aplicacion usan el prefijo `VOICEFLOW_` (gestionado po
 | `VOICEFLOW_NLU_FALLBACK_INTENT` | `general_query` | Intent por defecto cuando no alcanza confianza |
 | `VOICEFLOW_NLU_SHADOW_MODE` | `false` | Ejecuta comparación asíncrona entre principal + shadow (sin latency impact) |
 | `VOICEFLOW_NLU_SHADOW_PROVIDER` | `keyword` | Proveedor para shadow comparison (cualquier provider, solo usado cuando shadow_mode=true) |
+
+Phase 1 — External APIs (con prefijo `VOICEFLOW_`):
+
+| Variable | Default | Descripcion |
+|----------|---------|-------------|
+| `VOICEFLOW_GOOGLE_API_KEY` | None | API key Google (Places + Routes) |
+| `VOICEFLOW_OPENROUTE_API_KEY` | None | API key OpenRouteService (free tier) |
+| `VOICEFLOW_PLACES_PROVIDER` | `local` | Proveedor búsqueda: `local` o `google` |
+| `VOICEFLOW_DIRECTIONS_PROVIDER` | `local` | Proveedor rutas: `local`, `google`, `openroute` |
+| `VOICEFLOW_ACCESSIBILITY_PROVIDER` | `local` | Proveedor accesibilidad: `local` u `overpass` |
+| `VOICEFLOW_TOOL_TIMEOUT_SECONDS` | `3.0` | Timeout para APIs externas |
+| `VOICEFLOW_API_BUDGET_PER_HOUR` | `1.0` | Presupuesto máximo por hora (USD) |
+| `VOICEFLOW_API_RATE_LIMIT_RPS` | `10` | Requests por segundo máximos |
 
 Secretos de servicios externos (sin prefijo):
 

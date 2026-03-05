@@ -1,8 +1,8 @@
 # Software Design Document: Shared Layer
 
 **Capa**: Cross-cutting concerns (`shared/`)
-**Fecha**: 4 de Febrero de 2026
-**Estado**: Implementado
+**Fecha**: 5 de Marzo de 2026
+**Estado**: Implementado (actualizado Post Fase 0 + Fase 1)
 
 ---
 
@@ -16,7 +16,7 @@ La capa `shared/` define los contratos (interfaces), excepciones y utilidades tr
 
 #### 2.1.1 `interfaces.py` - Contratos entre capas
 
-Define 5 interfaces abstractas (ABC) que establecen los contratos de servicio:
+Define 5 interfaces abstractas (ABC) que establecen los contratos de servicio entre capas:
 
 | Interfaz | Métodos | Implementada por | Estado |
 |----------|---------|-------------------|--------|
@@ -25,6 +25,47 @@ Define 5 interfaces abstractas (ABC) que establecen los contratos de servicio:
 | `ConversationInterface` | `add_message()`, `get_conversation_history()`, `clear_conversation()` | `integration/data_persistence/conversation_repository.py::ConversationService` | Funcional |
 | `AuthInterface` | `authenticate_user()`, `get_user_permissions()` | Ninguna | Sin implementar |
 | `StorageInterface` | `save_conversation()`, `load_conversation()`, `delete_conversation()` | Ninguna | Sin implementar |
+
+#### 2.1.3 Interfaces de dominio (Fase 0 + Fase 1)
+
+Añadidas en ficheros separados dentro de `shared/interfaces/`:
+
+| Interfaz | Archivo | Métodos principales | Implementaciones | Estado |
+|----------|---------|---------------------|-------------------|--------|
+| `NLUServiceInterface` | `nlu_interface.py` | `analyze()`, `is_service_available()`, `get_service_info()` | `OpenAINLUService`, `KeywordNLUService` | Funcional (Fase 0) |
+| `NERServiceInterface` | `ner_interface.py` | `extract_locations()`, `is_service_available()`, `get_service_info()` | `SpacyNERService` | Funcional (Fase 0) |
+| `PlacesServiceInterface` | `places_interface.py` | `text_search()`, `place_details()`, `is_service_available()` | `GooglePlacesService`, `LocalPlacesService` | Funcional (Fase 1) |
+| `DirectionsServiceInterface` | `directions_interface.py` | `get_directions()`, `is_service_available()` | `GoogleDirectionsService`, `OpenRouteDirectionsService`, `LocalDirectionsService` | Funcional (Fase 1) |
+| `AccessibilityServiceInterface` | `accessibility_interface.py` | `enrich_accessibility()`, `is_service_available()` | `OverpassAccessibilityService`, `LocalAccessibilityService` | Funcional (Fase 1) |
+
+**Firmas detalladas (Fase 1):**
+
+```python
+class PlacesServiceInterface(ABC):
+    async def text_search(self, query: str, location: Optional[str] = None,
+                          type_filter: Optional[str] = None, language: str = "es",
+                          max_results: int = 5) -> list[PlaceCandidate]
+    async def place_details(self, place_id: str, fields: Optional[list[str]] = None,
+                            language: str = "es") -> VenueDetail
+    def is_service_available(self) -> bool
+    def get_service_info(self) -> dict
+
+class DirectionsServiceInterface(ABC):
+    async def get_directions(self, origin: str, destination: str, mode: str = "transit",
+                             accessibility_profile: Optional[str] = None,
+                             language: str = "es") -> list[RouteOption]
+    def is_service_available(self) -> bool
+    def get_service_info(self) -> dict
+
+class AccessibilityServiceInterface(ABC):
+    async def enrich_accessibility(self, place_name: str, place_id: Optional[str] = None,
+                                   location: Optional[tuple[float, float]] = None,
+                                   language: str = "es") -> AccessibilityInfo
+    def is_service_available(self) -> bool
+    def get_service_info(self) -> dict
+```
+
+Todas siguen el patrón de `STTServiceInterface`: `is_service_available()` + `get_service_info()` como contrato base.
 
 **Firmas detalladas:**
 
@@ -98,7 +139,11 @@ VoiceFlowException (base)
     ├── BackendCommunicationException  # HTTP 503
     ├── ValidationException          # HTTP 400
     ├── ConfigurationException       # HTTP 500
-    └── AuthenticationException      # HTTP 401
+    ├── AuthenticationException      # HTTP 401
+    └── ExternalAPIException         # HTTP 502 (Fase 1)
+        ├── CircuitBreakerOpenException
+        ├── RateLimitExceededException
+        └── BudgetExceededException
 ```
 
 **Mapeo HTTP (`EXCEPTION_STATUS_CODES`):**

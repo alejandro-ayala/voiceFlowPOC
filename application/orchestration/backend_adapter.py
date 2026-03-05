@@ -67,10 +67,56 @@ class LocalBackendAdapter(BackendInterface):
         if self._backend_instance is None:
             try:
                 from business.domains.tourism.agent import TourismMultiAgent
+                from integration.external_apis.accessibility_factory import (
+                    AccessibilityServiceFactory,
+                )
+                from integration.external_apis.directions_factory import (
+                    DirectionsServiceFactory,
+                )
+                from integration.external_apis.places_factory import (
+                    PlacesServiceFactory,
+                )
+                from integration.external_apis.resilience import ResilienceManager
 
                 logger.info("Initializing LocalBackendAdapter with tourism multi-agent system")
                 self._backend_instance = TourismMultiAgent(ner_service=self._ner_service, nlu_service=self._nlu_service)
                 logger.info("Backend adapter initialized successfully")
+
+                # Build resilience manager from settings
+                resilience = ResilienceManager(
+                    cb_threshold=self.settings.circuit_breaker_threshold,
+                    cb_recovery=self.settings.circuit_breaker_recovery_seconds,
+                    rps=self.settings.api_rate_limit_rps,
+                    budget_per_hour=self.settings.api_budget_per_hour,
+                )
+
+                # Create external service providers via factories
+                places_service = PlacesServiceFactory.create_from_settings(
+                    settings=self.settings,
+                    resilience=resilience,
+                )
+                directions_service = DirectionsServiceFactory.create_from_settings(
+                    settings=self.settings,
+                    resilience=resilience,
+                )
+                accessibility_service = AccessibilityServiceFactory.create_from_settings(
+                    settings=self.settings,
+                    resilience=resilience,
+                )
+
+                self._backend_instance = TourismMultiAgent(
+                    ner_service=self._ner_service,
+                    nlu_service=self._nlu_service,
+                    places_service=places_service,
+                    directions_service=directions_service,
+                    accessibility_service=accessibility_service,
+                )
+                logger.info(
+                    "Backend adapter initialized successfully",
+                    places=places_service.get_service_info().get("provider"),
+                    directions=directions_service.get_service_info().get("provider"),
+                    accessibility=accessibility_service.get_service_info().get("provider"),
+                )
 
             except ImportError as e:
                 logger.error("Failed to import backend", error=str(e))
