@@ -18,9 +18,7 @@ class LocationNERTool(BaseTool):
     """Extract location entities from user input using NER service (spaCy-based)."""
 
     name: str = "location_ner"
-    description: str = (
-        "Extract location entities (venues, cities, points of interest) using Named Entity Recognition"
-    )
+    description: str = "Extract location entities (venues, cities, points of interest) using Named Entity Recognition"
     ner_service: Optional[NERServiceInterface] = None
 
     def _get_ner_service(self) -> NERServiceInterface:
@@ -51,9 +49,7 @@ class LocationNERTool(BaseTool):
 
             # Check if NER is available
             if not ner_service.is_service_available():
-                logger.warning(
-                    "LocationNERTool: NER service not available, returning empty result"
-                )
+                logger.warning("LocationNERTool: NER service not available, returning empty result")
                 return json.dumps(
                     {
                         "locations": [],
@@ -68,9 +64,7 @@ class LocationNERTool(BaseTool):
                 )
 
             # Run NER extraction asynchronously
-            result = asyncio.run(
-                ner_service.extract_locations(text=user_input, language=language)
-            )
+            result = asyncio.run(ner_service.extract_locations(text=user_input, language=language))
 
             # Normalize result to expected schema
             response = {
@@ -127,9 +121,7 @@ class LocationNERTool(BaseTool):
 
             # Check if NER is available
             if not ner_service.is_service_available():
-                logger.warning(
-                    "LocationNERTool: NER service not available (async), returning empty result"
-                )
+                logger.warning("LocationNERTool: NER service not available (async), returning empty result")
                 return json.dumps(
                     {
                         "locations": [],
@@ -144,9 +136,7 @@ class LocationNERTool(BaseTool):
                 )
 
             # Run NER extraction asynchronously
-            result = await ner_service.extract_locations(
-                text=user_input, language=language
-            )
+            result = await ner_service.extract_locations(text=user_input, language=language)
 
             # Normalize result to expected schema
             response = {

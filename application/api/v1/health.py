@@ -44,9 +44,7 @@ async def health_check(
                 "details": backend_status,
             },
             "audio_service": {
-                "status": (
-                    "healthy" if audio_info.get("is_available", False) else "unhealthy"
-                ),
+                "status": ("healthy" if audio_info.get("is_available", False) else "unhealthy"),
                 "description": f"STT Backend: {audio_info.get('stt_backend', 'unknown')}",
                 "details": audio_info,
             },
@@ -59,11 +57,7 @@ async def health_check(
 
         return SystemStatusResponse(
             status=StatusEnum.SUCCESS if system_healthy else StatusEnum.WARNING,
-            message=(
-                "System operational"
-                if system_healthy
-                else "System partially operational"
-            ),
+            message=("System operational" if system_healthy else "System partially operational"),
             system_health="healthy" if system_healthy else "partial",
             components=components,
             uptime="running",

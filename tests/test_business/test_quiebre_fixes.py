@@ -16,9 +16,7 @@ class MockTourismAgent:
     def __init__(self):
         self._current_profile_context = None
 
-    def _execute_pipeline(
-        self, user_input: str, profile_context: Optional[dict] = None
-    ) -> dict[str, str]:
+    def _execute_pipeline(self, user_input: str, profile_context: Optional[dict] = None) -> dict[str, str]:
         """Simulates the tourism agent pipeline execution."""
         # Store profile context (this is what we're testing)
         self._current_profile_context = profile_context
@@ -37,9 +35,7 @@ class MockOrchestrator:
         self.agent = MockTourismAgent()
         self.last_pipeline_call_profile = None
 
-    def _execute_pipeline(
-        self, user_input: str, profile_context: Optional[dict] = None
-    ) -> dict[str, str]:
+    def _execute_pipeline(self, user_input: str, profile_context: Optional[dict] = None) -> dict[str, str]:
         """Orchestrator now passes profile_context to agent."""
         self.last_pipeline_call_profile = profile_context
         return self.agent._execute_pipeline(user_input, profile_context=profile_context)
@@ -67,9 +63,7 @@ def test_execute_pipeline_receives_profile_context():
     }
 
     # Act
-    result = orchestrator._execute_pipeline(
-        "actividades madrid", profile_context=profile_context
-    )
+    result = orchestrator._execute_pipeline("actividades madrid", profile_context=profile_context)
 
     # Assert
     assert orchestrator.last_pipeline_call_profile is profile_context
@@ -148,9 +142,7 @@ async def test_simulate_ai_response_with_profile():
     }
 
     # Act
-    response = await adapter._simulate_ai_response(
-        "prado", profile_context=profile_context
-    )
+    response = await adapter._simulate_ai_response("prado", profile_context=profile_context)
 
     # Assert - Response should include profile label and directives
     assert response is not None
@@ -202,12 +194,8 @@ async def test_simulate_ai_response_different_profiles():
     }
 
     # Act
-    response_cultural = await adapter._simulate_ai_response(
-        "actividades", profile_context=profile_cultural
-    )
-    response_nightlife = await adapter._simulate_ai_response(
-        "actividades", profile_context=profile_nightlife
-    )
+    response_cultural = await adapter._simulate_ai_response("actividades", profile_context=profile_cultural)
+    response_nightlife = await adapter._simulate_ai_response("actividades", profile_context=profile_nightlife)
 
     # Assert - Both have profile label but different directives
     assert "Perfil activo: Cultural" in response_cultural
@@ -234,9 +222,7 @@ async def test_simulate_ai_response_empty_directives():
     }
 
     # Act
-    response = await adapter._simulate_ai_response(
-        "prado", profile_context=profile_incomplete
-    )
+    response = await adapter._simulate_ai_response("prado", profile_context=profile_incomplete)
 
     # Assert - Should not crash, should return valid response
     assert response is not None

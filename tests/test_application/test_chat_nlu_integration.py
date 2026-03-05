@@ -104,9 +104,7 @@ def test_chat_message_includes_nlu_contract_fields():
     """Chat endpoint should expose stable NLU payload while keeping backward compatible fields."""
     app = create_application()
     app.dependency_overrides[get_backend_adapter] = lambda: FakeBackendService()
-    app.dependency_overrides[get_conversation_service] = (
-        lambda: FakeConversationService()
-    )
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
 
     with TestClient(app) as client:
         response = client.post(

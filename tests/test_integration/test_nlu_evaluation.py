@@ -12,9 +12,7 @@ from integration.configuration.settings import Settings
 from integration.external_apis.keyword_nlu_service import KeywordNLUService
 from integration.external_apis.openai_nlu_service import OpenAINLUService
 
-CORPUS_PATH = (
-    Path(__file__).resolve().parents[1] / "fixtures" / "nlu_evaluation_corpus.json"
-)
+CORPUS_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "nlu_evaluation_corpus.json"
 
 
 def _load_corpus() -> list[dict]:
@@ -52,9 +50,7 @@ async def test_keyword_nlu_accuracy_on_evaluation_corpus():
 @pytest.mark.integration
 @pytest.mark.slow
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not configured"
-)
+@pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not configured")
 async def test_openai_nlu_accuracy_on_evaluation_corpus():
     """OpenAI provider should meet target intent accuracy on the labeled corpus."""
     corpus = _load_corpus()

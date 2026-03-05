@@ -165,9 +165,7 @@ class OpenAINLUService(NLUServiceInterface):
             alt_intent = args.get("alternative_intent")
             alt_confidence = args.get("alternative_confidence")
             if alt_intent and alt_confidence is not None:
-                alternatives.append(
-                    NLUAlternative(intent=alt_intent, confidence=alt_confidence)
-                )
+                alternatives.append(NLUAlternative(intent=alt_intent, confidence=alt_confidence))
 
             result = NLUResult(
                 status="ok",

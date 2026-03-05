@@ -139,15 +139,9 @@ def canonicalize_tourism_data(raw: Any) -> Optional[Dict[str, Any]]:
             v["name"] = _normalize_text(venue_raw.get("name")) or venue_raw.get("name")
             v["type"] = _normalize_text(venue_raw.get("type")) or venue_raw.get("type")
             # accessibility_score or score
-            v["accessibility_score"] = venue_raw.get(
-                "accessibility_score"
-            ) or venue_raw.get("score")
-            v["certification"] = _normalize_text(
-                venue_raw.get("certification")
-            ) or venue_raw.get("certification")
-            v["facilities"] = _canonicalize_facilities(
-                venue_raw.get("facilities") or venue_raw.get("services")
-            )
+            v["accessibility_score"] = venue_raw.get("accessibility_score") or venue_raw.get("score")
+            v["certification"] = _normalize_text(venue_raw.get("certification")) or venue_raw.get("certification")
+            v["facilities"] = _canonicalize_facilities(venue_raw.get("facilities") or venue_raw.get("services"))
             v["opening_hours"] = venue_raw.get("opening_hours")
             v["pricing"] = venue_raw.get("pricing")
             venue = v
@@ -168,16 +162,10 @@ def canonicalize_tourism_data(raw: Any) -> Optional[Dict[str, Any]]:
                     if not isinstance(r, dict):
                         continue
                     rr = {}
-                    rr["transport"] = _normalize_text(r.get("transport")) or r.get(
-                        "transport"
-                    )
+                    rr["transport"] = _normalize_text(r.get("transport")) or r.get("transport")
                     rr["line"] = _normalize_text(r.get("line")) or r.get("line")
-                    rr["duration"] = _normalize_text(r.get("duration")) or r.get(
-                        "duration"
-                    )
-                    rr["accessibility"] = _canonicalize_level(
-                        r.get("accessibility") or r.get("accessibility_level")
-                    )
+                    rr["duration"] = _normalize_text(r.get("duration")) or r.get("duration")
+                    rr["accessibility"] = _canonicalize_level(r.get("accessibility") or r.get("accessibility_level"))
                     rr["cost"] = _normalize_text(r.get("cost")) or r.get("cost")
                     rr["steps"] = r.get("steps")
                     r_out.append(rr)
@@ -186,19 +174,13 @@ def canonicalize_tourism_data(raw: Any) -> Optional[Dict[str, Any]]:
         accessibility = None
         if isinstance(accessibility_raw, dict):
             a = {}
-            level_val = accessibility_raw.get(
-                "accessibility_level"
-            ) or accessibility_raw.get("level")
+            level_val = accessibility_raw.get("accessibility_level") or accessibility_raw.get("level")
             a["level"] = _canonicalize_level(level_val)
-            score_val = accessibility_raw.get(
-                "accessibility_score"
-            ) or accessibility_raw.get("score")
+            score_val = accessibility_raw.get("accessibility_score") or accessibility_raw.get("score")
             a["score"] = score_val
             cert_raw = accessibility_raw.get("certification")
             a["certification"] = _normalize_text(cert_raw) or cert_raw
-            facilities_val = accessibility_raw.get(
-                "facilities"
-            ) or accessibility_raw.get("services")
+            facilities_val = accessibility_raw.get("facilities") or accessibility_raw.get("services")
             a["facilities"] = _canonicalize_facilities(facilities_val)
             a["services"] = accessibility_raw.get("services")
             accessibility = a

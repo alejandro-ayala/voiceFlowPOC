@@ -37,9 +37,7 @@ def get_backend_adapter(settings: Settings = Depends(get_settings)) -> BackendIn
     """
     ner_service = get_ner_service(settings)
     nlu_service = get_nlu_service(settings)
-    return LocalBackendAdapter(
-        settings, ner_service=ner_service, nlu_service=nlu_service
-    )
+    return LocalBackendAdapter(settings, ner_service=ner_service, nlu_service=nlu_service)
 
 
 def get_ner_service(settings: Settings = Depends(get_settings)) -> NERServiceInterface:
@@ -131,9 +129,7 @@ async def cleanup_services():
 class SimulatedAudioService:
     """Simulated audio service for demo when Azure isn't available"""
 
-    async def transcribe_audio(
-        self, audio_data: bytes, format: str, language: str = "es-ES"
-    ):
+    async def transcribe_audio(self, audio_data: bytes, format: str, language: str = "es-ES"):
         """Simulate audio transcription"""
         import asyncio
 

@@ -27,18 +27,14 @@ class NLUServiceFactory:
         normalized_provider = provider.lower().strip()
         if normalized_provider not in cls._service_registry:
             available = ", ".join(sorted(cls._service_registry.keys()))
-            raise ValueError(
-                f"Unsupported NLU provider: {provider}. Available providers: {available}"
-            )
+            raise ValueError(f"Unsupported NLU provider: {provider}. Available providers: {available}")
 
         service_class = cls._service_registry[normalized_provider]
         logger.info("creating_nlu_provider", provider=normalized_provider)
         return service_class(**kwargs)
 
     @classmethod
-    def create_from_settings(
-        cls, settings: Optional[Settings] = None
-    ) -> NLUServiceInterface:
+    def create_from_settings(cls, settings: Optional[Settings] = None) -> NLUServiceInterface:
         runtime_settings = settings or Settings()
         configured_provider = runtime_settings.nlu_provider
 
@@ -54,9 +50,7 @@ class NLUServiceFactory:
         return cls.create_service("keyword", settings=runtime_settings)
 
     @classmethod
-    def register_service(
-        cls, name: str, service_class: Type[NLUServiceInterface]
-    ) -> None:
+    def register_service(cls, name: str, service_class: Type[NLUServiceInterface]) -> None:
         normalized_name = name.lower().strip()
         cls._service_registry[normalized_name] = service_class
         logger.info("registered_nlu_provider", provider=normalized_name)

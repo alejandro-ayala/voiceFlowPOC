@@ -1,8 +1,8 @@
 # ROADMAP: VoiceFlow Tourism PoC
 
-**Fecha**: 12 de Febrero de 2026
-**Estado actual**: Arquitectura 4 capas + Docker + Secrets + Business Layer descompuesto | Testing pendiente
-**Versión actual del proyecto**: 1.1.0
+**Fecha**: 5 de Marzo de 2026
+**Estado actual**: Fase 0 (Contratos) + Fase 1 (API-First Tools) completadas | 128 tests pasan
+**Versión actual del proyecto**: 2.0.0
 
 > ⚠️ **Documento de planificación (histórico por fases).**
 > Algunas secciones incluyen snapshots de implementación previos.
@@ -19,10 +19,13 @@ Este roadmap define las fases de evolución del proyecto desde su estado actual 
 - ✅ Fase 2:  Dockerización completa (desarrollo + producción)
 - ✅ Fase 2C: Documentación de diseño por capa (SDDs)
 - ✅ Fase 2D: Gestión de secrets (git-crypt + GitHub Secrets)
+- ✅ Fase 2B: Descomposición de Business Layer
+- ✅ Fase 0 (Audit): Contratos tipados + Pipeline async-native (12 tests)
+- ✅ Fase 1 (Audit): Tools reales API-First con SOLID (42 tests)
 
 ### Proximas Fases
 ```
-Fase 2B ─ Descomposición de langchain_agents.py   ← SIGUIENTE
+Fase 2 (Audit) ─ Seguridad + Routing por Intent   ← SIGUIENTE
   │
 Fase 3 ─ Suite de testing (unitario, integración, e2e)
   │
@@ -31,8 +34,6 @@ Fase 5 ─ CI/CD Pipeline (GitHub Actions + Azure)
 Fase 4 ─ Persistencia real (PostgreSQL + Redis)
   │
 Fase 6 ─ Monitoring y observabilidad (Prometheus, Grafana)
-  │
-Fase 7 ─ Seguridad y autenticacion
   │
 Fase 8 ─ Optimizacion y escalado
 ```
@@ -2222,6 +2223,6 @@ Tareas que pueden ejecutarse en paralelo con cualquier fase:
                  └───────────┴────────────┴───────────┘
 ```
 
-**Orden recomendado**: 1 → 2 → 3 → 4 → 5 → 6 → 7 (con Fase 8 en paralelo).
+**Orden recomendado**: Fase 2 (Audit: Seguridad) → 3 → 5 → 4 → 6 → 8 (con Fase 8-deuda en paralelo).
 
-Las Fases 1 y 2 son las más urgentes porque desbloquean todo lo demás: sin la descomposición del monolito no se pueden escribir tests granulares de la business layer, y sin Docker no se puede automatizar CI/CD ni garantizar reproducibilidad.
+Las Fases 0 y 1 (Audit) están completadas. La siguiente prioridad es seguridad (B4: auth + rate limiting público) y routing por intent para optimizar latencia y coste de APIs.

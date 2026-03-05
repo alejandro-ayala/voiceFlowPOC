@@ -15,9 +15,7 @@ class RoutePlanningTool(BaseTool):
     """Plan optimal accessible routes using Maps APIs."""
 
     name: str = "route_planning"
-    description: str = (
-        "Generate accessible routes with multiple transport options and timing"
-    )
+    description: str = "Generate accessible routes with multiple transport options and timing"
 
     def _run(self, accessibility_info: str) -> str:
         """Plan accessible routes based on accessibility requirements."""

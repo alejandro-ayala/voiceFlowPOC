@@ -24,9 +24,7 @@ processing_status = {}
 
 @router.post("/transcribe")
 async def transcribe_audio(
-    audio_file: UploadFile = File(
-        ..., description="Audio file to transcribe (WAV, MP3, M4A)"
-    ),
+    audio_file: UploadFile = File(..., description="Audio file to transcribe (WAV, MP3, M4A)"),
     language: Optional[str] = "es-ES",
     audio_service: AudioProcessorInterface = Depends(get_audio_processor),
 ):
@@ -55,8 +53,7 @@ async def transcribe_audio(
 
         # Handle empty transcription gracefully
         transcription_text = (
-            result.transcription
-            or "No se pudo reconocer el audio. Intenta hablar más claro o grabar por más tiempo."
+            result.transcription or "No se pudo reconocer el audio. Intenta hablar más claro o grabar por más tiempo."
         )
         confidence = result.confidence if result.transcription else 0.0
         is_simulation = not bool(result.transcription)
@@ -85,9 +82,7 @@ async def transcribe_audio(
 @router.post("/transcribe-async", response_model=AudioProcessingStatusResponse)
 async def transcribe_audio_async(
     background_tasks: BackgroundTasks,
-    audio_file: UploadFile = File(
-        ..., description="Audio file to transcribe asynchronously"
-    ),
+    audio_file: UploadFile = File(..., description="Audio file to transcribe asynchronously"),
     language: Optional[str] = "es-ES",
     audio_service: AudioProcessorInterface = Depends(get_audio_processor),
 ):
@@ -133,14 +128,10 @@ async def transcribe_audio_async(
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to start processing: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to start processing: {str(e)}")
 
 
-@router.get(
-    "/transcribe-status/{processing_id}", response_model=AudioProcessingStatusResponse
-)
+@router.get("/transcribe-status/{processing_id}", response_model=AudioProcessingStatusResponse)
 async def get_transcription_status(processing_id: str):
     """
     Get the status of an asynchronous transcription job.
@@ -220,9 +211,7 @@ async def _process_audio_background(
         processing_status[processing_id]["progress"] = 0.3
 
         # Actual transcription
-        result = await audio_service.transcribe_audio(
-            audio_data=audio_data, format=format, language=language
-        )
+        result = await audio_service.transcribe_audio(audio_data=audio_data, format=format, language=language)
 
         # Update with results
         processing_status[processing_id].update(
@@ -241,9 +230,7 @@ async def _process_audio_background(
 
     except Exception as e:
         # Update with error
-        processing_status[processing_id].update(
-            {"status": "error", "progress": 0.0, "error": str(e)}
-        )
+        processing_status[processing_id].update({"status": "error", "progress": 0.0, "error": str(e)})
 
 
 # WebSocket endpoint for real-time audio streaming (future enhancement)

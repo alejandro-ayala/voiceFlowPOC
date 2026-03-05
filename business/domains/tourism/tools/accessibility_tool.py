@@ -19,9 +19,7 @@ class AccessibilityAnalysisTool(BaseTool):
     """Analyze accessibility requirements and provide venue recommendations."""
 
     name: str = "accessibility_analysis"
-    description: str = (
-        "Analyze accessibility needs and provide detailed venue accessibility information"
-    )
+    description: str = "Analyze accessibility needs and provide detailed venue accessibility information"
 
     def _run(self, nlu_result: str) -> str:
         """Analyze accessibility requirements based on NLU results."""

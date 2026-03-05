@@ -16,15 +16,11 @@ class TourismInfoTool(BaseTool):
     """Get real-time tourism information and reviews."""
 
     name: str = "tourism_info"
-    description: str = (
-        "Fetch current tourism information, schedules, prices, and accessibility reviews"
-    )
+    description: str = "Fetch current tourism information, schedules, prices, and accessibility reviews"
 
     def _run(self, venue_info: str) -> str:
         """Get comprehensive tourism information."""
-        logger.info(
-            "Tourism Info Tool: Fetching venue information", venue_input=venue_info
-        )
+        logger.info("Tourism Info Tool: Fetching venue information", venue_input=venue_info)
 
         venue_name = self._extract_venue_name(venue_info)
         venue_data = VENUE_DB.get(venue_name, DEFAULT_VENUE)

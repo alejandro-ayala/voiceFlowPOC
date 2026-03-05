@@ -46,25 +46,17 @@ class EntityResolver:
         elif nlu_destination and ner_top_location and nlu_normalized == ner_normalized:
             resolved_destination = nlu_destination
             resolution_source["destination"] = "both_agree"
-        elif (
-            nlu_destination
-            and ner_top_location
-            and self._contains_either(nlu_destination, ner_top_location)
-        ):
+        elif nlu_destination and ner_top_location and self._contains_either(nlu_destination, ner_top_location):
             resolved_destination = nlu_destination
             resolution_source["destination"] = "nlu_normalized"
         elif self._is_generic(nlu_destination) and ner_top_location:
             resolved_destination = ner_top_location
             resolution_source["destination"] = "ner_override"
-            conflicts.append(
-                f"NLU='{nlu_destination}' generic, NER='{ner_top_location}' specific → NER used"
-            )
+            conflicts.append(f"NLU='{nlu_destination}' generic, NER='{ner_top_location}' specific → NER used")
         else:
             resolved_destination = nlu_destination
             resolution_source["destination"] = "nlu_preferred"
-            conflicts.append(
-                f"Conflict: NLU='{nlu_destination}' vs NER='{ner_top_location}' → NLU preferred"
-            )
+            conflicts.append(f"Conflict: NLU='{nlu_destination}' vs NER='{ner_top_location}' → NLU preferred")
 
         for field in ("accessibility", "timeframe", "transport_preference", "budget"):
             value = getattr(nlu_result.entities, field, None)

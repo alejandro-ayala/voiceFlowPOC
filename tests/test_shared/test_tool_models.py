@@ -41,9 +41,7 @@ class TestToolPipelineContext:
         ctx = ToolPipelineContext(
             user_input="test",
             place=PlaceCandidate(name="Museo del Prado", place_type="museum"),
-            accessibility=AccessibilityInfo(
-                accessibility_level="high", accessibility_score=9.2
-            ),
+            accessibility=AccessibilityInfo(accessibility_level="high", accessibility_score=9.2),
             routes=[
                 RouteOption(transport_type="metro", duration_minutes=15),
                 RouteOption(transport_type="walking", duration_minutes=30),

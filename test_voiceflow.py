@@ -146,14 +146,10 @@ class VoiceFlowTester:
             speech_key = os.getenv("AZURE_SPEECH_KEY")
             service_region = os.getenv("AZURE_SPEECH_REGION")
 
-            speech_config = speechsdk.SpeechConfig(
-                subscription=speech_key, region=service_region
-            )
+            speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
             speech_config.speech_language = "es-ES"
 
-            self.print_step(
-                f"Azure Speech configurado para región: {service_region}", "SUCCESS"
-            )
+            self.print_step(f"Azure Speech configurado para región: {service_region}", "SUCCESS")
             self.print_step("Configuración de idioma: es-ES", "SUCCESS")
 
             if not minimal:
@@ -182,18 +178,12 @@ class VoiceFlowTester:
             # Test herramientas
             tools = self.langchain_system.tools
             tool_names = [tool.name for tool in tools]
-            self.print_step(
-                f"Herramientas disponibles: {', '.join(tool_names)}", "SUCCESS"
-            )
+            self.print_step(f"Herramientas disponibles: {', '.join(tool_names)}", "SUCCESS")
 
             if not minimal:
                 # Test completo con llamada API real
-                self.print_step(
-                    "Ejecutando test completo de workflow multi-agent", "INFO"
-                )
-                test_query = (
-                    "Necesito información sobre el Museo del Prado para silla de ruedas"
-                )
+                self.print_step("Ejecutando test completo de workflow multi-agent", "INFO")
+                test_query = "Necesito información sobre el Museo del Prado para silla de ruedas"
 
                 response = await self.langchain_system.process_request(test_query)
                 self.print_step("Procesamiento multi-agent completado", "SUCCESS")
@@ -219,9 +209,7 @@ class VoiceFlowTester:
 
             devices = sd.query_devices()
             input_devices = [d for d in devices if d["max_input_channels"] > 0]
-            self.print_step(
-                f"Dispositivos de entrada encontrados: {len(input_devices)}", "SUCCESS"
-            )
+            self.print_step(f"Dispositivos de entrada encontrados: {len(input_devices)}", "SUCCESS")
 
             for i, device in enumerate(input_devices[:3]):  # Show first 3 devices
                 self.print_step(f"  {i}: {device['name']}", "INFO")
@@ -248,9 +236,7 @@ class VoiceFlowTester:
         audio_ok = await self.test_audio_system()
 
         self.results["mode"] = "test"
-        self.results["all_systems_ready"] = all(
-            [env_ok, openai_ok, azure_ok, langchain_ok, audio_ok]
-        )
+        self.results["all_systems_ready"] = all([env_ok, openai_ok, azure_ok, langchain_ok, audio_ok])
         self.results["timestamp"] = datetime.now().isoformat()
 
         return self.results
@@ -258,9 +244,7 @@ class VoiceFlowTester:
     async def run_production_mode(self) -> Dict[str, Any]:
         """Ejecuta modo PRODUCCIÓN (test completo con APIs)"""
         self.print_header("VOICEFLOW POC - MODO PRODUCCIÓN", Colors.GREEN)
-        self.print_step(
-            "Ejecutando tests completos (consumirá créditos API)", "WARNING"
-        )
+        self.print_step("Ejecutando tests completos (consumirá créditos API)", "WARNING")
 
         # Ejecutar todos los tests en modo completo
         env_ok = self.check_environment()
@@ -274,9 +258,7 @@ class VoiceFlowTester:
             await self.test_production_scenarios()
 
         self.results["mode"] = "production"
-        self.results["all_systems_ready"] = all(
-            [env_ok, openai_ok, azure_ok, langchain_ok, audio_ok]
-        )
+        self.results["all_systems_ready"] = all([env_ok, openai_ok, azure_ok, langchain_ok, audio_ok])
         self.results["timestamp"] = datetime.now().isoformat()
 
         return self.results
@@ -306,9 +288,7 @@ class VoiceFlowTester:
                 )
             except Exception as e:
                 self.print_step(f"Escenario {i} falló: {str(e)}", "ERROR")
-                scenario_results.append(
-                    {"scenario": scenario, "success": False, "error": str(e)}
-                )
+                scenario_results.append({"scenario": scenario, "success": False, "error": str(e)})
 
         self.results["production_scenarios"] = scenario_results
 
@@ -322,9 +302,7 @@ class VoiceFlowTester:
 
         print(f"{Colors.BOLD}Modo de ejecución: {Colors.YELLOW}{mode}{Colors.END}")
         print(f"{Colors.BOLD}Estado general: {status}{Colors.END}")
-        print(
-            f"{Colors.BOLD}Timestamp: {Colors.CYAN}{self.results.get('timestamp')}{Colors.END}"
-        )
+        print(f"{Colors.BOLD}Timestamp: {Colors.CYAN}{self.results.get('timestamp')}{Colors.END}")
 
         # Estado de componentes
         print(f"\n{Colors.BOLD}Estado de Componentes:{Colors.END}")
@@ -347,17 +325,11 @@ class VoiceFlowTester:
         print(f"\n{Colors.BOLD}Recomendaciones:{Colors.END}")
         if self.results.get("all_systems_ready"):
             print(f"  {Colors.GREEN}✅ Sistema listo para despliegue{Colors.END}")
-            print(
-                f"  {Colors.GREEN}✅ Todas las integraciones funcionan correctamente{Colors.END}"
-            )
+            print(f"  {Colors.GREEN}✅ Todas las integraciones funcionan correctamente{Colors.END}")
             if self.results.get("mode") == "test":
-                print(
-                    f"  {Colors.YELLOW}💡 Ejecutar modo producción para test completo{Colors.END}"
-                )
+                print(f"  {Colors.YELLOW}💡 Ejecutar modo producción para test completo{Colors.END}")
         else:
-            print(
-                f"  {Colors.RED}❌ Corregir componentes fallidos antes del despliegue{Colors.END}"
-            )
+            print(f"  {Colors.RED}❌ Corregir componentes fallidos antes del despliegue{Colors.END}")
             print(f"  {Colors.YELLOW}⚠️  Revisar configuración del entorno{Colors.END}")
 
         # Guardar resultados
@@ -376,12 +348,8 @@ def interactive_menu():
     print(f"{Colors.CYAN}{'VoiceFlow PoC - Sistema de Testing Integrado'.center(70)}")
     print(f"{Colors.CYAN}{'=' * 70}{Colors.END}")
     print(f"\n{Colors.BOLD}Selecciona el modo de testing:{Colors.END}")
-    print(
-        f"  {Colors.GREEN}1. MODO TEST - Validación mínima (no consume créditos API){Colors.END}"
-    )
-    print(
-        f"  {Colors.YELLOW}2. MODO PRODUCCIÓN - Test completo (consume créditos API){Colors.END}"
-    )
+    print(f"  {Colors.GREEN}1. MODO TEST - Validación mínima (no consume créditos API){Colors.END}")
+    print(f"  {Colors.YELLOW}2. MODO PRODUCCIÓN - Test completo (consume créditos API){Colors.END}")
     print(f"  {Colors.RED}3. Salir{Colors.END}")
 
     while True:
@@ -391,23 +359,15 @@ def interactive_menu():
             if choice in [1, 2, 3]:
                 return choice
             else:
-                print(
-                    f"{Colors.RED}Opción inválida. Por favor ingresa 1, 2 o 3.{Colors.END}"
-                )
+                print(f"{Colors.RED}Opción inválida. Por favor ingresa 1, 2 o 3.{Colors.END}")
         except ValueError:
-            print(
-                f"{Colors.RED}Opción inválida. Por favor ingresa un número.{Colors.END}"
-            )
+            print(f"{Colors.RED}Opción inválida. Por favor ingresa un número.{Colors.END}")
 
 
 async def main():
     """Función principal"""
-    parser = argparse.ArgumentParser(
-        description="VoiceFlow PoC - Sistema de Testing Integrado"
-    )
-    parser.add_argument(
-        "--test", action="store_true", help="Ejecutar en modo test (mínimo consumo API)"
-    )
+    parser = argparse.ArgumentParser(description="VoiceFlow PoC - Sistema de Testing Integrado")
+    parser.add_argument("--test", action="store_true", help="Ejecutar en modo test (mínimo consumo API)")
     parser.add_argument(
         "--prod",
         action="store_true",

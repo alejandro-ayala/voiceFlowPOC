@@ -32,8 +32,6 @@ def mock_settings():
 @pytest.fixture
 def nlu_evaluation_corpus():
     """Load labeled corpus used by NLU evaluation tests."""
-    corpus_path = (
-        Path(__file__).resolve().parent / "fixtures" / "nlu_evaluation_corpus.json"
-    )
+    corpus_path = Path(__file__).resolve().parent / "fixtures" / "nlu_evaluation_corpus.json"
     with corpus_path.open("r", encoding="utf-8") as handle:
         return json.load(handle)

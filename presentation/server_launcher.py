@@ -73,9 +73,7 @@ def check_dependencies():
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="VoiceFlow PoC Web UI Development Server"
-    )
+    parser = argparse.ArgumentParser(description="VoiceFlow PoC Web UI Development Server")
     parser.add_argument(
         "--host",
         default=os.environ.get("HOST", "127.0.0.1"),
@@ -99,9 +97,7 @@ def main():
         choices=["critical", "error", "warning", "info", "debug"],
         help="Log level (default: info)",
     )
-    parser.add_argument(
-        "--check-deps", action="store_true", help="Check dependencies and exit"
-    )
+    parser.add_argument("--check-deps", action="store_true", help="Check dependencies and exit")
 
     args = parser.parse_args()
 

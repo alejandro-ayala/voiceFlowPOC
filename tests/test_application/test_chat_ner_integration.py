@@ -67,9 +67,7 @@ def test_chat_message_includes_location_ner_payload_contract():
     """Chat endpoint should preserve NER entities and metadata tool outputs."""
     app = create_application()
     app.dependency_overrides[get_backend_adapter] = lambda: FakeBackendService()
-    app.dependency_overrides[get_conversation_service] = (
-        lambda: FakeConversationService()
-    )
+    app.dependency_overrides[get_conversation_service] = lambda: FakeConversationService()
 
     with TestClient(app) as client:
         response = client.post(
@@ -86,9 +84,5 @@ def test_chat_message_includes_location_ner_payload_contract():
     assert payload["intent"] == "route_planning"
     assert payload["entities"]["location_ner"]["status"] == "ok"
     assert payload["entities"]["location_ner"]["top_location"] == "Barcelona"
-    assert payload["metadata"]["tool_outputs"]["location_ner"]["locations"] == [
-        "Barcelona"
-    ]
-    assert any(
-        step["name"] == "LocationNER" for step in (payload.get("pipeline_steps") or [])
-    )
+    assert payload["metadata"]["tool_outputs"]["location_ner"]["locations"] == ["Barcelona"]
+    assert any(step["name"] == "LocationNER" for step in (payload.get("pipeline_steps") or []))

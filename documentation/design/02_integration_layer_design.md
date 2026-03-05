@@ -1,14 +1,14 @@
 # Software Design Document: Integration Layer
 
 **Capa**: APIs externas y datos (`integration/`)
-**Fecha**: 4 de Febrero de 2026
-**Estado**: Implementado
+**Fecha**: 5 de Marzo de 2026
+**Estado**: Implementado (actualizado Post Fase 0 + Fase 1)
 
 ---
 
 ## 1. Propósito
 
-La capa `integration/` encapsula toda comunicación con servicios externos (Azure Speech, OpenAI Whisper) y la persistencia de datos. Ninguna otra capa conoce los detalles de implementación de estos servicios; solo interactúan a través de las interfaces definidas en `shared/`.
+La capa `integration/` encapsula toda comunicación con servicios externos (Azure Speech, OpenAI Whisper, Google Places, Google Routes, OpenRouteService, Overpass/OSM) y la persistencia de datos. Ninguna otra capa conoce los detalles de implementación de estos servicios; solo interactúan a través de las interfaces definidas en `shared/`.
 
 ## 2. Componentes
 
@@ -172,6 +172,83 @@ class NERServiceInterface(ABC):
 - Degradación graceful cuando el modelo/proveedor no está disponible.
 - Salida canónica: `locations`, `top_location`, `provider`, `model`, `language`, `status`.
 
+#### 2.1.6 Fase 1: API Clients — Stack API-First
+
+Todos usan `httpx.AsyncClient` y `ResilienceManager` para control de fallos.
+
+**`google_places_client.py`** — `GooglePlacesService(PlacesServiceInterface)`
+
+| Aspecto | Detalle |
+|---------|---------|
+| API | Google Places API (New) v1 |
+| Endpoints | `places.googleapis.com/v1/places:searchText`, `places.googleapis.com/v1/places/{id}` |
+| fieldMask | `displayName`, `formattedAddress`, `location`, `rating`, `types`, `accessibilityOptions` |
+| Requiere | `VOICEFLOW_GOOGLE_API_KEY` |
+
+**`google_directions_client.py`** — `GoogleDirectionsService(DirectionsServiceInterface)`
+
+| Aspecto | Detalle |
+|---------|---------|
+| API | Google Routes API v2 |
+| Endpoint | `routes.googleapis.com/directions/v2:computeRoutes` |
+| Modes | TRANSIT, WALK, DRIVE, BICYCLE + wheelchair preferences |
+| Requiere | `VOICEFLOW_GOOGLE_API_KEY` |
+
+**`openroute_client.py`** — `OpenRouteDirectionsService(DirectionsServiceInterface)`
+
+| Aspecto | Detalle |
+|---------|---------|
+| API | OpenRouteService v2 |
+| Endpoint | `api.openrouteservice.org/v2/directions/{profile}/json` |
+| Profiles | foot-walking, wheelchair, cycling-regular, driving-car |
+| Requiere | `VOICEFLOW_OPENROUTE_API_KEY` (free tier) |
+
+**`overpass_client.py`** — `OverpassAccessibilityService(AccessibilityServiceInterface)`
+
+| Aspecto | Detalle |
+|---------|---------|
+| API | Overpass API (OSM) |
+| Endpoint | `overpass-api.de/api/interpreter` (POST, Overpass QL) |
+| Query | wheelchair-tagged nodes within 200m radius |
+| Requiere | Nada (público, sin key) |
+
+#### 2.1.7 Fase 1: Servicios locales (fallback)
+
+Implementan las mismas interfaces que los clientes reales, envolviendo los datos mock existentes:
+
+| Servicio | Interfaz | Fuente de datos |
+|----------|----------|-----------------|
+| `LocalPlacesService` | `PlacesServiceInterface` | `VENUE_DB` de `business/domains/tourism/data/venue_data.py` |
+| `LocalDirectionsService` | `DirectionsServiceInterface` | `ROUTE_DB` de `business/domains/tourism/data/route_data.py` |
+| `LocalAccessibilityService` | `AccessibilityServiceInterface` | `ACCESSIBILITY_DB` de `business/domains/tourism/data/accessibility_data.py` |
+
+Siempre disponibles (`is_service_available() = True`). Usados cuando `VOICEFLOW_*_PROVIDER=local` (default).
+
+#### 2.1.8 Fase 1: Factories
+
+Siguen el patrón exacto de `STTServiceFactory` / `NERServiceFactory` (registry + `create_from_settings()` + fallback automático):
+
+| Factory | Registry | Default |
+|---------|----------|---------|
+| `PlacesServiceFactory` | `{"google": GooglePlacesService, "local": LocalPlacesService}` | `local` |
+| `DirectionsServiceFactory` | `{"google": GoogleDirectionsService, "openroute": OpenRouteDirectionsService, "local": LocalDirectionsService}` | `local` |
+| `AccessibilityServiceFactory` | `{"overpass": OverpassAccessibilityService, "local": LocalAccessibilityService}` | `local` |
+
+Si el proveedor configurado no está disponible (`is_service_available() = False`), fallback automático a `local` con warning en logs.
+
+#### 2.1.9 Fase 1: Capa de resiliencia (`resilience.py`)
+
+Primitivas hand-rolled (sin dependencias externas, apropiadas para PoC):
+
+| Componente | Descripción |
+|------------|-------------|
+| `CircuitBreaker` | Estados CLOSED/OPEN/HALF_OPEN por servicio, threshold configurable |
+| `TokenBucketRateLimiter` | async-safe, configurable RPS |
+| `BudgetTracker` | Ventana horaria con coste estimado por operación |
+| `ResilienceManager` | Fachada unificada: `pre_request(service, operation)` + `record_success/failure` |
+
+Todas las llamadas a APIs externas (Phase 1) pasan por `ResilienceManager`.
+
 ### 2.2 Data Persistence (`integration/data_persistence/`)
 
 #### 2.2.1 `conversation_repository.py` - Repositorio de Conversaciones
@@ -245,6 +322,23 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: Optional[str] = None
 
+    # External API settings (Phase 1)
+    google_api_key: Optional[str] = None
+    google_places_cache_ttl: int = 86400
+    openroute_api_key: Optional[str] = None
+    tool_timeout_seconds: float = 3.0
+
+    # Resilience (Phase 1)
+    circuit_breaker_threshold: int = 5
+    circuit_breaker_recovery_seconds: int = 60
+    api_rate_limit_rps: int = 10
+    api_budget_per_hour: float = 1.0
+
+    # Provider selection (Phase 1) — local = fallback a datos mock
+    places_provider: str = "local"
+    directions_provider: str = "local"
+    accessibility_provider: str = "local"
+
     # Future
     auth_enabled: bool = False
     database_enabled: bool = False
@@ -315,6 +409,14 @@ create_stt_agent()
 | `OPENAI_API_KEY` | Para Whisper API y LangChain | None | API key OpenAI |
 | `STT_SERVICE` | No | "azure" | Backend STT (azure/whisper_local/whisper_api) |
 | `WHISPER_MODEL` | No | "base" | Modelo Whisper local |
+| `VOICEFLOW_GOOGLE_API_KEY` | Para Google APIs | None | API key Google (Places + Routes) |
+| `VOICEFLOW_OPENROUTE_API_KEY` | Para OpenRouteService | None | API key OpenRouteService (free tier) |
+| `VOICEFLOW_PLACES_PROVIDER` | No | "local" | Proveedor de búsqueda: `local` o `google` |
+| `VOICEFLOW_DIRECTIONS_PROVIDER` | No | "local" | Proveedor de rutas: `local`, `google`, o `openroute` |
+| `VOICEFLOW_ACCESSIBILITY_PROVIDER` | No | "local" | Proveedor de accesibilidad: `local` u `overpass` |
+| `VOICEFLOW_TOOL_TIMEOUT_SECONDS` | No | 3.0 | Timeout para llamadas a APIs externas |
+| `VOICEFLOW_API_BUDGET_PER_HOUR` | No | 1.0 | Presupuesto máximo por hora (USD) |
+| `VOICEFLOW_API_RATE_LIMIT_RPS` | No | 10 | Requests por segundo máximos |
 
 ## 6. Estrategia de testing
 

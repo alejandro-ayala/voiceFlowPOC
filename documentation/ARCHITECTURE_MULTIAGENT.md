@@ -1,25 +1,29 @@
 # Arquitectura Multi-Agente: LangChain + STT
 
-**Actualizado**: 2 de Marzo de 2026
-**Version**: 4.3 - Pipeline NLU+NER paralelo + contrato de salida NER/NLU
+**Actualizado**: 5 de Marzo de 2026
+**Version**: 5.0 - Fase 0 (Contratos) + Fase 1 (API-First Tools) completadas
 
 ---
 
-## ⚠️ ESTADO ACTUAL: NLU/NER funcionales + tools de dominio parcialmente STUB
+## ✅ ESTADO ACTUAL: Pipeline completo con Tools API-First (Post Fase 0 + Fase 1)
 
-**IMPORTANTE:** El pipeline ya integra NLU por proveedor configurable y NER real, pero varias tools de dominio siguen con datos estáticos/mock:
-- ✅ **NLU Tool**: proveedor configurable (`openai` principal, `keyword` fallback) con contrato tipado
-- ✅ **LocationNER Tool**: extracción real de localizaciones con spaCy (si modelo disponible)
-- ❌ **Accessibility Tool**: Lookup en base de datos simulada (4 venues)
-- ❌ **Route Tool**: Rutas predefinidas, no consultan APIs reales
-- ❌ **Tourism Info Tool**: Horarios/precios son MOCK DATA
+**El pipeline integra NLU, NER y tools de dominio reales:**
+- ✅ **NLU Tool**: proveedor configurable (`openai` principal, `keyword` fallback) con shadow mode
+- ✅ **LocationNER Tool**: extracción real de localizaciones con spaCy
+- ✅ **PlacesSearchTool**: Google Places API (New) v1 con fallback a datos mock
+- ✅ **DirectionsTool**: Google Routes v2 + OpenRouteService con fallback a datos mock
+- ✅ **AccessibilityEnrichmentTool**: Overpass/OSM con fallback a datos mock
+- ⚠️ **Legacy Tools**: AccessibilityAnalysisTool, RoutePlanningTool, TourismInfoTool (backward compat, usadas solo si no se inyectan servicios Phase 1)
 
-**Impacto:**
-- Las tools NO aportan datos reales, el LLM usa su conocimiento pre-entrenado
-- Solo funciona para casos hardcodeados (Madrid + ~10 venues)
-- NO escala a otras ciudades sin añadir más mock data
+**Stack API-First:**
+- Selección de proveedor via `.env`: `VOICEFLOW_PLACES_PROVIDER=local|google`, etc.
+- Con `local` (default): fallback automático a datos mock, sin errores
+- Con API keys configuradas: datos estructurados reales de cualquier ciudad
+- Capa de resiliencia: circuit breaker + rate limiter + budget tracker
 
-**Siguiente paso:** Ver [ESTADO_ACTUAL_SISTEMA.md](./ESTADO_ACTUAL_SISTEMA.md) y [REFACTOR_PLAN_PROFILE_DRIVEN_RESPONSES.md](./REFACTOR_PLAN_PROFILE_DRIVEN_RESPONSES.md) (Fase 0) para plan de integración con APIs reales.
+**Pipeline tipado:** `ToolPipelineContext` (Pydantic) fluye entre todas las tools con contratos estables.
+
+**Pendiente:** Routing por intent (actualmente se ejecutan todas las tools siempre). Ver [ESTADO_ACTUAL_SISTEMA.md](./ESTADO_ACTUAL_SISTEMA.md).
 
 ---
 
@@ -107,13 +111,13 @@ El sistema VoiceFlow Tourism PoC combina Speech-to-Text (STT) con un sistema mul
   |   _execute_pipeline()            |
   +----------------------------------+
     |
-       | Ejecuta pipeline de 5 tools (NLU+NER en paralelo)
+       | Ejecuta pipeline de tools (NLU+NER en paralelo, dominio en secuencia)
     |
-    +---> TourismNLUTool             (tools/nlu_tool.py)
-       +---> LocationNERTool            (tools/location_ner_tool.py)
-    +---> AccessibilityAnalysisTool  (tools/accessibility_tool.py)
-    +---> RoutePlanningTool          (tools/route_planning_tool.py)
-    +---> TourismInfoTool            (tools/tourism_info_tool.py)
+    +---> TourismNLUTool             (tools/nlu_tool.py)          ── Foundation
+       +---> LocationNERTool            (tools/location_ner_tool.py)  ── Foundation
+    +---> PlacesSearchTool           (tools/places_search_tool.py)  ── Phase 1 (Google Places / Local)
+    +---> AccessibilityEnrichmentTool (tools/accessibility_enrichment_tool.py) ── Phase 1 (Overpass / Local)
+    +---> DirectionsTool             (tools/directions_tool.py)    ── Phase 1 (Google Routes+ORS / Local)
     |
     | _build_response_prompt()       (prompts/response_prompt.py)
     v
@@ -137,60 +141,91 @@ El orquestador extiende `MultiAgentOrchestrator` (patron Template Method) e impl
 
 ```python
 class TourismMultiAgent(MultiAgentOrchestrator):
-    def __init__(self, openai_api_key=None):
-              llm = ChatOpenAI(model="gpt-4", temperature=0.3, max_tokens=2500)
+    def __init__(
+        self,
+        openai_api_key=None,
+        ner_service=None,          # NERServiceInterface (Phase 0)
+        nlu_service=None,          # NLUServiceInterface (Phase 0)
+        places_service=None,       # PlacesServiceInterface (Phase 1)
+        directions_service=None,   # DirectionsServiceInterface (Phase 1)
+        accessibility_service=None,# AccessibilityServiceInterface (Phase 1)
+    ):
+        llm = ChatOpenAI(model="gpt-4", temperature=0.3, max_tokens=2500)
         super().__init__(llm=llm, system_prompt=SYSTEM_PROMPT)
-        self.nlu = TourismNLUTool()
-              self.location_ner = LocationNERTool()
+        # Foundation tools (always available)
+        self.nlu = TourismNLUTool(nlu_service=nlu_service)
+        self.location_ner = LocationNERTool(ner_service=ner_service)
+        # Phase 1 domain tools (created when services injected)
+        self._places_tool = PlacesSearchTool(places_service) if places_service else None
+        self._directions_tool = DirectionsTool(directions_service) if directions_service else None
+        self._accessibility_enrichment_tool = AccessibilityEnrichmentTool(accessibility_service) if accessibility_service else None
+        # Legacy tools (fallback when no services injected)
         self.accessibility = AccessibilityAnalysisTool()
         self.route = RoutePlanningTool()
         self.tourism_info = TourismInfoTool()
 
-       def _execute_pipeline(self, user_input: str, profile_context=None) -> tuple[dict[str, str], dict]:
-              nlu_result, location_ner_result = asyncio.gather(
-                     self.nlu._arun(user_input),
-                     self.location_ner._arun(user_input),
-              )
-        accessibility_result = self.accessibility._run(nlu_result)
-        route_result = self.route._run(accessibility_result)
-        tourism_result = self.tourism_info._run(nlu_result)
-              tool_results = {
-                     "nlu": nlu_result,
-                     "locationner": location_ner_result,
-                     "accessibility": accessibility_result,
-                     "route": route_result,
-                     "tourism_info": tourism_result,
-              }
-              metadata = {"pipeline_steps": [...], "tool_results_parsed": {...}}
-              return tool_results, metadata
+    async def _execute_pipeline_async(self, user_input, profile_context=None):
+        ctx = ToolPipelineContext(user_input=user_input, profile_context=profile_context)
+        # Step 1: NLU + NER in parallel
+        ctx = await asyncio.gather(self.nlu.execute(ctx), self.location_ner.execute(ctx))
+        # Step 2: Domain tools (Phase 1 if available, otherwise legacy)
+        if self._places_tool:
+            ctx = await self._places_tool.execute(ctx)
+            ctx = await self._accessibility_enrichment_tool.execute(ctx)
+            ctx = await self._directions_tool.execute(ctx)
+        else:
+            # Legacy sequential pipeline
+            ...
+        return tool_results, metadata
 ```
 
 ### Tools especializados
 
+#### Foundation Tools
 | Tool | Clase | Input | Output |
 |------|-------|-------|--------|
 | NLU | `TourismNLUTool` | Texto del usuario | Intent, entities, accessibility type |
 | Location NER | `LocationNERTool` | Texto del usuario (crudo) | `locations`, `top_location`, `provider`, `model`, `status` |
-| Accesibilidad | `AccessibilityAnalysisTool` | Resultado NLU (JSON) | Score, facilities, certification |
-| Rutas | `RoutePlanningTool` | Resultado accesibilidad (JSON) | Rutas metro/bus, costes, pasos |
-| Info turistica | `TourismInfoTool` | Resultado NLU (JSON) | Horarios, precios, servicios |
 
-Todos los tools extienden `langchain.tools.BaseTool` e implementan `_run()` (sync) y `_arun()` (async, delegado a sync).
+#### Phase 1 Domain Tools (API-First)
+| Tool | Clase | Proveedor | Fallback | Output |
+|------|-------|-----------|----------|--------|
+| Places Search | `PlacesSearchTool` | Google Places API (New) v1 | `LocalPlacesService` | `PlaceCandidate`, `VenueDetail` |
+| Directions | `DirectionsTool` | Google Routes v2 + OpenRouteService | `LocalDirectionsService` | `list[RouteOption]` |
+| Accessibility | `AccessibilityEnrichmentTool` | Overpass/OSM | `LocalAccessibilityService` | `AccessibilityInfo` |
 
-### Datos estaticos
+#### Legacy Tools (backward compat)
+| Tool | Clase | Nota |
+|------|-------|------|
+| Accesibilidad | `AccessibilityAnalysisTool` | Usada solo si no se inyecta `accessibility_service` |
+| Rutas | `RoutePlanningTool` | Usada solo si no se inyecta `directions_service` |
+| Info turistica | `TourismInfoTool` | Usada solo si no se inyecta `places_service` |
 
-Los datos de Madrid estan separados en modulos independientes dentro de `business/domains/tourism/data/`:
+Todas las Phase 1 tools operan sobre `ToolPipelineContext` (Pydantic) con firma `execute(ctx) -> ctx`. Las legacy tools extienden `langchain.tools.BaseTool`.
 
-| Modulo | Contenido |
-|--------|-----------|
-| `nlu_patterns.py` | Patrones de intent, destino, accesibilidad, keywords Madrid |
-| `accessibility_data.py` | `ACCESSIBILITY_DB` - scores, facilities, certificaciones por venue |
-| `route_data.py` | `ROUTE_DB` - rutas metro/bus, costes, pasos por destino |
-| `venue_data.py` | `VENUE_DB` - horarios, precios, servicios por venue |
+### Datos y servicios externos
 
-**Venues**: Museo del Prado, Reina Sofia, espacios musicales, restaurantes.
-**Accesibilidad**: Scores, facilities (rampas, banos, audioguias), certificaciones (ONCE).
-**Rutas**: Metro (lineas 1, 2), bus (linea 27), costes (1.50-2.50 EUR).
+#### Datos estáticos (fallback / local provider)
+
+Los datos mock de Madrid están en `business/domains/tourism/data/` y son consumidos por los servicios locales:
+
+| Módulo | Contenido | Consumido por |
+|--------|-----------|---------------|
+| `nlu_patterns.py` | Patrones de intent, destino, accesibilidad | `TourismNLUTool` (keyword fallback) |
+| `accessibility_data.py` | `ACCESSIBILITY_DB` - scores, facilities | `LocalAccessibilityService` |
+| `route_data.py` | `ROUTE_DB` - rutas metro/bus, costes | `LocalDirectionsService` |
+| `venue_data.py` | `VENUE_DB` - horarios, precios, servicios | `LocalPlacesService` |
+
+#### Servicios externos (Phase 1)
+
+| Servicio | Proveedor | Interface ABC | Cliente |
+|----------|-----------|---------------|---------|
+| Búsqueda de lugares | Google Places API (New) v1 | `PlacesServiceInterface` | `GooglePlacesService` |
+| Routing transit | Google Routes API v2 | `DirectionsServiceInterface` | `GoogleDirectionsService` |
+| Routing wheelchair | OpenRouteService | `DirectionsServiceInterface` | `OpenRouteDirectionsService` |
+| Accesibilidad | Overpass API (OSM) | `AccessibilityServiceInterface` | `OverpassAccessibilityService` |
+
+Selección via `.env`: `VOICEFLOW_PLACES_PROVIDER=local|google`, etc. Factories en `integration/external_apis/`.
 
 ## Decisiones arquitectonicas
 
@@ -204,7 +239,7 @@ El STT es infraestructura, no logica de negocio:
 
 ### Orquestacion híbrida (paralela + secuencial)
 
-Actualmente NLU y LocationNER se ejecutan en paralelo para reducir latencia, y luego se continúa en secuencia con Accessibility/Route/Tourism Info. La orquestación sigue siendo fija (no selectiva por intent), lo cual permanece como deuda técnica.
+NLU y LocationNER se ejecutan en paralelo (async-native con `await asyncio.gather()`). Luego las Phase 1 domain tools se ejecutan en secuencia: PlacesSearch → AccessibilityEnrichment → Directions. El pipeline usa `ToolPipelineContext` (Pydantic) como acumulador tipado entre todas las tools. La orquestación sigue siendo fija (no selectiva por intent), lo cual permanece como deuda técnica para Fase 2.
 
 ### Modo simulacion en el adapter
 

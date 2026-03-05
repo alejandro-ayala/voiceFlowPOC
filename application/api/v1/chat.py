@@ -140,9 +140,7 @@ async def list_conversations(
     List all conversations with pagination.
     """
     try:
-        conversations = await conversation_service.list_conversations(
-            limit=limit, offset=offset
-        )
+        conversations = await conversation_service.list_conversations(limit=limit, offset=offset)
 
         return ConversationListResponse(
             success=True,

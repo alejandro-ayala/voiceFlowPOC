@@ -26,9 +26,7 @@ class TestLocationNERTool:
 
     def test_run_with_unavailable_service(self, location_ner_tool):
         """Test handling when NER service is unavailable."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_factory:
+        with patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_factory:
             mock_service = MagicMock()
             mock_service.is_service_available.return_value = False
             mock_factory.create_from_settings.return_value = mock_service
@@ -42,9 +40,7 @@ class TestLocationNERTool:
 
     def test_run_with_valid_locations(self, location_ner_tool):
         """Test successful extraction of locations."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_factory:
+        with patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_factory:
             mock_service = AsyncMock()
             mock_service.is_service_available.return_value = True
             mock_service.extract_locations.return_value = {
@@ -60,9 +56,7 @@ class TestLocationNERTool:
             }
             mock_factory.create_from_settings.return_value = mock_service
 
-            result_str = location_ner_tool._run(
-                "Quiero visitar el Palacio Real en Madrid"
-            )
+            result_str = location_ner_tool._run("Quiero visitar el Palacio Real en Madrid")
             result = json.loads(result_str)
 
             assert result["status"] == "ok"
@@ -72,9 +66,7 @@ class TestLocationNERTool:
 
     def test_run_with_empty_input(self, location_ner_tool):
         """Test handling of empty input."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_factory:
+        with patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_factory:
             mock_service = AsyncMock()
             mock_service.is_service_available.return_value = True
             mock_service.extract_locations.return_value = {
@@ -96,9 +88,7 @@ class TestLocationNERTool:
 
     def test_run_with_error(self, location_ner_tool):
         """Test error handling during NER extraction."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_factory:
+        with patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_factory:
             mock_service = MagicMock()
             mock_service.is_service_available.return_value = True
             mock_service.extract_locations.side_effect = RuntimeError("Service error")
@@ -113,9 +103,7 @@ class TestLocationNERTool:
 
     def test_run_with_language_parameter(self, location_ner_tool):
         """Test that language parameter is passed correctly."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_factory:
+        with patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_factory:
             mock_service = AsyncMock()
             mock_service.is_service_available.return_value = True
             mock_service.extract_locations.return_value = {
@@ -137,9 +125,7 @@ class TestLocationNERTool:
     @pytest.mark.asyncio
     async def test_arun_with_valid_locations(self, location_ner_tool):
         """Test async extraction of locations."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_factory:
+        with patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_factory:
             mock_service = AsyncMock()
             mock_service.is_service_available.return_value = True
             mock_service.extract_locations.return_value = {
@@ -161,9 +147,7 @@ class TestLocationNERTool:
     @pytest.mark.asyncio
     async def test_arun_with_unavailable_service(self, location_ner_tool):
         """Test async handling when NER service is unavailable."""
-        with patch(
-            "business.domains.tourism.tools.location_ner_tool.NERServiceFactory"
-        ) as mock_factory:
+        with patch("business.domains.tourism.tools.location_ner_tool.NERServiceFactory") as mock_factory:
             mock_service = MagicMock()
             mock_service.is_service_available.return_value = False
             mock_factory.create_from_settings.return_value = mock_service

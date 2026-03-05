@@ -14,14 +14,22 @@ from business.core.orchestrator import MultiAgentOrchestrator
 from business.domains.tourism.entity_resolver import EntityResolver
 from business.domains.tourism.prompts.response_prompt import build_response_prompt
 from business.domains.tourism.prompts.system_prompt import SYSTEM_PROMPT
+from business.domains.tourism.tools.accessibility_enrichment_tool import (
+    AccessibilityEnrichmentTool,
+)
 from business.domains.tourism.tools.accessibility_tool import AccessibilityAnalysisTool
+from business.domains.tourism.tools.directions_tool import DirectionsTool
 from business.domains.tourism.tools.location_ner_tool import LocationNERTool
 from business.domains.tourism.tools.nlu_tool import TourismNLUTool
+from business.domains.tourism.tools.places_search_tool import PlacesSearchTool
 from business.domains.tourism.tools.route_planning_tool import RoutePlanningTool
 from business.domains.tourism.tools.tourism_info_tool import TourismInfoTool
 from integration.configuration.settings import Settings
+from shared.interfaces.accessibility_interface import AccessibilityServiceInterface
+from shared.interfaces.directions_interface import DirectionsServiceInterface
 from shared.interfaces.ner_interface import NERServiceInterface
 from shared.interfaces.nlu_interface import NLUServiceInterface
+from shared.interfaces.places_interface import PlacesServiceInterface
 from shared.models.nlu_models import NLUResult
 from shared.models.tool_models import PlaceCandidate, ToolPipelineContext
 
@@ -41,6 +49,9 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         openai_api_key: Optional[str] = None,
         ner_service: Optional[NERServiceInterface] = None,
         nlu_service: Optional[NLUServiceInterface] = None,
+        places_service: Optional[PlacesServiceInterface] = None,
+        directions_service: Optional[DirectionsServiceInterface] = None,
+        accessibility_service: Optional[AccessibilityServiceInterface] = None,
     ):
         """Initialize the tourism multi-agent system."""
         logger.info("Initializing Tourism Multi-Agent System")
@@ -48,9 +59,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         _settings = Settings()
         api_key = openai_api_key or _settings.openai_api_key
         if not api_key:
-            raise ValueError(
-                "OpenAI API key not found. Set OPENAI_API_KEY environment variable."
-            )
+            raise ValueError("OpenAI API key not found. Set OPENAI_API_KEY environment variable.")
 
         llm = ChatOpenAI(
             model=_settings.llm_model,
@@ -62,12 +71,27 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 
         self.nlu = TourismNLUTool(nlu_service=nlu_service)
         self.location_ner = LocationNERTool(ner_service=ner_service)
+
+        # Legacy tools (always available for backward compat)
         self.accessibility = AccessibilityAnalysisTool()
         self.route = RoutePlanningTool()
         self.tourism_info = TourismInfoTool()
+
+        # Phase 1 tools (activated when services are injected)
+        self._places_tool = PlacesSearchTool(places_service) if places_service else None
+        self._directions_tool = DirectionsTool(directions_service) if directions_service else None
+        self._accessibility_enrichment_tool = (
+            AccessibilityEnrichmentTool(accessibility_service) if accessibility_service else None
+        )
+
         self.entity_resolver = EntityResolver()
 
-        logger.info("Tourism Multi-Agent System initialized successfully")
+        logger.info(
+            "Tourism Multi-Agent System initialized successfully",
+            phase1_places=places_service is not None,
+            phase1_directions=directions_service is not None,
+            phase1_accessibility=accessibility_service is not None,
+        )
 
     # ------------------------------------------------------------------ #
     #  Shared helpers for pipeline instrumentation                        #
@@ -84,11 +108,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 
         summary = None
         if isinstance(parsed, dict):
-            summary = (
-                parsed.get("intent")
-                or parsed.get("accessibility_level")
-                or parsed.get("venue")
-            )
+            summary = parsed.get("intent") or parsed.get("accessibility_level") or parsed.get("venue")
             if summary is None:
                 keys = list(parsed.keys())[:3]
                 summary = ",".join(keys)
@@ -225,9 +245,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                     "provider": nlu_parsed.get("provider", "unknown"),
                     "model": nlu_parsed.get("model", "unknown"),
                     "language": nlu_parsed.get("entities", {}).get("language", "es"),
-                    "analysis_version": nlu_parsed.get(
-                        "analysis_version", "nlu_v3.0"
-                    ),
+                    "analysis_version": nlu_parsed.get("analysis_version", "nlu_v3.0"),
                     "latency_ms": nlu_parsed.get("latency_ms", 0),
                 }
             )
@@ -250,9 +268,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                     elif isinstance(item, dict) and isinstance(item.get("name"), str):
                         ner_locations.append(item["name"])
             top_location_value = location_ner_parsed.get("top_location")
-            ner_top_location = (
-                top_location_value if isinstance(top_location_value, str) else None
-            )
+            ner_top_location = top_location_value if isinstance(top_location_value, str) else None
         return ner_locations, ner_top_location
 
     def _build_metadata(
@@ -266,18 +282,12 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         tourism_data = None
         try:
             tourism_info = (
-                parsed_tools.get("venue info")
-                or parsed_tools.get("tourism_info")
-                or parsed_tools.get("venue")
+                parsed_tools.get("venue info") or parsed_tools.get("tourism_info") or parsed_tools.get("venue")
             )
             routes = parsed_tools.get("routes") or parsed_tools.get("route")
             accessibility = parsed_tools.get("accessibility")
 
-            if (
-                isinstance(tourism_info, dict)
-                or isinstance(routes, dict)
-                or isinstance(accessibility, dict)
-            ):
+            if isinstance(tourism_info, dict) or isinstance(routes, dict) or isinstance(accessibility, dict):
                 routes_val = None
                 if isinstance(routes, dict) and routes.get("routes"):
                     routes_val = routes.get("routes")
@@ -286,17 +296,13 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                 tourism_data = {
                     "venue": (tourism_info if isinstance(tourism_info, dict) else None),
                     "routes": routes_val,
-                    "accessibility": (
-                        accessibility if isinstance(accessibility, dict) else None
-                    ),
+                    "accessibility": (accessibility if isinstance(accessibility, dict) else None),
                 }
         except Exception:
             tourism_data = None
 
         try:
-            tourism_data = (
-                canonicalize_tourism_data(tourism_data) if tourism_data else None
-            )
+            tourism_data = canonicalize_tourism_data(tourism_data) if tourism_data else None
         except Exception:
             tourism_data = None
 
@@ -347,12 +353,22 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         parallel_duration_ms = int((time.perf_counter() - parallel_start) * 1000)
 
         nlu_parsed = self._record_tool(
-            "NLU", self.nlu.name, nlu_raw, parallel_duration_ms,
-            pipeline_steps, tool_results, parsed_tools,
+            "NLU",
+            self.nlu.name,
+            nlu_raw,
+            parallel_duration_ms,
+            pipeline_steps,
+            tool_results,
+            parsed_tools,
         )
         location_ner_parsed = self._record_tool(
-            "LocationNER", self.location_ner.name, location_ner_raw,
-            parallel_duration_ms, pipeline_steps, tool_results, parsed_tools,
+            "LocationNER",
+            self.location_ner.name,
+            location_ner_raw,
+            parallel_duration_ms,
+            pipeline_steps,
+            tool_results,
+            parsed_tools,
         )
 
         # -- Parse NLU + NER and resolve entities --
@@ -361,9 +377,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 
         resolved_entities = None
         if nlu_result is not None:
-            resolved_entities = self.entity_resolver.resolve(
-                nlu_result, ner_locations, ner_top_location
-            )
+            resolved_entities = self.entity_resolver.resolve(nlu_result, ner_locations, ner_top_location)
 
         # -- Build typed pipeline context --
         ctx = ToolPipelineContext(
@@ -372,64 +386,124 @@ class TourismMultiAgent(MultiAgentOrchestrator):
             nlu_result=nlu_result,
             resolved_entities=resolved_entities,
             place=PlaceCandidate(
-                name=(resolved_entities.destination if resolved_entities and resolved_entities.destination else "general"),
+                name=(
+                    resolved_entities.destination if resolved_entities and resolved_entities.destination else "general"
+                ),
                 destination=(resolved_entities.destination if resolved_entities else None),
             ),
             raw_tool_results=dict(tool_results),
         )
 
         # -- Step 2: Domain tools with typed context --
-        acc_start = time.perf_counter()
-        ctx = await self.accessibility.execute(ctx)
-        acc_duration = int((time.perf_counter() - acc_start) * 1000)
-        # Record in pipeline tracking
-        if "accessibility" in ctx.raw_tool_results:
-            acc_parsed, acc_summary = self._parse_and_summarize(
-                ctx.raw_tool_results["accessibility"]
-            )
-            pipeline_steps.append({
-                "name": "Accessibility",
-                "tool": self.accessibility.name,
-                "status": "completed",
-                "duration_ms": acc_duration,
-                "summary": acc_summary,
-            })
-            tool_results["accessibility"] = ctx.raw_tool_results["accessibility"]
-            parsed_tools["accessibility"] = acc_parsed
+        # Use Phase 1 tools if available, otherwise fall back to legacy tools
 
-        route_start = time.perf_counter()
-        ctx = await self.route.execute(ctx)
-        route_duration = int((time.perf_counter() - route_start) * 1000)
-        if "routes" in ctx.raw_tool_results:
-            route_parsed, route_summary = self._parse_and_summarize(
-                ctx.raw_tool_results["routes"]
-            )
-            pipeline_steps.append({
-                "name": "Routes",
-                "tool": self.route.name,
-                "status": "completed",
-                "duration_ms": route_duration,
-                "summary": route_summary,
-            })
-            tool_results["routes"] = ctx.raw_tool_results["routes"]
-            parsed_tools["routes"] = route_parsed
+        # 2a: Places search (Phase 1) or Tourism Info (legacy)
+        if self._places_tool:
+            venue_start = time.perf_counter()
+            ctx = await self._places_tool.execute(ctx)
+            venue_duration = int((time.perf_counter() - venue_start) * 1000)
+            if "venue info" in ctx.raw_tool_results:
+                venue_parsed, venue_summary = self._parse_and_summarize(ctx.raw_tool_results["venue info"])
+                pipeline_steps.append(
+                    {
+                        "name": "Places Search",
+                        "tool": "places_search",
+                        "status": "completed",
+                        "duration_ms": venue_duration,
+                        "summary": venue_summary,
+                    }
+                )
+                tool_results["venue info"] = ctx.raw_tool_results["venue info"]
+                parsed_tools["venue info"] = venue_parsed
+        else:
+            venue_start = time.perf_counter()
+            ctx = await self.tourism_info.execute(ctx)
+            venue_duration = int((time.perf_counter() - venue_start) * 1000)
+            if "venue info" in ctx.raw_tool_results:
+                venue_parsed, venue_summary = self._parse_and_summarize(ctx.raw_tool_results["venue info"])
+                pipeline_steps.append(
+                    {
+                        "name": "Venue Info",
+                        "tool": self.tourism_info.name,
+                        "status": "completed",
+                        "duration_ms": venue_duration,
+                        "summary": venue_summary,
+                    }
+                )
+                tool_results["venue info"] = ctx.raw_tool_results["venue info"]
+                parsed_tools["venue info"] = venue_parsed
 
-        venue_start = time.perf_counter()
-        ctx = await self.tourism_info.execute(ctx)
-        venue_duration = int((time.perf_counter() - venue_start) * 1000)
-        if "venue info" in ctx.raw_tool_results:
-            venue_parsed, venue_summary = self._parse_and_summarize(
-                ctx.raw_tool_results["venue info"]
-            )
-            pipeline_steps.append({
-                "name": "Venue Info",
-                "tool": self.tourism_info.name,
-                "status": "completed",
-                "duration_ms": venue_duration,
-                "summary": venue_summary,
-            })
-            tool_results["venue info"] = ctx.raw_tool_results["venue info"]
-            parsed_tools["venue info"] = venue_parsed
+        # 2b: Accessibility enrichment (Phase 1) or legacy
+        if self._accessibility_enrichment_tool:
+            acc_start = time.perf_counter()
+            ctx = await self._accessibility_enrichment_tool.execute(ctx)
+            acc_duration = int((time.perf_counter() - acc_start) * 1000)
+            if "accessibility" in ctx.raw_tool_results:
+                acc_parsed, acc_summary = self._parse_and_summarize(ctx.raw_tool_results["accessibility"])
+                pipeline_steps.append(
+                    {
+                        "name": "Accessibility Enrichment",
+                        "tool": "accessibility_enrichment",
+                        "status": "completed",
+                        "duration_ms": acc_duration,
+                        "summary": acc_summary,
+                    }
+                )
+                tool_results["accessibility"] = ctx.raw_tool_results["accessibility"]
+                parsed_tools["accessibility"] = acc_parsed
+        else:
+            acc_start = time.perf_counter()
+            ctx = await self.accessibility.execute(ctx)
+            acc_duration = int((time.perf_counter() - acc_start) * 1000)
+            if "accessibility" in ctx.raw_tool_results:
+                acc_parsed, acc_summary = self._parse_and_summarize(ctx.raw_tool_results["accessibility"])
+                pipeline_steps.append(
+                    {
+                        "name": "Accessibility",
+                        "tool": self.accessibility.name,
+                        "status": "completed",
+                        "duration_ms": acc_duration,
+                        "summary": acc_summary,
+                    }
+                )
+                tool_results["accessibility"] = ctx.raw_tool_results["accessibility"]
+                parsed_tools["accessibility"] = acc_parsed
+
+        # 2c: Directions (Phase 1) or Route Planning (legacy)
+        if self._directions_tool:
+            route_start = time.perf_counter()
+            ctx = await self._directions_tool.execute(ctx)
+            route_duration = int((time.perf_counter() - route_start) * 1000)
+            if "routes" in ctx.raw_tool_results:
+                route_parsed, route_summary = self._parse_and_summarize(ctx.raw_tool_results["routes"])
+                pipeline_steps.append(
+                    {
+                        "name": "Directions",
+                        "tool": "directions",
+                        "status": "completed",
+                        "duration_ms": route_duration,
+                        "summary": route_summary,
+                    }
+                )
+                tool_results["routes"] = ctx.raw_tool_results["routes"]
+                parsed_tools["routes"] = route_parsed
+        else:
+            route_start = time.perf_counter()
+            ctx = await self.route.execute(ctx)
+            route_duration = int((time.perf_counter() - route_start) * 1000)
+            if "routes" in ctx.raw_tool_results:
+                route_parsed, route_summary = self._parse_and_summarize(ctx.raw_tool_results["routes"])
+                pipeline_steps.append(
+                    {
+                        "name": "Routes",
+                        "tool": self.route.name,
+                        "status": "completed",
+                        "duration_ms": route_duration,
+                        "summary": route_summary,
+                    }
+                )
+                tool_results["routes"] = ctx.raw_tool_results["routes"]
+                parsed_tools["routes"] = route_parsed
 
         metadata = self._build_metadata(pipeline_steps, parsed_tools, resolved_entities)
 
@@ -439,17 +513,13 @@ class TourismMultiAgent(MultiAgentOrchestrator):
     #  Sync pipeline (legacy wrapper — delegates to async)                #
     # ------------------------------------------------------------------ #
 
-    def _execute_pipeline(
-        self, user_input: str, profile_context: Optional[dict] = None
-    ) -> tuple[dict[str, str], dict]:
+    def _execute_pipeline(self, user_input: str, profile_context: Optional[dict] = None) -> tuple[dict[str, str], dict]:
         """Execute the tourism tool pipeline synchronously (legacy).
 
         Delegates to the async-native pipeline via asyncio.run().
         Safe to call from threads without an active event loop.
         """
-        return asyncio.run(
-            self._execute_pipeline_async(user_input, profile_context=profile_context)
-        )
+        return asyncio.run(self._execute_pipeline_async(user_input, profile_context=profile_context))
 
     # ------------------------------------------------------------------ #
     #  Prompt building and structured data extraction                     #
@@ -468,9 +538,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
             profile_context=profile_context,
         )
 
-    def _extract_structured_data(
-        self, llm_text: str, metadata: dict
-    ) -> tuple[str, dict]:
+    def _extract_structured_data(self, llm_text: str, metadata: dict) -> tuple[str, dict]:
         """Extract JSON tourism_data block from LLM response and merge into metadata."""
         match = re.search(r"```json\s*(\{.*?\})\s*```", llm_text, re.DOTALL)
         if not match:
@@ -503,9 +571,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
             )
             if is_default:
                 metadata["tourism_data"] = llm_tourism_data
-                logger.info(
-                    "Replaced default tool tourism_data with LLM-generated data"
-                )
+                logger.info("Replaced default tool tourism_data with LLM-generated data")
             else:
                 logger.info("Keeping tool-derived tourism_data (specific venue data)")
 

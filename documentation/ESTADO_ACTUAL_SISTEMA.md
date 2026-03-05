@@ -1,7 +1,7 @@
 # Estado Actual del Sistema: Profile-Driven Tourism Recommendations
 
-**Fecha:** 2 de Marzo de 2026  
-**Versión:** 1.2  
+**Fecha:** 5 de Marzo de 2026
+**Versión:** 2.0 (Post Fase 0 + Fase 1)
 **Objetivo:** Documentar claramente qué funciona y qué NO funciona en el sistema actual
 
 ---
@@ -13,12 +13,15 @@
 | **UI Selector de Perfiles** | ✅ Implementado | ✅ **SÍ** funciona | Usuario puede seleccionar profile_id desde UI |
 | **Backend recibe Profile** | ✅ Implementado | ✅ **SÍ** funciona | `backend_adapter.py` recibe y resuelve profile_context |
 | **ProfileService** | ✅ Implementado | ✅ **SÍ** funciona | Carga profiles.json correctamente |
-| **Profile → Tools** | ❌ NO implementado | ❌ **NO** funciona | Tools NO reciben ni usan profile_context |
-| **Tools con datos reales** | ❌ Son STUBS | ❌ **NO** funciona | Mock data hardcodeado, solo Madrid |
+| **Profile → Tools** | ⚠️ Parcial | ⚠️ **PARCIAL** | `ToolPipelineContext` transporta `profile_context`; `DirectionsTool` usa wheelchair needs |
+| **Tools con datos reales** | ✅ API-First | ✅ **SÍ** funciona | Google Places, Google Routes, OpenRouteService, Overpass/OSM con fallback a mock |
 | **Profile → Ranking** | ❌ NO implementado | ❌ **NO** funciona | No hay ranking real de venues |
 | **Profile → LLM texto** | ⚠️ Parcial | ⚠️ **PARCIAL** | Solo afecta tono, no contenido estructurado |
 | **NLU Tool** | ✅ Provider-based | ✅ **SÍ** funciona | OpenAI (`gpt-4o-mini`) con fallback keyword y trazabilidad en metadata |
 | **JSON extraction** | ✅ Normalizada en adapter | ✅ **SÍ** funciona | Contrato estable en `metadata.tool_outputs` para NLU/NER |
+| **Contratos tipados** | ✅ Implementado | ✅ **SÍ** funciona | `ToolPipelineContext` con 6 modelos Pydantic (Fase 0) |
+| **Pipeline async-native** | ✅ Implementado | ✅ **SÍ** funciona | `await asyncio.gather()` directo, sin `asyncio.run()` anidado |
+| **Resiliencia APIs** | ✅ Implementado | ✅ **SÍ** funciona | Circuit breaker + rate limiter + budget tracker |
 
 ---
 
@@ -61,92 +64,83 @@
 
 ---
 
-## 2. Tools (Herramientas): ⚠️ MIX (NLU/NER funcionales + dominio parcialmente stub)
+## 2. Tools (Herramientas): ✅ Foundation + Domain tools operativas
 
-### Estado real de tools en Marzo 2026
+### Estado real de tools en Marzo 2026 (Post Fase 0 + Fase 1)
 
-#### 2.1 Estado Actual de las Tools
+#### 2.1 Foundation Tools (Producción)
+
+| Tool | Estado | Proveedor |
+|------|--------|-----------|
+| **NLU Tool** | ✅ Robusto | OpenAI (`gpt-4o-mini`) + keyword fallback + shadow mode |
+| **LocationNER** | ✅ Robusto | spaCy `es_core_news_md` con contrato estable |
+
+#### 2.2 Domain Tools — Fase 1 (Nuevas, API-First)
+
+| Tool | Proveedor | Fallback | Interface ABC |
+|------|-----------|----------|---------------|
+| **PlacesSearchTool** | Google Places API (New) v1 | `LocalPlacesService` (VENUE_DB) | `PlacesServiceInterface` |
+| **DirectionsTool** | Google Routes v2 + OpenRouteService | `LocalDirectionsService` (ROUTE_DB) | `DirectionsServiceInterface` |
+| **AccessibilityEnrichmentTool** | Overpass/OSM | `LocalAccessibilityService` (ACCESSIBILITY_DB) | `AccessibilityServiceInterface` |
+
+Selección de proveedor via `.env`: `VOICEFLOW_PLACES_PROVIDER=local|google`, etc.
+Con `local` (default), el comportamiento es idéntico al anterior (datos mock).
+
+#### 2.3 Domain Tools — Legacy (Backward compat)
+
+| Tool | Estado | Nota |
+|------|--------|------|
+| **AccessibilityAnalysisTool** | ⚠️ Legacy | Se usa solo si no se inyecta `accessibility_service` |
+| **RoutePlanningTool** | ⚠️ Legacy | Se usa solo si no se inyecta `directions_service` |
+| **TourismInfoTool** | ⚠️ Legacy | Se usa solo si no se inyecta `places_service` |
+
+#### 2.4 Pipeline tipado (Fase 0)
+
+Todas las tools operan sobre `ToolPipelineContext` — un acumulador Pydantic que fluye por el pipeline:
 
 ```python
-# business/domains/tourism/data/nlu_patterns.py
-DESTINATION_PATTERNS = {
-    "Museo del Prado": ["prado", "museo del prado"],
-    "Museo Reina Sofía": ["reina sofía", "reina sofia"],
-    "Museo Thyssen": ["thyssen"],
-    # ... SOLO 10 VENUES HARDCODEADOS
-}
+class ToolPipelineContext(BaseModel):
+    user_input: str
+    language: str = "es"
+    profile_context: Optional[dict] = None
+    nlu_result: Optional[NLUResult] = None
+    resolved_entities: Optional[ResolvedEntities] = None
+    place: Optional[PlaceCandidate] = None
+    accessibility: Optional[AccessibilityInfo] = None
+    routes: list[RouteOption] = []
+    venue_detail: Optional[VenueDetail] = None
+    raw_tool_results: dict[str, str] = {}
+    errors: list[ToolError] = []
 ```
 
-```python
-# business/domains/tourism/data/venue_data.py
-VENUE_DB = {
-    "Museo del Prado": {...},
-    "Museo Reina Sofía": {...},
-    "Espacios musicales Madrid": {...},
-    "General Madrid": {...}
-    # SOLO 4 VENUES CON MOCK DATA
-}
-```
-
-#### 2.2 ¿Qué NO funciona?
-
-| Tool | Problema | Impacto |
-|------|----------|---------|
-| **NLU Tool** | Proveedor configurable (OpenAI/keyword) + fallback graceful | Intent + entidades de negocio con confianza y alternativas |
-| **Accessibility Tool** | Lookup en `ACCESSIBILITY_DB` (4 venues) | Devuelve mock data genérico |
-| **Route Tool** | Lookup en `ROUTE_DB` (rutas predefinidas) | No escala a otras ciudades |
-| **Tourism Info Tool** | Lookup en `VENUE_DB` (4 venues) | Horarios/precios son FAKE |
-
-#### 2.3 Ejemplo: Query sobre Granada
+#### 2.5 Ejemplo: Query sobre Granada (con APIs reales configuradas)
 
 ```bash
 # Query: "Recomiéndame la Alhambra en Granada"
+# Con VOICEFLOW_PLACES_PROVIDER=google y Google API key configurada:
 
-# NLU Tool detecta: "general" (no reconoce Alhambra)
-# Accessibility Tool devuelve: ACCESSIBILITY_DB["general"] (mock data)
-# Route Tool devuelve: ROUTE_DB["Madrid centro"] (INCORRECTO!)
-# Tourism Info Tool devuelve: VENUE_DB["General Madrid"] (IRRELEVANTE)
+# NLU Tool: intent=venue_search, destination=Alhambra
+# LocationNER: extracts "Alhambra", "Granada"
+# PlacesSearchTool: Google Places busca "Alhambra Granada" → place_id, coords, rating, wheelchair fields
+# AccessibilityEnrichmentTool: Overpass OSM wheelchair tags near coords
+# DirectionsTool: Google Routes/ORS calcula rutas reales
 
-# Resultado: Tools NO aportan nada útil
-# El LLM usa su conocimiento pre-entrenado para responder
+# Resultado: Tools APORTAN datos reales + tourism_data poblado
 ```
 
-#### 2.4 Diagrama del Problema
+```bash
+# Con VOICEFLOW_PLACES_PROVIDER=local (default, sin API keys):
 
-```
-┌──────────────────────────────────────────────────────────┐
-│ USER: "Recomiéndame la Alhambra en Granada"             │
-└────────────────────┬─────────────────────────────────────┘
-                     │
-        ┌────────────▼──────────────────┐
-        │ Tools (POC: mix real + stub)   │
-        │ - NLU: heurístico/mock         │  ← Limitado por patterns
-        │ - LocationNER: spaCy (real)    │  ← Extrae LOC/GPE/FAC
-        │ - Accessibility: mock generic  │  ← Datos fake
-        │ - Routes: Madrid centro        │  ← INCORRECTO
-        │ - Info: "General Madrid"       │  ← IRRELEVANTE
-        └────────────┬──────────────────┘
-                     │ (Datos ignorados)
-                     ▼
-        ┌────────────────────────────────┐
-        │ LLM (GPT-4)                    │
-        │ - Lee el prompt con tools      │
-        │ - IGNORA tools (datos irrelevantes) │
-        │ - Usa conocimiento pre-entrenado │  ← Alhambra Granada
-        └────────────┬───────────────────┘
-                     │
-                     ▼
-        ┌────────────────────────────────┐
-        │ Respuesta: Info sobre Alhambra │  ← Funciona
-        │ (pero SIN datos estructurados) │  ← tourism_data = null
-        └────────────────────────────────┘
+# PlacesSearchTool: fallback a LocalPlacesService → busca en VENUE_DB
+# Comportamiento idéntico al anterior (mock data)
+# El LLM sigue usando su conocimiento pre-entrenado como fallback
 ```
 
-**Conclusión:** 
-- ✅ El LLM puede responder sobre cualquier ciudad (usa su conocimiento)
-- ⚠️ Las tools de dominio (excepto NER) siguen siendo mayoritariamente stub
-- ✅ `LocationNER` sí aporta señal estructurada consumible en pipeline
-- ❌ NO hay datos estructurados fiables (tourism_data a menudo null)
+**Conclusión:**
+- ✅ Con API keys configuradas: datos estructurados reales de cualquier ciudad
+- ✅ Sin API keys (default): fallback automático a mock data, sin errores
+- ✅ `LocationNER` aporta señal estructurada consumible en pipeline
+- ✅ Pipeline tipado (`ToolPipelineContext`) garantiza contratos entre tools
 
 ### Estado específico de NLU/NER (Commit NLU-5)
 
@@ -162,26 +156,30 @@ VENUE_DB = {
 
 ---
 
-## 3. Profile Context: ⚠️ SOLO AFECTA TEXTO, NO DATOS
+## 3. Profile Context: ⚠️ PARCIAL — afecta texto + wheelchair routing, no ranking
 
-### ¿Qué NO funciona?
+### ¿Qué funciona ahora?
 
-#### 3.1 Profile NO afecta las tools
+#### 3.1 Profile transportado en pipeline tipado
 
 ```python
-# En agent.py (línea ~54)
-def _execute_pipeline(self, user_input: str):
-    # PROBLEMA: NO pasa profile_context a las tools
-    nlu_result = self.nlu._run(user_input)
-    accessibility_result = self.accessibility._run(nlu_result)
-    route_result = self.route._run(accessibility_result)
-    info_result = self.tourism_info._run(route_result)
+# En agent.py — pipeline async
+ctx = ToolPipelineContext(
+    user_input=user_input,
+    profile_context=profile_context,  # ← AHORA transportado
+    ...
+)
+ctx = await self._places_tool.execute(ctx)        # puede leer ctx.profile_context
+ctx = await self._accessibility_enrichment_tool.execute(ctx)
+ctx = await self._directions_tool.execute(ctx)     # usa wheelchair needs del perfil
 ```
 
-**Resultado:**
-- Las tools devuelven SIEMPRE los mismos datos (mock data genérico)
-- El profile_id NO afecta qué venues se recomiendan
-- NO hay ranking ni filtering por perfil
+**Mejoras respecto a v1.2:**
+- `ToolPipelineContext` transporta `profile_context` a todas las tools
+- `DirectionsTool` detecta `wheelchair` en `profile_context.accessibility_needs` y solicita routing wheelchair
+- Los demás tools aún no filtran por perfil
+
+### ¿Qué NO funciona?
 
 #### 3.2 Profile SÍ afecta el prompt (texto)
 
@@ -242,94 +240,117 @@ metadata.tool_outputs = {
 
 ### ✅ Lo que SÍ funciona
 
-1. **Conversación básica**: El LLM responde coherentemente (usa su conocimiento)
+1. **Conversación básica**: El LLM responde coherentemente
 2. **Infraestructura técnica**: FastAPI, Docker, STT, todo funcional
 3. **Flujo de datos**: UI → Backend → Agent → LLM → Response funciona
-4. **Profiles (estructural)**: La infraestructura está lista, solo falta conexión con tools
+4. **Profiles (estructural)**: Infraestructura lista, `profile_context` transportado en pipeline
+5. **Tools con datos reales**: Google Places, Google Routes, OpenRouteService, Overpass/OSM (con API keys)
+6. **Fallback automático**: Sin API keys → datos mock, sin errores
+7. **Pipeline async-native**: Sin `asyncio.run()` anidado, compatible con streaming/WebSockets
+8. **Contratos tipados**: `ToolPipelineContext` con Pydantic models entre todas las tools
+9. **Resiliencia**: Circuit breaker + rate limiter + budget tracker para APIs externas
+10. **128 tests pasan** incluyendo 42 nuevos para Fase 0 + Fase 1
 
 ### ❌ Lo que NO funciona
 
-1. **Profile-driven recommendations**: El perfil NO afecta qué se recomienda
-2. **Tools útiles**: Son stubs que NO aportan datos reales
-3. **Escalabilidad**: Solo funciona para <10 venues de Madrid hardcodeados
-4. **Datos estructurados de dominio**: `tourism_data` puede seguir null por dependencia en tools stub
+1. **Profile-driven ranking**: El perfil NO afecta qué venues se seleccionan/priorizan
+2. **Routing por intent**: Todas las tools se ejecutan siempre
+3. **Seguridad**: Sin autenticación, sin rate limiting público, sin HTTPS
+4. **Escalabilidad real**: Con `local` provider, sigue limitado a mock data de Madrid
 
 ---
 
 ## 6. Roadmap: ¿Qué hace falta?
 
-### Prioridad 1: Fase 0 - Tools con APIs Reales ⚠️
-**SIN ESTO, NADA MÁS TIENE SENTIDO**
+### ~~Prioridad 1: Fase 0 — Contratos y Plumbing~~ ✅ COMPLETADA
+- [x] `ToolPipelineContext` con 6 modelos Pydantic
+- [x] Pipeline async-native (`await` directo, sin `asyncio.run()` anidado)
+- [x] LLM settings en Settings
+- [x] 12 tests
 
-- [ ] Integrar Google Maps API (Places + Directions)
-- [ ] Integrar spaCy para NER real (no regex)
-- [ ] Integrar API de turismo (TripAdvisor/Yelp)
-- [ ] Tests: Validar que funciona para Granada, Sevilla, Barcelona
+### ~~Prioridad 1b: Fase 1 — Tools Reales (API-First)~~ ✅ COMPLETADA
+- [x] Integrar Google Places API (New) v1
+- [x] Integrar Google Routes API v2 + OpenRouteService
+- [x] Integrar Overpass/OSM para accesibilidad
+- [x] 3 ABCs + factories con fallback automático a datos mock
+- [x] Capa de resiliencia (circuit breaker, rate limiter, budget tracker)
+- [x] 42 tests nuevos (128 total)
 
-**Estimación:** 5-7 días  
-**Archivos:** `business/domains/tourism/tools/*.py`, `integration/external_apis/`
+### Prioridad 2: Fase 2 — Seguridad + Routing por Intent
+- [ ] Implementar autenticación (JWT o API keys)
+- [ ] Routing por intent (ejecutar solo tools relevantes según NLU)
+- [ ] Rate limiting público
+- [ ] HTTPS
 
-### Prioridad 2: Profile → Tools → Ranking
-- [ ] Modificar tools para recibir `profile_context`
-- [ ] Implementar ranking/filtering por perfil
+### Prioridad 3: Profile → Ranking
+- [ ] Implementar `ProfileRankingTool` para filtrado por perfil
+- [ ] Modificar `PlacesSearchTool` para aplicar ranking_bias del perfil
 - [ ] Validar que perfil afecta venues seleccionados
 
-**Estimación:** 2-3 días  
-**Depende de:** Fase 0 completada
+**Depende de:** Fase 2 para seguridad base
 
-### Prioridad 3: Consolidar contrato de payloads
+### Prioridad 4: Consolidar contrato de payloads
 - [x] Exponer `metadata.tool_outputs.nlu`
 - [x] Mantener `metadata.tool_results_parsed` para trazabilidad interna
-- [ ] Extender contrato estable a nuevos payloads de tools de dominio cuando dejen de ser stub
-
-**Estimación pendiente:** 1-2 días para ampliar contrato cuando se integren APIs reales  
-**Depende de:** Fase 0 completada
+- [x] Contrato estable en `metadata.tool_outputs` para NLU/NER
+- [ ] Extender contrato estable a payloads de tools de dominio (Places, Directions, Accessibility)
 
 ---
 
 ## 7. Decisiones Pendientes
 
-### Decisión 1: ¿Qué estrategia para tools?
+### ~~Decisión 1: ¿Qué estrategia para tools?~~ ✅ RESUELTA
+**Elegida: Opción A (APIs Externas)** — implementado en Fase 1 con Google Places, Google Routes, OpenRouteService, Overpass/OSM. Fallback automático a datos mock (local) cuando no hay API keys.
 
-| Opción | Pros | Contras | Coste |
-|--------|------|---------|-------|
-| **A: APIs Externas** | Datos reales, actualizados | Coste por uso, rate limits | $$$ medio |
-| **B: RAG (DB local)** | Sin coste APIs, privacidad | Mantenimiento manual | $ bajo |
-| **C: Búsqueda web** | Coverage total | Precisión variable | $$ medio |
+### ~~Decisión 2: ¿Cuándo implementar Fase 0?~~ ✅ RESUELTA
+**Elegida: Opción A (Ahora)** — Fases 0 y 1 completadas.
 
-**Recomendación:** Empezar con **A (APIs)** para PoC, migrar a **B (RAG)** para producción.
+### Decisión 3: ¿Estrategia de seguridad?
 
-### Decisión 2: ¿Cuándo implementar Fase 0?
+| Opción | Pros | Contras |
+|--------|------|---------|
+| **A: JWT tokens** | Estándar, stateless | Más complejo de implementar |
+| **B: API keys** | Simple, rápido | Menos granular |
 
-- **Opción A:** Ahora (prerequisito para que profiles funcione)
-- **Opción B:** Después (primero ampliar cobertura de APIs externas)
+**Recomendación:** **B (API keys)** para PoC, migrar a **A (JWT)** si se necesita multi-tenant.
 
-**Recomendación:** **Opción A** - Sin tools reales, el resto del plan no tiene sentido.
+### Decisión 4: ¿Routing por intent o fan-out?
+
+| Opción | Pros | Contras |
+|--------|------|---------|
+| **A: Routing selectivo** | Menor latencia, menos coste API | Requiere mapeo intent→tools |
+| **B: Fan-out completo** | Más datos disponibles para LLM | Mayor latencia y coste |
+
+**Recomendación:** **A (Routing selectivo)** — mapear intents de NLU a subconjuntos de tools.
 
 ---
 
 ## 8. Conclusiones
 
-### Estado del Sistema: "Prototipo Arquitectónico Funcional"
+### Estado del Sistema: "PoC Funcional con Stack API-First"
 
-El sistema actual es un **prototipo arquitectónico** que demuestra:
-- ✅ La estructura en capas funciona
-- ✅ La integración LangChain + OpenAI funciona
-- ✅ El flujo de perfiles está implementado (infraestructura)
+El sistema ha evolucionado de prototipo arquitectónico a **PoC funcional**:
+- ✅ Arquitectura en 4 capas sólida y bien separada
+- ✅ Integración LangChain + OpenAI funciona
+- ✅ Flujo de perfiles implementado (infraestructura + wheelchair routing)
+- ✅ Tools con datos reales: Google Places, Google Routes, OpenRouteService, Overpass/OSM
+- ✅ Fallback automático a datos mock sin errores
+- ✅ Pipeline async-native con contratos tipados (Pydantic)
+- ✅ Capa de resiliencia: circuit breaker + rate limiter + budget tracker
+- ✅ 128 tests pasan
 
-**PERO:**
-- ⚠️ Accessibility/Route/TourismInfo siguen como stubs (mock data)
-- ❌ El perfil NO afecta realmente las recomendaciones
-- ❌ NO escala a otras ciudades sin hardcodear datos
+**Pendiente:**
+- ⚠️ El perfil NO afecta ranking/filtrado de venues (solo tono + wheelchair routing)
+- ⚠️ Orquestación secuencial fija (sin routing por intent)
+- ❌ Sin autenticación ni rate limiting público (B4)
 
 ### Siguiente Paso Crítico
 
-**Implementar Fase 0: Integración con APIs reales**
+**Fase 2: Seguridad + Routing por Intent**
 
-Sin esto, el sistema es "humo y espejos" - parece funcional pero no lo es.
+La base técnica está lista. El siguiente salto debe centrarse en seguridad (B4) y routing inteligente por intent para reducir latencia y coste.
 
 ---
 
-**Autor:** GitHub Copilot (GPT-5.3-Codex)  
-**Revisado:** [Tu nombre]  
-**Última actualización:** 2 Mar 2026
+**Autor:** GitHub Copilot (GPT-5.3-Codex) + Claude Opus 4.6
+**Última actualización:** 5 Mar 2026
