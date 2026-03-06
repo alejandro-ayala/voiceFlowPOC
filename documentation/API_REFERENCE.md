@@ -1,6 +1,6 @@
 # API Reference - VoiceFlow Tourism PoC
 
-**Actualizado**: 23 de Febrero de 2026
+**Actualizado**: 2 de Marzo de 2026
 **Base URL**: `http://localhost:8000/api/v1`
 
 ---
@@ -213,6 +213,21 @@ Envia un mensaje y obtiene respuesta del asistente de turismo.
     "session_type": "production",
     "language": "es-ES",
     "tool_outputs": {
+      "nlu": {
+        "status": "ok",
+        "intent": "route_planning",
+        "confidence": 0.87,
+        "entities": {
+          "destination": "Museo del Prado",
+          "accessibility": "wheelchair",
+          "language": "es"
+        },
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "analysis_version": "nlu_v3.0",
+        "latency_ms": 125,
+        "alternatives": []
+      },
       "location_ner": {
         "status": "ok",
         "locations": ["Museo del Prado", "Madrid"],
@@ -226,11 +241,11 @@ Envia un mensaje y obtiene respuesta del asistente de turismo.
 }
 ```
 
-**Notas de trazabilidad NER (Commit 4):**
+**Notas de trazabilidad NLU/NER (Commit NLU-5):**
 - `pipeline_steps` mantiene un resumen de ejecución (`summary`) para visualización.
-- El output consumible por agentes/API se expone en `metadata.tool_outputs.location_ner`.
+- El output consumible y estable para NER/NLU se expone en `metadata.tool_outputs.location_ner` y `metadata.tool_outputs.nlu`.
 - Para compatibilidad con UI, también puede aparecer en `entities.location_ner`.
-- En ejecuciones reales el pipeline incluye `LocationNER` entre `NLU` y `Accessibility`.
+- En ejecuciones reales el pipeline ejecuta `NLU` y `LocationNER` en paralelo antes de `Accessibility`.
 
 #### `GET /api/v1/chat/conversation/{conversation_id}`
 Obtiene historial de una conversacion.
@@ -398,4 +413,34 @@ async def transcribe(
 |------------|---------|----------------|
 | `get_audio_processor()` | `AudioProcessorInterface` | `AudioService` |
 | `get_backend_adapter()` | `BackendInterface` | `LocalBackendAdapter` |
+| `get_nlu_service()` | `NLUServiceInterface \| None` | `OpenAINLUService` / `KeywordNLUService` |
 | `get_conversation_service()` | `ConversationInterface` | `ConversationService` |
+
+### NLU runtime (Commit NLU-4)
+
+`get_backend_adapter()` inyecta proveedor NLU en `LocalBackendAdapter` para que el pipeline de negocio reciba el servicio desde DI.
+
+**Modos de Operación:**
+
+1. **Producción Normal** (sin shadow mode):
+   ```
+   VOICEFLOW_NLU_ENABLED=true
+   VOICEFLOW_NLU_PROVIDER=openai          ← Principal (puede ser openai, keyword, etc.)
+   VOICEFLOW_NLU_SHADOW_MODE=false
+   ```
+
+2. **Shadow Mode** (comparación asíncrona, sin afectar latencia):
+   ```
+   VOICEFLOW_NLU_ENABLED=true
+   VOICEFLOW_NLU_PROVIDER=openai          ← Principal (respuesta al usuario)
+   VOICEFLOW_NLU_SHADOW_MODE=true
+   VOICEFLOW_NLU_SHADOW_PROVIDER=keyword  ← Sombra (solo logs, async, no bloquea)
+   ```
+
+**Comportamiento:**
+- Sin shadow mode: respuesta usa `nlu_provider` directamente
+- Con shadow mode: respuesta usa `nlu_provider`; en paralelo, compara con `nlu_shadow_provider` y registra `nlu_shadow_comparison` en logs (sin afectar respuesta)
+- Shadow mode compatible con cualquier combinación de proveedores (ej: `openai` vs `keyword`, `ml_custom` vs `openai`, etc.)
+- La respuesta expone salida NLU normalizada en `metadata.tool_outputs.nlu` (contrato estable para consumidores) y mantiene `metadata.tool_results_parsed.nlu` para trazabilidad interna.
+
+En shadow mode, el sistema registra eventos `nlu_shadow_comparison` con `old_provider`, `old_intent`, `new_provider`, `new_intent`, `confidence` y `agreement`.

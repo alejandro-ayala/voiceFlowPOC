@@ -4,6 +4,10 @@
 **Estado actual**: Arquitectura 4 capas + Docker + Secrets + Business Layer descompuesto | Testing pendiente
 **Versión actual del proyecto**: 1.1.0
 
+> ⚠️ **Documento de planificación (histórico por fases).**
+> Algunas secciones incluyen snapshots de implementación previos.
+> Para estado operativo vigente y contrato API usar: `documentation/ESTADO_ACTUAL_SISTEMA.md` y `documentation/API_REFERENCE.md`.
+
 ---
 
 ## Visión general

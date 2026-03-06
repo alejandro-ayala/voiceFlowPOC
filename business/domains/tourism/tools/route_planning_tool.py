@@ -18,7 +18,10 @@ class RoutePlanningTool(BaseTool):
 
     def _run(self, accessibility_info: str) -> str:
         """Plan accessible routes based on accessibility requirements."""
-        logger.info("Route Planning Tool: Generating routes", accessibility_input=accessibility_info)
+        logger.info(
+            "Route Planning Tool: Generating routes",
+            accessibility_input=accessibility_info,
+        )
 
         destination = self._extract_destination(accessibility_info)
         route_data = ROUTE_DB.get(destination, DEFAULT_ROUTE)

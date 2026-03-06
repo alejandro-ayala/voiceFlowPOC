@@ -1,8 +1,8 @@
 # 📋 INFORME ARQUITECTÓNICO - VoiceFlow PoC
 ## Sistema de Turismo Accesible con IA
 
-**Fecha**: 9 de Febrero de 2026
-**Versión**: 4.0
+**Fecha**: 2 de Marzo de 2026
+**Versión**: 4.3
 **Proyecto**: VoiceFlow PoC - Sistema de Turismo Accesible con IA
 **Estado**: **ARQUITECTURA EN 4 CAPAS + INFRAESTRUCTURA DOCKER COMPLETA**
 
@@ -16,7 +16,7 @@
 ### Características Técnicas Actuales
 - ✅ **Arquitectura en Capas**: 4 capas con separación clara de responsabilidades (Presentation, Application, Business, Integration)
 - ✅ **Stack Web Moderno**: FastAPI + HTML5/CSS3/JavaScript con Web Audio API
-- ✅ **Integraciones Reales**: Azure Speech Services + OpenAI GPT-4 completamente funcionales
+- ✅ **Integraciones Reales**: Azure Speech Services + NLU OpenAI + LLM GPT-4 funcionales
 - ✅ **Multi-Agent System**: LangChain ejecutando herramientas especializadas en turismo accesible
 - ✅ **API REST Completa**: Endpoints documentados para transcripción, chat y monitoreo
 - ✅ **Persistencia en Sesión**: Gestión de conversaciones durante la sesión activa
@@ -140,7 +140,7 @@ Componentes:
 │   └── AgentResponse           (dataclass de respuesta)
 ├── domains/tourism/         # Dominio especifico
 │   ├── TourismMultiAgent       (orquestador turismo)
-│   ├── 4 LangChain tools       (NLU, Accessibility, Route, Tourism)
+│   ├── 5 LangChain tools       (NLU, LocationNER, Accessibility, Route, Tourism)
 │   ├── data/                   (datos estaticos Madrid)
 │   └── prompts/                (system + response prompts)
 └── ai_agents/               # Backward compatibility facade
@@ -196,7 +196,7 @@ VoiceFlowPOC/
 │   ├── domains/
 │   │   └── tourism/        # Dominio: turismo accesible Madrid
 │   │       ├── agent.py       # TourismMultiAgent(MultiAgentOrchestrator)
-│   │       ├── tools/         # 4 LangChain tools separadas
+│   │       ├── tools/         # 5 LangChain tools separadas
 │   │       ├── data/          # Datos estaticos Madrid
 │   │       └── prompts/       # System + response prompts
 │   ├── ai_agents/          # Backward compatibility (facade re-export)
@@ -389,7 +389,7 @@ graph TD
     }
 }
 
-# Process: /application/orchestration/backend_adapter.py → pipeline de tools (NLU→LocationNER→Accessibility→Routes→VenueInfo) → OpenAI GPT-4
+# Process: /application/orchestration/backend_adapter.py → pipeline de tools (NLU+LocationNER paralelo → Accessibility→Routes→VenueInfo) → OpenAI GPT-4
 # Output: Respuesta del asistente turístico
 {
     "status": "success", 
@@ -411,6 +411,18 @@ graph TD
     },
     "metadata": {
       "tool_outputs": {
+        "nlu": {
+          "status": "ok",
+          "intent": "route_planning",
+          "confidence": 0.87,
+          "entities": {
+            "destination": "Museo del Prado",
+            "accessibility": "wheelchair",
+            "language": "es"
+          },
+          "provider": "openai",
+          "model": "gpt-4o-mini"
+        },
         "location_ner": {
           "status": "ok",
           "locations": ["Museo del Prado", "Madrid"],

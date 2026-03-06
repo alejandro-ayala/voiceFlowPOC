@@ -4,9 +4,10 @@ Supports local and Azure deployment with environment-based configuration.
 """
 
 import json
+import os
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -67,6 +68,24 @@ class Settings(BaseSettings):
     ner_fallback_model: str = Field(default="es_core_news_sm", description="Fallback NER model")
     ner_confidence_threshold: float = Field(default=0.6, description="Minimum NER confidence threshold")
 
+    # NLU settings
+    nlu_enabled: bool = Field(default=True, description="Enable NLU service")
+    nlu_provider: str = Field(default="openai", description="NLU provider: openai, keyword, or custom")
+    nlu_default_language: str = Field(default="es", description="Default NLU language")
+    nlu_openai_model: str = Field(default="gpt-4o-mini", description="OpenAI model for NLU classification")
+    nlu_confidence_threshold: float = Field(default=0.40, description="Min confidence for non-fallback")
+    nlu_fallback_intent: str = Field(default="general_query", description="Intent when below threshold")
+    nlu_shadow_mode: bool = Field(
+        default=False,
+        description="Enable shadow comparison: run primary + shadow provider in parallel,"
+        " logging results without affecting response",
+    )
+    nlu_shadow_provider: str = Field(
+        default="keyword",
+        description="Shadow comparison provider (used only when nlu_shadow_mode=true)."
+        " Can be different from nlu_provider",
+    )
+
     # Azure deployment settings (future)
     azure_webapp_name: Optional[str] = Field(default=None, description="Azure Web App name")
     azure_resource_group: Optional[str] = Field(default=None, description="Azure Resource Group")
@@ -91,6 +110,26 @@ class Settings(BaseSettings):
         env_prefix="VOICEFLOW_",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def resolve_openai_api_key(self) -> "Settings":
+        """Resolve OpenAI key from a single canonical env var when not explicitly set.
+
+        Source of truth (preferred): OPENAI_API_KEY
+        Backward compatibility: VOICEFLOW_OPENAI_API_KEY
+
+        Explicit constructor values (including None) are respected.
+        """
+        if self.openai_api_key:
+            return self
+
+        if "openai_api_key" in self.model_fields_set:
+            return self
+
+        canonical_key = os.getenv("OPENAI_API_KEY")
+        legacy_key = os.getenv("VOICEFLOW_OPENAI_API_KEY")
+        self.openai_api_key = canonical_key or legacy_key
+        return self
 
 
 # Global settings instance

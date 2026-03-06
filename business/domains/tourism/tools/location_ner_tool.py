@@ -37,7 +37,11 @@ class LocationNERTool(BaseTool):
         Returns:
             JSON string with extracted locations, top_location, provider info, and status
         """
-        logger.info("LocationNERTool: Processing user input", input=user_input, language=language)
+        logger.info(
+            "LocationNERTool: Processing user input",
+            input=user_input,
+            language=language,
+        )
         start = time.perf_counter()
 
         try:
@@ -85,7 +89,11 @@ class LocationNERTool(BaseTool):
             return json.dumps(response, indent=2, ensure_ascii=False)
 
         except Exception as e:
-            logger.error("LocationNERTool: Error during NER extraction", error=str(e), exc_info=True)
+            logger.error(
+                "LocationNERTool: Error during NER extraction",
+                error=str(e),
+                exc_info=True,
+            )
             return json.dumps(
                 {
                     "locations": [],
@@ -101,7 +109,11 @@ class LocationNERTool(BaseTool):
 
     async def _arun(self, user_input: str, language: str = "es") -> str:
         """Async version of location NER extraction."""
-        logger.info("LocationNERTool: Async processing user input", input=user_input, language=language)
+        logger.info(
+            "LocationNERTool: Async processing user input",
+            input=user_input,
+            language=language,
+        )
         start = time.perf_counter()
 
         try:
@@ -149,7 +161,11 @@ class LocationNERTool(BaseTool):
             return json.dumps(response, indent=2, ensure_ascii=False)
 
         except Exception as e:
-            logger.error("LocationNERTool: Error during async NER extraction", error=str(e), exc_info=True)
+            logger.error(
+                "LocationNERTool: Error during async NER extraction",
+                error=str(e),
+                exc_info=True,
+            )
             return json.dumps(
                 {
                     "locations": [],
