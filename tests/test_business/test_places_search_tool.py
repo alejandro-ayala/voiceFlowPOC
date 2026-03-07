@@ -1,10 +1,12 @@
 """Tests for PlacesSearchTool with mocked service."""
 
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from business.domains.tourism.tools.places_search_tool import PlacesSearchTool
+from shared.models.nlu_models import NLUEntitySet, NLUResult
 from shared.models.tool_models import PlaceCandidate, ToolPipelineContext, VenueDetail
 
 
@@ -72,3 +74,76 @@ class TestPlacesSearchTool:
 
         assert result.place.name == "Test Place"
         mock_service.place_details.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_execute_uses_intent_policy_for_restaurant(self):
+        mock_service = MagicMock()
+        mock_service.text_search = AsyncMock(return_value=[PlaceCandidate(name="Casa Pepe", place_type="restaurant")])
+        mock_service.place_details = AsyncMock()
+        mock_service.get_service_info = MagicMock(return_value={"provider": "google_places"})
+
+        tool = PlacesSearchTool(mock_service)
+        ctx = ToolPipelineContext(
+            user_input="restaurantes en almería",
+            nlu_result=NLUResult(
+                intent="restaurant_search",
+                entities=NLUEntitySet(destination="Almería"),
+            ),
+            place=PlaceCandidate(name="Almería", destination="Almería"),
+        )
+
+        await tool.execute(ctx)
+
+        call_kwargs = mock_service.text_search.await_args.kwargs
+        assert call_kwargs["type_filter"] == "restaurant"
+        assert call_kwargs["location"] is None
+        assert "restaurante accesible" in call_kwargs["query"].lower()
+
+    @pytest.mark.asyncio
+    async def test_execute_dedupes_query_tokens(self):
+        mock_service = MagicMock()
+        mock_service.text_search = AsyncMock(return_value=[PlaceCandidate(name="Almería", source="local_db")])
+        mock_service.place_details = AsyncMock()
+        mock_service.get_service_info = MagicMock(return_value={"provider": "local_db"})
+
+        tool = PlacesSearchTool(mock_service)
+        ctx = ToolPipelineContext(
+            user_input="Almería Almería restaurantes Almería",
+            nlu_result=NLUResult(
+                intent="restaurant_search",
+                entities=NLUEntitySet(destination="Almería"),
+            ),
+        )
+
+        await tool.execute(ctx)
+
+        call_kwargs = mock_service.text_search.await_args.kwargs
+        assert "almería almería" not in call_kwargs["query"].lower()
+
+    @pytest.mark.asyncio
+    async def test_execute_ranks_candidates_by_intent_type(self):
+        mock_service = MagicMock()
+        mock_service.text_search = AsyncMock(
+            return_value=[
+                PlaceCandidate(name="Museo del Prado", place_type="museum", rating=4.8, source="google_places"),
+                PlaceCandidate(name="Restaurante Sol", place_type="restaurant", rating=4.1, source="google_places"),
+            ]
+        )
+        mock_service.place_details = AsyncMock()
+        mock_service.get_service_info = MagicMock(return_value={"provider": "google_places"})
+
+        tool = PlacesSearchTool(mock_service)
+        ctx = ToolPipelineContext(
+            user_input="restaurantes en madrid",
+            nlu_result=NLUResult(
+                intent="restaurant_search",
+                entities=NLUEntitySet(destination="Madrid"),
+            ),
+        )
+
+        result = await tool.execute(ctx)
+
+        assert result.place is not None
+        assert result.place.name == "Restaurante Sol"
+        venue_info = json.loads(result.raw_tool_results["venue info"])
+        assert venue_info[0]["name"] == "Restaurante Sol"
