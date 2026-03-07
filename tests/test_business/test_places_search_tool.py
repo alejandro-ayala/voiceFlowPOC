@@ -27,6 +27,14 @@ class TestPlacesSearchTool:
             return_value=VenueDetail(
                 name="Museo del Prado",
                 venue_type="museum",
+                accessibility_reviews={
+                    "accessibility_options": {
+                        "wheelchairAccessibleEntrance": True,
+                        "wheelchairAccessibleParking": False,
+                        "wheelchairAccessibleRestroom": True,
+                        "wheelchairAccessibleSeating": True,
+                    }
+                },
                 source="google_places",
             )
         )
@@ -45,6 +53,11 @@ class TestPlacesSearchTool:
         assert result.venue_detail is not None
         assert result.venue_detail.venue_type == "museum"
         assert "venue info" in result.raw_tool_results
+        assert "accessibility_google" in result.raw_tool_results
+
+        google_accessibility = json.loads(result.raw_tool_results["accessibility_google"])
+        assert google_accessibility["source"] == "google_places"
+        assert google_accessibility["normalized"]["wheelchair_accessible_entrance"] is True
 
     @pytest.mark.asyncio
     async def test_execute_records_error_on_failure(self):

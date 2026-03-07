@@ -191,5 +191,5 @@ def canonicalize_tourism_data(raw: Any) -> Optional[Dict[str, Any]]:
         td = TourismData.model_validate(candidate)
         return td.model_dump()
     except Exception as e:
-        logger.warning("Canonicalization failed", error=str(e))
+        logger.warning(f"Canonicalization failed: {repr(e)}")
         return None

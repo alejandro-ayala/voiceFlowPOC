@@ -117,6 +117,16 @@ class PlacesSearchTool:
                     )
                     ctx.venue_detail = detail
 
+                    google_accessibility = self._extract_google_accessibility(
+                        venue_detail=detail,
+                        candidate=selected_candidates[0],
+                    )
+                    if google_accessibility:
+                        ctx.raw_tool_results["accessibility_google"] = json.dumps(
+                            google_accessibility,
+                            ensure_ascii=False,
+                        )
+
                 ctx.raw_tool_results["venue info"] = json.dumps(
                     [c.model_dump() for c in selected_candidates],
                     ensure_ascii=False,
@@ -274,3 +284,42 @@ class PlacesSearchTool:
         normalized = unicodedata.normalize("NFKD", value)
         ascii_text = "".join(ch for ch in normalized if not unicodedata.combining(ch))
         return re.sub(r"\s+", " ", ascii_text).strip().lower()
+
+    @classmethod
+    def _extract_google_accessibility(cls, venue_detail, candidate) -> dict | None:
+        reviews = getattr(venue_detail, "accessibility_reviews", None)
+        if not isinstance(reviews, dict):
+            return None
+
+        options = reviews.get("accessibility_options")
+        if not isinstance(options, dict) or not options:
+            return None
+
+        normalized = {
+            "wheelchair_accessible_entrance": options.get("wheelchairAccessibleEntrance"),
+            "wheelchair_accessible_parking": options.get("wheelchairAccessibleParking"),
+            "wheelchair_accessible_restroom": options.get("wheelchairAccessibleRestroom"),
+            "wheelchair_accessible_seating": options.get("wheelchairAccessibleSeating"),
+        }
+
+        known_flags = [value for value in normalized.values() if isinstance(value, bool)]
+        positives = sum(1 for value in known_flags if value)
+        accessibility_score = round(positives / len(known_flags), 2) if known_flags else 0.0
+        accessibility_level = "unknown"
+        if known_flags:
+            if positives == len(known_flags):
+                accessibility_level = "full"
+            elif positives > 0:
+                accessibility_level = "partial"
+            else:
+                accessibility_level = "limited"
+
+        return {
+            "source": "google_places",
+            "place_id": getattr(candidate, "place_id", None),
+            "place_name": getattr(venue_detail, "name", None),
+            "accessibility_options_raw": options,
+            "normalized": normalized,
+            "accessibility_level": accessibility_level,
+            "accessibility_score": accessibility_score,
+        }

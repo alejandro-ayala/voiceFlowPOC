@@ -415,6 +415,10 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                 )
                 tool_results["venue info"] = ctx.raw_tool_results["venue info"]
                 parsed_tools["venue info"] = venue_parsed
+            if "accessibility_google" in ctx.raw_tool_results:
+                google_acc_parsed, _ = self._parse_and_summarize(ctx.raw_tool_results["accessibility_google"])
+                tool_results["accessibility_google"] = ctx.raw_tool_results["accessibility_google"]
+                parsed_tools["accessibility_google"] = google_acc_parsed
         else:
             venue_start = time.perf_counter()
             ctx = await self.tourism_info.execute(ctx)
@@ -451,6 +455,11 @@ class TourismMultiAgent(MultiAgentOrchestrator):
                 )
                 tool_results["accessibility"] = ctx.raw_tool_results["accessibility"]
                 parsed_tools["accessibility"] = acc_parsed
+            for debug_key in ("accessibility_overpass_raw", "accessibility_comparison"):
+                if debug_key in ctx.raw_tool_results:
+                    debug_parsed, _ = self._parse_and_summarize(ctx.raw_tool_results[debug_key])
+                    tool_results[debug_key] = ctx.raw_tool_results[debug_key]
+                    parsed_tools[debug_key] = debug_parsed
         else:
             acc_start = time.perf_counter()
             ctx = await self.accessibility.execute(ctx)
@@ -550,7 +559,7 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         try:
             raw_data = json.loads(json_block)
         except json.JSONDecodeError as e:
-            logger.warning("LLM returned invalid JSON block", error=str(e))
+            logger.warning(f"LLM returned invalid JSON block: {repr(e)}")
             return clean_text, metadata
 
         llm_tourism_data = canonicalize_tourism_data(raw_data)

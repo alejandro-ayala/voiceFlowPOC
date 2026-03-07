@@ -44,6 +44,13 @@ class LocalAccessibilityService(AccessibilityServiceInterface):
             "venues_count": len(ACCESSIBILITY_DB),
         }
 
+    def get_debug_snapshot(self) -> Optional[dict]:
+        return {
+            "provider": "local_db",
+            "response_raw": None,
+            "note": "No external API call; data resolved from ACCESSIBILITY_DB",
+        }
+
     @staticmethod
     def _find_accessibility(place_name: str) -> dict:
         for key in ACCESSIBILITY_DB:

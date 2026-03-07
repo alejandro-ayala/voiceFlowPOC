@@ -136,7 +136,6 @@ class GooglePlacesService(PlacesServiceInterface):
     def _parse_candidate(place: dict) -> PlaceCandidate:
         loc = place.get("location", {})
         display = place.get("displayName", {})
-        accessibility = place.get("accessibilityOptions", {})
         return PlaceCandidate(
             name=display.get("text", "unknown"),
             place_id=place.get("id"),
@@ -160,6 +159,7 @@ class GooglePlacesService(PlacesServiceInterface):
             name=display.get("text", "unknown"),
             venue_type=venue_type,
             opening_hours=hours,
+            accessibility_reviews={"accessibility_options": accessibility},
             accessibility_services=[k for k, v in accessibility.items() if v is True],
             source="google_places",
         )

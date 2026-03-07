@@ -1,5 +1,6 @@
 """Overpass API (OpenStreetMap) client for accessibility enrichment."""
 
+import time
 from typing import Optional
 
 import httpx
@@ -35,6 +36,7 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
     ):
         self._timeout = settings.tool_timeout_seconds
         self._resilience = resilience
+        self._last_debug_snapshot: Optional[dict] = None
 
     async def enrich_accessibility(
         self,
@@ -43,11 +45,23 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
         location: Optional[str] = None,
         language: str = "es",
     ) -> AccessibilityInfo:
+        started_at = time.perf_counter()
         if self._resilience:
             await self._resilience.pre_request("overpass", "overpass_query")
 
         lat, lng = self._resolve_coordinates(location)
         query = _QUERY_TEMPLATE.format(lat=lat, lng=lng)
+
+        logger.info(
+            "overpass_query_started",
+            place_name=place_name,
+            place_id=place_id,
+            location=location,
+            language=language,
+            lat=lat,
+            lng=lng,
+            timeout_seconds=self._timeout,
+        )
 
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
@@ -58,15 +72,41 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
                 resp.raise_for_status()
                 data = resp.json()
 
+            elements = data.get("elements", []) if isinstance(data, dict) else []
+            duration_ms = int((time.perf_counter() - started_at) * 1000)
+
+            self._last_debug_snapshot = {
+                "provider": "overpass_osm",
+                "place_name": place_name,
+                "place_id": place_id,
+                "location": location,
+                "query": query,
+                "response_raw": data,
+            }
+
             if self._resilience:
                 self._resilience.record_success("overpass")
+
+            logger.info(
+                "overpass_query_completed",
+                place_name=place_name,
+                place_id=place_id,
+                duration_ms=duration_ms,
+                elements_count=len(elements) if isinstance(elements, list) else 0,
+            )
 
             return self._parse_accessibility(data, place_name)
 
         except Exception as exc:
+            duration_ms = int((time.perf_counter() - started_at) * 1000)
             if self._resilience:
                 self._resilience.record_failure("overpass")
-            logger.warning("overpass_query_failed", error=str(exc))
+            logger.warning(
+                "overpass_query_failed "
+                f"place_name={place_name} place_id={place_id} location={location} "
+                f"duration_ms={duration_ms} timeout_seconds={self._timeout} "
+                f"error_type={type(exc).__name__} error={repr(exc)}"
+            )
             raise
 
     def is_service_available(self) -> bool:
@@ -79,6 +119,9 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
             "available": True,
             "api_key_required": False,
         }
+
+    def get_debug_snapshot(self) -> Optional[dict]:
+        return self._last_debug_snapshot
 
     @staticmethod
     def _resolve_coordinates(location: Optional[str]) -> tuple[float, float]:

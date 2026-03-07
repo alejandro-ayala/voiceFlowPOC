@@ -76,7 +76,7 @@ class MultiAgentOrchestrator(MultiAgentInterface):
             logger.info("Request processed successfully", response_length=len(text))
             return AgentResponse(response_text=text, tool_results=tool_results, metadata=metadata)
         except Exception as e:
-            logger.error("Error processing request", error=str(e))
+            logger.error(f"Error processing request: {repr(e)}")
             error_text = f"Lo siento, hubo un error procesando tu solicitud: {str(e)}"
             return AgentResponse(response_text=error_text, tool_results={})
 
@@ -115,7 +115,7 @@ class MultiAgentOrchestrator(MultiAgentInterface):
             logger.info("Request processed successfully (async)", response_length=len(text))
             return AgentResponse(response_text=text, tool_results=tool_results, metadata=metadata)
         except Exception as e:
-            logger.error("Error processing request (async)", error=str(e))
+            logger.error(f"Error processing request (async): {repr(e)}")
             error_text = f"Lo siento, hubo un error procesando tu solicitud: {str(e)}"
             return AgentResponse(response_text=error_text, tool_results={})
 

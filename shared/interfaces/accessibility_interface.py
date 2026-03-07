@@ -29,3 +29,7 @@ class AccessibilityServiceInterface(ABC):
     def get_service_info(self) -> dict:
         """Return provider metadata: name, status, data sources."""
         ...
+
+    def get_debug_snapshot(self) -> Optional[dict]:
+        """Return latest provider debug payload when available."""
+        return None
