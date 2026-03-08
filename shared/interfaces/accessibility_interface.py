@@ -15,6 +15,8 @@ class AccessibilityServiceInterface(ABC):
         place_name: str,
         place_id: Optional[str] = None,
         location: Optional[str] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
         language: str = "es",
     ) -> AccessibilityInfo:
         """Get accessibility data for a place from external sources."""

@@ -116,6 +116,10 @@ class Settings(BaseSettings):
         default="local",
         description="Accessibility provider: google, overpass, local",
     )
+    accessibility_debug_raw: bool = Field(
+        default=False,
+        description="Expose full raw Overpass payload in tool outputs for temporary debugging",
+    )
 
     # Azure deployment settings (future)
     azure_webapp_name: Optional[str] = Field(default=None, description="Azure Web App name")

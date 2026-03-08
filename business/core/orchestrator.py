@@ -46,6 +46,7 @@ class MultiAgentOrchestrator(MultiAgentInterface):
                 metadata = {}
 
             prompt = self._build_response_prompt(user_input, tool_results, profile_context=profile_context)
+            logger.info("llm_prompt_built", mode="sync", prompt_length=len(prompt), prompt=prompt)
 
             llm_start = time.perf_counter()
             response = self.llm.invoke(prompt)
@@ -87,6 +88,7 @@ class MultiAgentOrchestrator(MultiAgentInterface):
             tool_results, metadata = await self._execute_pipeline_async(user_input, profile_context=profile_context)
 
             prompt = self._build_response_prompt(user_input, tool_results, profile_context=profile_context)
+            logger.info("llm_prompt_built", mode="async", prompt_length=len(prompt), prompt=prompt)
 
             llm_start = time.perf_counter()
             response = await self.llm.ainvoke(prompt)

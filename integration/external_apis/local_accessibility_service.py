@@ -22,6 +22,8 @@ class LocalAccessibilityService(AccessibilityServiceInterface):
         place_name: str,
         place_id: Optional[str] = None,
         location: Optional[str] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
         language: str = "es",
     ) -> AccessibilityInfo:
         data = self._find_accessibility(place_name)

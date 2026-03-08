@@ -35,6 +35,7 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
         resilience: Optional[ResilienceManager] = None,
     ):
         self._timeout = settings.tool_timeout_seconds
+        self._debug_raw_enabled = settings.accessibility_debug_raw
         self._resilience = resilience
         self._last_debug_snapshot: Optional[dict] = None
 
@@ -43,13 +44,15 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
         place_name: str,
         place_id: Optional[str] = None,
         location: Optional[str] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
         language: str = "es",
     ) -> AccessibilityInfo:
         started_at = time.perf_counter()
         if self._resilience:
             await self._resilience.pre_request("overpass", "overpass_query")
 
-        lat, lng = self._resolve_coordinates(location)
+        lat, lng = self._resolve_coordinates(location, latitude, longitude)
         query = _QUERY_TEMPLATE.format(lat=lat, lng=lng)
 
         logger.info(
@@ -80,9 +83,13 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
                 "place_name": place_name,
                 "place_id": place_id,
                 "location": location,
+                "lat": lat,
+                "lng": lng,
                 "query": query,
-                "response_raw": data,
+                "response_normalized": self._normalize_response(data),
             }
+            if self._debug_raw_enabled:
+                self._last_debug_snapshot["response_raw"] = data
 
             if self._resilience:
                 self._resilience.record_success("overpass")
@@ -93,6 +100,7 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
                 place_id=place_id,
                 duration_ms=duration_ms,
                 elements_count=len(elements) if isinstance(elements, list) else 0,
+                debug_raw_enabled=self._debug_raw_enabled,
             )
 
             return self._parse_accessibility(data, place_name)
@@ -124,12 +132,66 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
         return self._last_debug_snapshot
 
     @staticmethod
-    def _resolve_coordinates(location: Optional[str]) -> tuple[float, float]:
-        """Placeholder: returns Madrid city center.
+    def _resolve_coordinates(
+        location: Optional[str],
+        latitude: Optional[float],
+        longitude: Optional[float],
+    ) -> tuple[float, float]:
+        """Resolve query coordinates, prioritizing resolved place coordinates.
 
-        In production, this would geocode the location string.
+        Falls back to Madrid city center when coordinates are unavailable.
         """
+        if isinstance(latitude, (int, float)) and isinstance(longitude, (int, float)):
+            return (float(latitude), float(longitude))
         return (40.4168, -3.7038)  # Madrid center
+
+    @staticmethod
+    def _normalize_response(data: dict) -> dict:
+        elements = data.get("elements", []) if isinstance(data, dict) else []
+        if not isinstance(elements, list):
+            elements = []
+
+        wheelchair_counts = {
+            "yes": 0,
+            "limited": 0,
+            "no": 0,
+            "unknown": 0,
+        }
+        sampled_elements: list[dict] = []
+
+        for item in elements:
+            if not isinstance(item, dict):
+                continue
+            tags = item.get("tags", {})
+            if not isinstance(tags, dict):
+                tags = {}
+
+            wheelchair = str(tags.get("wheelchair", "unknown") or "unknown").lower()
+            if wheelchair not in wheelchair_counts:
+                wheelchair = "unknown"
+            wheelchair_counts[wheelchair] += 1
+
+            if len(sampled_elements) < 20:
+                sampled_elements.append(
+                    {
+                        "type": item.get("type"),
+                        "id": item.get("id"),
+                        "name": tags.get("name"),
+                        "wheelchair": tags.get("wheelchair"),
+                        "wheelchair_description": tags.get("wheelchair:description"),
+                        "tactile_paving": tags.get("tactile_paving"),
+                        "wheelchair_toilet": tags.get("wheelchair:toilet"),
+                        "amenity": tags.get("amenity"),
+                        "tourism": tags.get("tourism"),
+                        "highway": tags.get("highway"),
+                    }
+                )
+
+        return {
+            "elements_count": len(elements),
+            "wheelchair_counts": wheelchair_counts,
+            "sampled_elements": sampled_elements,
+        }
 
     @staticmethod
     def _parse_accessibility(data: dict, place_name: str) -> AccessibilityInfo:

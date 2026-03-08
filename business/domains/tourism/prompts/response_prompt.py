@@ -1,5 +1,41 @@
 """Response prompt builder for the tourism domain."""
 
+
+def _tool_value(tool_results: dict[str, str], *keys: str) -> str:
+  """Return first non-empty tool payload among candidate keys."""
+  for key in keys:
+    value = tool_results.get(key)
+    if isinstance(value, str) and value.strip():
+      return value
+  return "{}"
+
+
+def _build_additional_tools_section(tool_results: dict[str, str]) -> str:
+  """Render additional tool outputs that are not part of the main fixed sections."""
+  consumed_keys = {
+    "nlu",
+    "accessibility",
+    "route",
+    "routes",
+    "tourism_info",
+    "venue info",
+    "location_ner",
+    "locationner",
+  }
+
+  extra_chunks: list[str] = []
+  for key, value in tool_results.items():
+    if key in consumed_keys:
+      continue
+    if not isinstance(value, str) or not value.strip():
+      continue
+    extra_chunks.append(f"- {key}:\n{value}")
+
+  if not extra_chunks:
+    return "{}"
+
+  return "\n\n".join(extra_chunks)
+
 TOURISM_DATA_SCHEMA = """{
   "routes": [
     {
@@ -59,13 +95,19 @@ def build_response_prompt(
 
     Args:
         user_input: Original user query text.
-        tool_results: Dict with keys 'nlu', 'accessibility', 'route', 'tourism_info'.
+      tool_results: Dict with tool payloads from pipeline execution.
         profile_context: Optional profile context with prompt_directives and ranking_bias.
 
     Returns:
         Complete prompt string for LLM invocation.
     """
     profile_section = _build_profile_section(profile_context) if profile_context else ""
+    nlu = _tool_value(tool_results, "nlu")
+    accessibility = _tool_value(tool_results, "accessibility")
+    routes = _tool_value(tool_results, "routes", "route")
+    tourism_info = _tool_value(tool_results, "venue info", "tourism_info")
+    location_ner = _tool_value(tool_results, "locationner", "location_ner")
+    additional_tools = _build_additional_tools_section(tool_results)
 
     return f"""Eres un asistente experto en turismo accesible en España.
 
@@ -74,16 +116,22 @@ El usuario preguntó: "{user_input}"
 He analizado su consulta usando varias herramientas especializadas:
 
 ANÁLISIS DE INTENCIÓN:
-{tool_results.get("nlu", "{}")}
+{nlu}
+
+ANÁLISIS DE UBICACIÓN (NER):
+{location_ner}
 
 ANÁLISIS DE ACCESIBILIDAD:
-{tool_results.get("accessibility", "{}")}
+{accessibility}
 
 PLANIFICACIÓN DE RUTAS:
-{tool_results.get("route", "{}")}
+{routes}
 
 INFORMACIÓN TURÍSTICA:
-{tool_results.get("tourism_info", "{}")}
+{tourism_info}
+
+RESULTADOS ADICIONALES DE HERRAMIENTAS:
+{additional_tools}
 {profile_section}
 Tu respuesta debe tener DOS partes:
 
@@ -94,6 +142,12 @@ Genera una respuesta completa y útil que incluya:
 3. Horarios, precios y servicios de accesibilidad
 4. Consejos específicos para las necesidades del usuario
 Sé conversacional, útil y enfócate en los aspectos de accesibilidad.
+
+Reglas de consistencia para la PARTE 1:
+- Usa prioritariamente la INFORMACIÓN TURÍSTICA y las RUTAS proporcionadas por herramientas.
+- No inventes venues concretos que no aparezcan en las salidas de herramientas.
+- Si faltan datos en herramientas, dilo explícitamente y propone alternativas conservadoras.
+- Si hay conflicto entre fuentes, prioriza datos estructurados de herramientas sobre suposiciones.
 
 PARTE 2 — Bloque JSON estructurado:
 Después del texto, incluye SIEMPRE un bloque de código JSON con los datos
