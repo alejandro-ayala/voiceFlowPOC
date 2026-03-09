@@ -1,5 +1,8 @@
 """Response prompt builder for the tourism domain."""
 
+import json
+from typing import Any
+
 
 def _tool_value(tool_results: dict[str, str], *keys: str) -> str:
   """Return first non-empty tool payload among candidate keys."""
@@ -10,31 +13,179 @@ def _tool_value(tool_results: dict[str, str], *keys: str) -> str:
   return "{}"
 
 
-def _build_additional_tools_section(tool_results: dict[str, str]) -> str:
-  """Render additional tool outputs that are not part of the main fixed sections."""
-  consumed_keys = {
-    "nlu",
-    "accessibility",
-    "route",
-    "routes",
-    "tourism_info",
-    "venue info",
-    "location_ner",
-    "locationner",
+def _parse_json_payload(raw: str) -> Any:
+  try:
+    return json.loads(raw)
+  except Exception:
+    return None
+
+
+def _json_block(data: Any) -> str:
+  return json.dumps(data, ensure_ascii=False, indent=2)
+
+
+def _summarize_nlu(raw_nlu: str) -> str:
+  parsed = _parse_json_payload(raw_nlu)
+  if not isinstance(parsed, dict):
+    return "{}"
+  return _json_block(
+    {
+      "intent": parsed.get("intent"),
+      "confidence": parsed.get("confidence"),
+      "entities": parsed.get("entities"),
+      "alternatives": parsed.get("alternatives") or [],
+    }
+  )
+
+
+def _summarize_location(raw_location: str) -> str:
+  parsed = _parse_json_payload(raw_location)
+  if not isinstance(parsed, dict):
+    return "{}"
+  return _json_block(
+    {
+      "top_location": parsed.get("top_location"),
+      "locations": parsed.get("locations") or [],
+      "provider": parsed.get("provider"),
+      "status": parsed.get("status"),
+    }
+  )
+
+
+def _summarize_accessibility(raw_accessibility: str, raw_comparison: str) -> str:
+  accessibility = _parse_json_payload(raw_accessibility)
+  comparison = _parse_json_payload(raw_comparison)
+
+  summary: dict[str, Any] = {
+    "accessibility": accessibility if isinstance(accessibility, dict) else {},
+    "comparison": {},
   }
 
-  extra_chunks: list[str] = []
-  for key, value in tool_results.items():
-    if key in consumed_keys:
-      continue
-    if not isinstance(value, str) or not value.strip():
-      continue
-    extra_chunks.append(f"- {key}:\n{value}")
+  if isinstance(comparison, dict):
+    provider_payload = comparison.get("provider_payload")
+    provider_normalized = None
+    if isinstance(provider_payload, dict):
+      provider_normalized = provider_payload.get("response_normalized")
 
-  if not extra_chunks:
+    summary["comparison"] = {
+      "google_available": comparison.get("google_available"),
+      "provider": comparison.get("provider"),
+      "provider_has_payload": comparison.get("provider_has_payload"),
+      "provider_elements_count": (
+        provider_normalized.get("elements_count")
+        if isinstance(provider_normalized, dict)
+        else None
+      ),
+      "conflicts": comparison.get("conflicts") or [],
+    }
+
+  return _json_block(summary)
+
+
+def _summarize_routes(raw_routes: str) -> str:
+  parsed = _parse_json_payload(raw_routes)
+  if not isinstance(parsed, list):
+    return "[]"
+
+  curated: list[dict[str, Any]] = []
+  for route in parsed[:2]:
+    if not isinstance(route, dict):
+      continue
+    steps_raw = route.get("steps")
+    steps: list[str] = []
+    if isinstance(steps_raw, list):
+      for item in steps_raw[:4]:
+        if isinstance(item, dict):
+          instruction = item.get("instruction")
+          if isinstance(instruction, str) and instruction.strip():
+            steps.append(instruction.strip())
+        elif isinstance(item, str) and item.strip():
+          steps.append(item.strip())
+
+    curated.append(
+      {
+        "transport_type": route.get("transport_type"),
+        "description": route.get("description"),
+        "duration_minutes": route.get("duration_minutes"),
+        "distance_meters": route.get("distance_meters"),
+        "estimated_cost": route.get("estimated_cost"),
+        "steps": steps,
+        "source": route.get("source"),
+      }
+    )
+
+  return _json_block(curated)
+
+
+def _summarize_venues(raw_venues: str) -> str:
+  parsed = _parse_json_payload(raw_venues)
+  if not isinstance(parsed, list):
+    return "[]"
+
+  curated: list[dict[str, Any]] = []
+  for venue in parsed[:3]:
+    if not isinstance(venue, dict):
+      continue
+    curated.append(
+      {
+        "name": venue.get("name"),
+        "place_id": venue.get("place_id"),
+        "types": venue.get("types") or [],
+        "address": venue.get("address"),
+        "rating": venue.get("rating"),
+        "location": {
+          "lat": venue.get("location_lat"),
+          "lng": venue.get("location_lng"),
+        },
+        "source": venue.get("source"),
+      }
+    )
+
+  return _json_block(curated)
+
+
+def _build_additional_tools_section(tool_results: dict[str, str]) -> str:
+  """Render compact, high-value extra tool outputs."""
+  sections: list[str] = []
+
+  google_accessibility = _parse_json_payload(tool_results.get("accessibility_google", "{}"))
+  if isinstance(google_accessibility, dict) and google_accessibility:
+    sections.append(
+      _json_block(
+        {
+          "accessibility_google": {
+            "place_name": google_accessibility.get("place_name"),
+            "accessibility_level": google_accessibility.get("accessibility_level"),
+            "accessibility_score": google_accessibility.get("accessibility_score"),
+            "normalized": google_accessibility.get("normalized") or {},
+          }
+        }
+      )
+    )
+
+  overpass_normalized = _parse_json_payload(tool_results.get("accessibility_overpass_normalized", "{}"))
+  if isinstance(overpass_normalized, dict) and overpass_normalized:
+    normalized = overpass_normalized.get("normalized") if isinstance(overpass_normalized, dict) else {}
+    sections.append(
+      _json_block(
+        {
+          "accessibility_overpass_normalized": {
+            "provider": overpass_normalized.get("provider"),
+            "place_name": overpass_normalized.get("place_name"),
+            "elements_count": (
+              normalized.get("elements_count") if isinstance(normalized, dict) else None
+            ),
+            "wheelchair_counts": (
+              normalized.get("wheelchair_counts") if isinstance(normalized, dict) else {}
+            ),
+          }
+        }
+      )
+    )
+
+  if not sections:
     return "{}"
-
-  return "\n\n".join(extra_chunks)
+  return "\n\n".join(sections)
 
 TOURISM_DATA_SCHEMA = """{
   "routes": [
@@ -95,18 +246,21 @@ def build_response_prompt(
 
     Args:
         user_input: Original user query text.
-      tool_results: Dict with tool payloads from pipeline execution.
+        tool_results: Dict with tool payloads from pipeline execution.
         profile_context: Optional profile context with prompt_directives and ranking_bias.
 
     Returns:
         Complete prompt string for LLM invocation.
     """
     profile_section = _build_profile_section(profile_context) if profile_context else ""
-    nlu = _tool_value(tool_results, "nlu")
-    accessibility = _tool_value(tool_results, "accessibility")
-    routes = _tool_value(tool_results, "routes", "route")
-    tourism_info = _tool_value(tool_results, "venue info", "tourism_info")
-    location_ner = _tool_value(tool_results, "locationner", "location_ner")
+    nlu = _summarize_nlu(_tool_value(tool_results, "nlu"))
+    accessibility = _summarize_accessibility(
+      _tool_value(tool_results, "accessibility"),
+      _tool_value(tool_results, "accessibility_comparison"),
+    )
+    routes = _summarize_routes(_tool_value(tool_results, "routes", "route"))
+    tourism_info = _summarize_venues(_tool_value(tool_results, "venue info", "tourism_info"))
+    location_ner = _summarize_location(_tool_value(tool_results, "locationner", "location_ner"))
     additional_tools = _build_additional_tools_section(tool_results)
 
     return f"""Eres un asistente experto en turismo accesible en España.
@@ -145,6 +299,7 @@ Sé conversacional, útil y enfócate en los aspectos de accesibilidad.
 
 Reglas de consistencia para la PARTE 1:
 - Usa prioritariamente la INFORMACIÓN TURÍSTICA y las RUTAS proporcionadas por herramientas.
+- Prioriza los venues en el orden mostrado (top-1 primero, luego top-2 y top-3).
 - No inventes venues concretos que no aparezcan en las salidas de herramientas.
 - Si faltan datos en herramientas, dilo explícitamente y propone alternativas conservadoras.
 - Si hay conflicto entre fuentes, prioriza datos estructurados de herramientas sobre suposiciones.

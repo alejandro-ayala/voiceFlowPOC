@@ -53,6 +53,7 @@ class MultiAgentOrchestrator(MultiAgentInterface):
             llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
 
             text = response.content if hasattr(response, "content") else str(response)
+            logger.info("llm_response_built", mode="sync", response_length=len(text), response=text)
 
             # Allow subclasses to extract structured data from LLM output
             text, metadata = self._extract_structured_data(text, metadata)
@@ -95,6 +96,7 @@ class MultiAgentOrchestrator(MultiAgentInterface):
             llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
 
             text = response.content if hasattr(response, "content") else str(response)
+            logger.info("llm_response_built", mode="async", response_length=len(text), response=text)
 
             text, metadata = self._extract_structured_data(text, metadata)
 
