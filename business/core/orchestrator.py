@@ -46,14 +46,14 @@ class MultiAgentOrchestrator(MultiAgentInterface):
                 metadata = {}
 
             prompt = self._build_response_prompt(user_input, tool_results, profile_context=profile_context)
-            logger.info("llm_prompt_built", mode="sync", prompt_length=len(prompt), prompt=prompt)
+            logger.debug("llm_prompt_built", mode="sync", prompt_length=len(prompt), prompt=prompt)
 
             llm_start = time.perf_counter()
             response = self.llm.invoke(prompt)
             llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
 
             text = response.content if hasattr(response, "content") else str(response)
-            logger.info("llm_response_built", mode="sync", response_length=len(text), response=text)
+            logger.debug("llm_response_built", mode="sync", response_length=len(text), response=text)
 
             # Allow subclasses to extract structured data from LLM output
             text, metadata = self._extract_structured_data(text, metadata)
@@ -89,14 +89,14 @@ class MultiAgentOrchestrator(MultiAgentInterface):
             tool_results, metadata = await self._execute_pipeline_async(user_input, profile_context=profile_context)
 
             prompt = self._build_response_prompt(user_input, tool_results, profile_context=profile_context)
-            logger.info("llm_prompt_built", mode="async", prompt_length=len(prompt), prompt=prompt)
+            logger.debug("llm_prompt_built", mode="async", prompt_length=len(prompt), prompt=prompt)
 
             llm_start = time.perf_counter()
             response = await self.llm.ainvoke(prompt)
             llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
 
             text = response.content if hasattr(response, "content") else str(response)
-            logger.info("llm_response_built", mode="async", response_length=len(text), response=text)
+            logger.debug("llm_response_built", mode="async", response_length=len(text), response=text)
 
             text, metadata = self._extract_structured_data(text, metadata)
 
