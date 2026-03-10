@@ -68,6 +68,18 @@ class PlaceCandidate(BaseModel):
     source: str = "nlu"
 
 
+class GeocodedLocation(BaseModel):
+    """Standard geocoding result — unified contract for address→coords and GPS coords."""
+
+    latitude: float
+    longitude: float
+    formatted_address: str = ""
+    place_name: Optional[str] = None
+    place_id: Optional[str] = None
+    confidence: float = 1.0
+    source: str = "unknown"
+
+
 class ToolError(BaseModel):
     """A partial error recorded during pipeline execution."""
 

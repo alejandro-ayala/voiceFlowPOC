@@ -116,6 +116,14 @@ class Settings(BaseSettings):
         default="local",
         description="Accessibility provider: google, overpass, local",
     )
+    geocoding_provider: str = Field(
+        default="nominatim",
+        description="Geocoding provider: nominatim, local",
+    )
+    geocoding_cache_ttl: int = Field(
+        default=3600,
+        description="Geocoding result cache TTL in seconds (default 1h, covers Nominatim 1 req/s limit)",
+    )
     accessibility_debug_raw: bool = Field(
         default=False,
         description="Expose full raw Overpass payload in tool outputs for temporary debugging",

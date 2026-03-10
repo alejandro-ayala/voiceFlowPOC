@@ -73,14 +73,13 @@ class LocalBackendAdapter(BackendInterface):
                 from integration.external_apis.directions_factory import (
                     DirectionsServiceFactory,
                 )
+                from integration.external_apis.geocoding_factory import (
+                    GeocodingServiceFactory,
+                )
                 from integration.external_apis.places_factory import (
                     PlacesServiceFactory,
                 )
                 from integration.external_apis.resilience import ResilienceManager
-
-                logger.info("Initializing LocalBackendAdapter with tourism multi-agent system")
-                self._backend_instance = TourismMultiAgent(ner_service=self._ner_service, nlu_service=self._nlu_service)
-                logger.info("Backend adapter initialized successfully")
 
                 # Build resilience manager from settings
                 resilience = ResilienceManager(
@@ -88,6 +87,12 @@ class LocalBackendAdapter(BackendInterface):
                     cb_recovery=self.settings.circuit_breaker_recovery_seconds,
                     rps=self.settings.api_rate_limit_rps,
                     budget_per_hour=self.settings.api_budget_per_hour,
+                )
+
+                # Geocoding service — shared across directions + accessibility providers
+                geocoding_service = GeocodingServiceFactory.create_from_settings(
+                    settings=self.settings,
+                    resilience=resilience,
                 )
 
                 # Create external service providers via factories
@@ -98,10 +103,12 @@ class LocalBackendAdapter(BackendInterface):
                 directions_service = DirectionsServiceFactory.create_from_settings(
                     settings=self.settings,
                     resilience=resilience,
+                    geocoding_service=geocoding_service,
                 )
                 accessibility_service = AccessibilityServiceFactory.create_from_settings(
                     settings=self.settings,
                     resilience=resilience,
+                    geocoding_service=geocoding_service,
                 )
 
                 self._backend_instance = TourismMultiAgent(
@@ -116,6 +123,7 @@ class LocalBackendAdapter(BackendInterface):
                     places=places_service.get_service_info().get("provider"),
                     directions=directions_service.get_service_info().get("provider"),
                     accessibility=accessibility_service.get_service_info().get("provider"),
+                    geocoding=geocoding_service.get_service_info().get("provider"),
                 )
 
             except ImportError as e:

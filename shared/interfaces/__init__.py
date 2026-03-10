@@ -2,6 +2,7 @@
 
 from shared.interfaces.accessibility_interface import AccessibilityServiceInterface
 from shared.interfaces.directions_interface import DirectionsServiceInterface
+from shared.interfaces.geocoding_interface import GeocodingServiceInterface
 from shared.interfaces.interfaces import (
     AudioProcessorInterface,
     AuthInterface,
@@ -20,6 +21,7 @@ __all__ = [
     "ConversationInterface",
     "AuthInterface",
     "DirectionsServiceInterface",
+    "GeocodingServiceInterface",
     "NERServiceInterface",
     "NLUServiceInterface",
     "PlacesServiceInterface",

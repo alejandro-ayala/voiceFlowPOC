@@ -9,6 +9,7 @@ import structlog
 from integration.configuration.settings import Settings
 from integration.external_apis.resilience import ResilienceManager
 from shared.interfaces.directions_interface import DirectionsServiceInterface
+from shared.interfaces.geocoding_interface import GeocodingServiceInterface
 
 logger = structlog.get_logger(__name__)
 
@@ -46,6 +47,7 @@ class DirectionsServiceFactory:
         provider: str,
         settings: Optional[Settings] = None,
         resilience: Optional[ResilienceManager] = None,
+        geocoding_service: Optional[GeocodingServiceInterface] = None,
     ) -> DirectionsServiceInterface:
         cls._ensure_registry()
         normalized = provider.lower().strip()
@@ -62,6 +64,9 @@ class DirectionsServiceFactory:
             kwargs["settings"] = runtime
             if resilience:
                 kwargs["resilience"] = resilience
+            # Only ORS needs geocoding (Google Routes resolves text addresses natively)
+            if normalized == "openroute" and geocoding_service:
+                kwargs["geocoding_service"] = geocoding_service
         return service_class(**kwargs)
 
     @classmethod
@@ -69,11 +74,17 @@ class DirectionsServiceFactory:
         cls,
         settings: Optional[Settings] = None,
         resilience: Optional[ResilienceManager] = None,
+        geocoding_service: Optional[GeocodingServiceInterface] = None,
     ) -> DirectionsServiceInterface:
         runtime = settings or Settings()
         configured = runtime.directions_provider
 
-        service = cls.create_service(configured, settings=runtime, resilience=resilience)
+        service = cls.create_service(
+            configured,
+            settings=runtime,
+            resilience=resilience,
+            geocoding_service=geocoding_service,
+        )
         if service.is_service_available():
             return service
 

@@ -8,11 +8,13 @@ import structlog
 from integration.configuration.settings import Settings
 from integration.external_apis.resilience import ResilienceManager
 from shared.interfaces.directions_interface import DirectionsServiceInterface
+from shared.interfaces.geocoding_interface import GeocodingServiceInterface
 from shared.models.tool_models import RouteOption
 
 logger = structlog.get_logger(__name__)
 
 _BASE_URL = "https://api.openrouteservice.org/v2/directions"
+_MADRID_CENTER = [-3.7038, 40.4168]  # [lng, lat] — ORS coordinate order
 
 
 class OpenRouteDirectionsService(DirectionsServiceInterface):
@@ -22,10 +24,12 @@ class OpenRouteDirectionsService(DirectionsServiceInterface):
         self,
         settings: Settings,
         resilience: Optional[ResilienceManager] = None,
+        geocoding_service: Optional[GeocodingServiceInterface] = None,
     ):
         self._api_key = settings.openroute_api_key or ""
         self._timeout = settings.tool_timeout_seconds
         self._resilience = resilience
+        self._geocoding = geocoding_service
 
     async def get_directions(
         self,
@@ -40,11 +44,11 @@ class OpenRouteDirectionsService(DirectionsServiceInterface):
 
         profile = self._select_profile(mode, accessibility_profile)
 
+        origin_coords = await self._resolve_coords(origin, language)
+        destination_coords = await self._resolve_coords(destination, language)
+
         body: dict = {
-            "coordinates": [
-                self._geocode_placeholder(origin),
-                self._geocode_placeholder(destination),
-            ],
+            "coordinates": [origin_coords, destination_coords],
             "language": language,
             "instructions": True,
         }
@@ -74,6 +78,32 @@ class OpenRouteDirectionsService(DirectionsServiceInterface):
             logger.warning("openroute_directions_failed", error=str(exc))
             raise
 
+    async def _resolve_coords(self, address: str, language: str) -> list[float]:
+        """Resolve an address string to [lng, lat] using the injected geocoding service.
+
+        Falls back to Madrid city center when geocoding is unavailable or returns
+        no results, preserving the original graceful-degradation behaviour.
+        """
+        if self._geocoding:
+            try:
+                candidates = await self._geocoding.geocode(address, language=language)
+                if candidates:
+                    loc = candidates[0]
+                    logger.debug(
+                        "openroute_coords_resolved",
+                        address=address,
+                        lat=loc.latitude,
+                        lng=loc.longitude,
+                        confidence=loc.confidence,
+                        source=loc.source,
+                    )
+                    return [loc.longitude, loc.latitude]  # ORS expects [lng, lat]
+            except Exception as exc:
+                logger.warning("openroute_geocoding_failed", address=address, error=str(exc))
+
+        logger.debug("openroute_coords_fallback", address=address)
+        return _MADRID_CENTER
+
     def is_service_available(self) -> bool:
         # OpenRouteService has a free tier without key (lower limits)
         return True
@@ -83,6 +113,7 @@ class OpenRouteDirectionsService(DirectionsServiceInterface):
             "provider": "openrouteservice",
             "available": True,
             "has_api_key": bool(self._api_key),
+            "geocoding": self._geocoding.get_service_info().get("provider") if self._geocoding else None,
         }
 
     @staticmethod
@@ -95,16 +126,6 @@ class OpenRouteDirectionsService(DirectionsServiceInterface):
             "driving": "driving-car",
         }
         return mapping.get(mode.lower(), "foot-walking")
-
-    @staticmethod
-    def _geocode_placeholder(address: str) -> list[float]:
-        """Placeholder: returns Madrid city center coordinates.
-
-        In production, this would geocode the address first using a geocoding
-        service. For the POC, default coordinates suffice when testing with
-        real API keys.
-        """
-        return [-3.7038, 40.4168]  # Madrid center [lng, lat]
 
     @staticmethod
     def _parse_routes(data: dict, mode: str) -> list[RouteOption]:

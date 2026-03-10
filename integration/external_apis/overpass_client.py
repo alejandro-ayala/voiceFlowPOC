@@ -9,6 +9,7 @@ import structlog
 from integration.configuration.settings import Settings
 from integration.external_apis.resilience import ResilienceManager
 from shared.interfaces.accessibility_interface import AccessibilityServiceInterface
+from shared.interfaces.geocoding_interface import GeocodingServiceInterface
 from shared.models.tool_models import AccessibilityInfo
 
 logger = structlog.get_logger(__name__)
@@ -33,10 +34,12 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
         self,
         settings: Settings,
         resilience: Optional[ResilienceManager] = None,
+        geocoding_service: Optional[GeocodingServiceInterface] = None,
     ):
         self._timeout = settings.tool_timeout_seconds
         self._debug_raw_enabled = settings.accessibility_debug_raw
         self._resilience = resilience
+        self._geocoding = geocoding_service
         self._last_debug_snapshot: Optional[dict] = None
 
     async def enrich_accessibility(
@@ -52,7 +55,7 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
         if self._resilience:
             await self._resilience.pre_request("overpass", "overpass_query")
 
-        lat, lng = self._resolve_coordinates(location, latitude, longitude)
+        lat, lng = await self._resolve_coordinates(location, latitude, longitude, language)
         query = _QUERY_TEMPLATE.format(lat=lat, lng=lng)
 
         logger.info(
@@ -126,23 +129,46 @@ class OverpassAccessibilityService(AccessibilityServiceInterface):
             "provider": "overpass_osm",
             "available": True,
             "api_key_required": False,
+            "geocoding": self._geocoding.get_service_info().get("provider") if self._geocoding else None,
         }
 
     def get_debug_snapshot(self) -> Optional[dict]:
         return self._last_debug_snapshot
 
-    @staticmethod
-    def _resolve_coordinates(
+    async def _resolve_coordinates(
+        self,
         location: Optional[str],
         latitude: Optional[float],
         longitude: Optional[float],
+        language: str = "es",
     ) -> tuple[float, float]:
-        """Resolve query coordinates, prioritizing resolved place coordinates.
+        """Resolve query coordinates with the following priority:
 
-        Falls back to Madrid city center when coordinates are unavailable.
+        1. Explicit lat/lng from the tool pipeline context (most precise).
+        2. Geocoding service lookup on the location/place string.
+        3. Madrid city center fallback.
         """
         if isinstance(latitude, (int, float)) and isinstance(longitude, (int, float)):
             return (float(latitude), float(longitude))
+
+        if location and self._geocoding:
+            try:
+                candidates = await self._geocoding.geocode(location, language=language)
+                if candidates:
+                    loc = candidates[0]
+                    logger.debug(
+                        "overpass_coords_resolved",
+                        location=location,
+                        lat=loc.latitude,
+                        lng=loc.longitude,
+                        confidence=loc.confidence,
+                        source=loc.source,
+                    )
+                    return (loc.latitude, loc.longitude)
+            except Exception as exc:
+                logger.warning("overpass_geocoding_failed", location=location, error=str(exc))
+
+        logger.debug("overpass_coords_fallback", location=location)
         return (40.4168, -3.7038)  # Madrid center
 
     @staticmethod

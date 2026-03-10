@@ -8,6 +8,7 @@ from shared.models.nlu_models import (
 )
 from shared.models.tool_models import (
     AccessibilityInfo,
+    GeocodedLocation,
     PlaceCandidate,
     RouteOption,
     ToolError,
@@ -21,6 +22,7 @@ __all__ = [
     "NLUResult",
     "ResolvedEntities",
     "AccessibilityInfo",
+    "GeocodedLocation",
     "PlaceCandidate",
     "RouteOption",
     "ToolError",
