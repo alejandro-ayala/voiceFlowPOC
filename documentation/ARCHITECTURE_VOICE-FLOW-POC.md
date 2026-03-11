@@ -1,10 +1,12 @@
 # 📋 INFORME ARQUITECTÓNICO - VoiceFlow PoC
 ## Sistema de Turismo Accesible con IA
 
-**Fecha**: 2 de Marzo de 2026
-**Versión**: 4.3
+**Fecha**: 11 de Marzo de 2026
+**Versión**: 4.4 (actualizado en auditoría documental)
 **Proyecto**: VoiceFlow PoC - Sistema de Turismo Accesible con IA
-**Estado**: **ARQUITECTURA EN 4 CAPAS + INFRAESTRUCTURA DOCKER COMPLETA**
+**Estado**: **ARQUITECTURA EN 4 CAPAS + INFRAESTRUCTURA DOCKER + TOOLS API-FIRST (Phase 1)**
+
+> **Nota (auditoría 2026-03-11):** Este documento fue actualizado parcialmente. Para el estado operativo más reciente, consultar [ESTADO_ACTUAL_SISTEMA.md](ESTADO_ACTUAL_SISTEMA.md) y [AUDIT_2026_03_11.md](Reviews/AUDIT_2026_03_11.md).
 
 ---
 
@@ -140,7 +142,7 @@ Componentes:
 │   └── AgentResponse           (dataclass de respuesta)
 ├── domains/tourism/         # Dominio especifico
 │   ├── TourismMultiAgent       (orquestador turismo)
-│   ├── 5 LangChain tools       (NLU, LocationNER, Accessibility, Route, Tourism)
+│   ├── 8 tools: 2 foundation (NLU, LocationNER) + 3 Phase 1 (Places, Directions, Accessibility) + 3 legacy
 │   ├── data/                   (datos estaticos Madrid)
 │   └── prompts/                (system + response prompts)
 └── ai_agents/               # Backward compatibility facade
@@ -150,15 +152,17 @@ Tecnologias: LangChain + OpenAI GPT-4 + Custom business rules
 
 #### **CAPA 4: INTEGRATION LAYER** 🔌
 ```bash
-Responsabilidad: External APIs + Data Persistence
+Responsabilidad: External APIs + Data Persistence + Resilience
 Componentes:
-├── Azure Speech Services integration
-├── OpenAI API integration  
-├── Session management (memory)
-├── Configuration management
+├── STT: Azure Speech Services, Whisper Local/API
+├── LLM: OpenAI GPT-4 via LangChain
+├── Phase 1 APIs: Google Places, Google Routes, OpenRouteService, Overpass/OSM, Nominatim
+├── Resilience: Circuit Breaker + Rate Limiter + Budget Tracker
+├── Session management (in-memory)
+├── Configuration management (Pydantic Settings)
 └── Health monitoring
 
-Tecnologías: Azure SDK + OpenAI SDK + In-memory storage
+Tecnologías: Azure SDK + OpenAI SDK + httpx + In-memory storage
 ```
 
 ### 🏗️ **ARQUITECTURA EN 4 CAPAS IMPLEMENTADA**

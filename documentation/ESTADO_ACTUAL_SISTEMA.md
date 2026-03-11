@@ -1,8 +1,9 @@
 # Estado Actual del Sistema: Profile-Driven Tourism Recommendations
 
-**Fecha:** 5 de Marzo de 2026
-**Versión:** 2.0 (Post Fase 0 + Fase 1)
+**Fecha:** 11 de Marzo de 2026
+**Versión:** 2.1 (Post Fase 0 + Fase 1 + branch feature/real-tools-implementation)
 **Objetivo:** Documentar claramente qué funciona y qué NO funciona en el sistema actual
+**Última auditoría:** [AUDIT_2026_03_11.md](Reviews/AUDIT_2026_03_11.md)
 
 ---
 
@@ -22,6 +23,8 @@
 | **Contratos tipados** | ✅ Implementado | ✅ **SÍ** funciona | `ToolPipelineContext` con 6 modelos Pydantic (Fase 0) |
 | **Pipeline async-native** | ✅ Implementado | ✅ **SÍ** funciona | `await asyncio.gather()` directo, sin `asyncio.run()` anidado |
 | **Resiliencia APIs** | ✅ Implementado | ✅ **SÍ** funciona | Circuit breaker + rate limiter + budget tracker |
+| **EntityResolver** | ✅ Implementado | ✅ **SÍ** funciona | Merge NLU + NER outputs con política explícita |
+| **Geocoding** | ✅ Implementado | ✅ **SÍ** funciona | Nominatim + cache + fallback local (usado por Directions + Accessibility) |
 
 ---
 
@@ -83,8 +86,17 @@
 | **DirectionsTool** | Google Routes v2 + OpenRouteService | `LocalDirectionsService` (ROUTE_DB) | `DirectionsServiceInterface` |
 | **AccessibilityEnrichmentTool** | Overpass/OSM | `LocalAccessibilityService` (ACCESSIBILITY_DB) | `AccessibilityServiceInterface` |
 
+#### 2.2b Supporting Services (Fase 1)
+
+| Service | Proveedor | Fallback | Interface ABC |
+|---------|-----------|----------|---------------|
+| **Geocoding** | Nominatim (OSM) | `LocalGeocodingService` | `GeocodingServiceInterface` |
+| **CachedGeocoding** | Cache wrapper (TTL 1h) | Delegated provider | `GeocodingServiceInterface` |
+
+Geocoding es consumido por `DirectionsTool` y `AccessibilityEnrichmentTool` para resolver coordenadas.
+
 Selección de proveedor via `.env`: `VOICEFLOW_PLACES_PROVIDER=local|google`, etc.
-Con `local` (default), el comportamiento es idéntico al anterior (datos mock).
+**Nota:** El default de todos los providers es `local` (datos mock). Para APIs reales, configurar explícitamente en `.env`.
 
 #### 2.3 Domain Tools — Legacy (Backward compat)
 
@@ -105,12 +117,16 @@ class ToolPipelineContext(BaseModel):
     profile_context: Optional[dict] = None
     nlu_result: Optional[NLUResult] = None
     resolved_entities: Optional[ResolvedEntities] = None
-    place: Optional[PlaceCandidate] = None
+    place: Optional[PlaceCandidate] = None       # includes GeocodedLocation fields
     accessibility: Optional[AccessibilityInfo] = None
     routes: list[RouteOption] = []
     venue_detail: Optional[VenueDetail] = None
     raw_tool_results: dict[str, str] = {}
     errors: list[ToolError] = []
+
+# Additional models (Fase 0+1):
+# - GeocodedLocation: latitude, longitude, formatted_address, confidence, source
+# - ToolError: source, message (partial errors without breaking pipeline)
 ```
 
 #### 2.5 Ejemplo: Query sobre Granada (con APIs reales configuradas)
@@ -153,6 +169,14 @@ class ToolPipelineContext(BaseModel):
     - `metadata.tool_results_parsed.nlu` (trazabilidad interna)
     - `metadata.tool_results_parsed.locationner` (trazabilidad interna)
 - Este estado permite validación end-to-end de NLU/NER aun cuando otras tools sigan en modo stub.
+
+### EntityResolver (Post NLU-3)
+
+`EntityResolver` (`business/domains/tourism/entity_resolver.py`) combina los outputs de NLU y NER:
+- NLU aporta: `intent`, `entities.destination`, `entities.accessibility`
+- NER aporta: `locations[]`, `top_location`
+- El resolver aplica política de merge explícita para producir `ResolvedEntities`
+- Resultado usado por `PlacesSearchTool` para construir búsquedas
 
 ---
 
@@ -249,7 +273,7 @@ metadata.tool_outputs = {
 7. **Pipeline async-native**: Sin `asyncio.run()` anidado, compatible con streaming/WebSockets
 8. **Contratos tipados**: `ToolPipelineContext` con Pydantic models entre todas las tools
 9. **Resiliencia**: Circuit breaker + rate limiter + budget tracker para APIs externas
-10. **128 tests pasan** incluyendo 42 nuevos para Fase 0 + Fase 1
+10. **156 test functions** en 29 archivos incluyendo tests para Fase 0 + Fase 1
 
 ### ❌ Lo que NO funciona
 
@@ -262,38 +286,17 @@ metadata.tool_outputs = {
 
 ## 6. Roadmap: ¿Qué hace falta?
 
-### ~~Prioridad 1: Fase 0 — Contratos y Plumbing~~ ✅ COMPLETADA
-- [x] `ToolPipelineContext` con 6 modelos Pydantic
-- [x] Pipeline async-native (`await` directo, sin `asyncio.run()` anidado)
-- [x] LLM settings en Settings
-- [x] 12 tests
+> **Fuente de verdad para roadmap completo:** [ROADMAP.md](ROADMAP.md)
 
-### ~~Prioridad 1b: Fase 1 — Tools Reales (API-First)~~ ✅ COMPLETADA
-- [x] Integrar Google Places API (New) v1
-- [x] Integrar Google Routes API v2 + OpenRouteService
-- [x] Integrar Overpass/OSM para accesibilidad
-- [x] 3 ABCs + factories con fallback automático a datos mock
-- [x] Capa de resiliencia (circuit breaker, rate limiter, budget tracker)
-- [x] 42 tests nuevos (128 total)
+### Resumen de próximos pasos
 
-### Prioridad 2: Fase 2 — Seguridad + Routing por Intent
-- [ ] Implementar autenticación (JWT o API keys)
-- [ ] Routing por intent (ejecutar solo tools relevantes según NLU)
-- [ ] Rate limiting público
-- [ ] HTTPS
-
-### Prioridad 3: Profile → Ranking
-- [ ] Implementar `ProfileRankingTool` para filtrado por perfil
-- [ ] Modificar `PlacesSearchTool` para aplicar ranking_bias del perfil
-- [ ] Validar que perfil afecta venues seleccionados
-
-**Depende de:** Fase 2 para seguridad base
-
-### Prioridad 4: Consolidar contrato de payloads
-- [x] Exponer `metadata.tool_outputs.nlu`
-- [x] Mantener `metadata.tool_results_parsed` para trazabilidad interna
-- [x] Contrato estable en `metadata.tool_outputs` para NLU/NER
-- [ ] Extender contrato estable a payloads de tools de dominio (Places, Directions, Accessibility)
+| Prioridad | Fase | Estado |
+|-----------|------|--------|
+| ~~1~~ | ~~Fase 0: Contratos~~ | ✅ COMPLETADA |
+| ~~1b~~ | ~~Fase 1: Tools reales API-First~~ | ✅ COMPLETADA |
+| 2 | Fase 2: Seguridad + Routing por Intent | PENDING |
+| 3 | Profile → Ranking | PENDING |
+| 4 | Consolidar payloads dominio | PARTIAL |
 
 ---
 
@@ -353,4 +356,4 @@ La base técnica está lista. El siguiente salto debe centrarse en seguridad (B4
 ---
 
 **Autor:** GitHub Copilot (GPT-5.3-Codex) + Claude Opus 4.6
-**Última actualización:** 5 Mar 2026
+**Última actualización:** 11 Mar 2026 (auditoría documental)

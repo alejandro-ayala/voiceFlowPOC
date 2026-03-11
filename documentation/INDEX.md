@@ -1,6 +1,6 @@
 # Documentacion del Proyecto - VoiceFlow Tourism PoC
 
-**Actualizado**: 2 de Marzo de 2026
+**Actualizado**: 11 de Marzo de 2026
 
 ---
 
@@ -35,10 +35,14 @@
 
 ### Evolucion del proyecto
 - **[ROADMAP.md](ROADMAP.md)** - Plan de accion completo: testing, CI/CD, persistencia, monitoring
+- **[ESTADO_ACTUAL_SISTEMA.md](ESTADO_ACTUAL_SISTEMA.md)** - Estado operativo vigente del sistema
 
-### Recursos adicionales
-- **[PLAN_NLU_V3_FINAL.md](PLAN_NLU_V3_FINAL.md)** - Plan de implementación NLU v3 (estado final)
-- **[PLAN_IMPLEMENTACION_NLU_5_COMMITS.md](PLAN_IMPLEMENTACION_NLU_5_COMMITS.md)** - Plan incremental y validaciones
+### Auditorias y revisiones
+- **[Reviews/AUDIT_2026_03_11.md](Reviews/AUDIT_2026_03_11.md)** - Auditoría arquitectónica vigente (11 Mar 2026)
+- **[Reviews/](Reviews/)** - Auditorías históricas
+
+### Planificación (histórica)
+- **[Planification/](Planification/)** - Planes de implementación por fase (consultar auditoría vigente para estado actual)
 
 ---
 

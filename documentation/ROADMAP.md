@@ -1,8 +1,8 @@
 # ROADMAP: VoiceFlow Tourism PoC
 
-**Fecha**: 5 de Marzo de 2026
-**Estado actual**: Fase 0 (Contratos) + Fase 1 (API-First Tools) completadas | 128 tests pasan
-**Versión actual del proyecto**: 2.0.0
+**Fecha**: 11 de Marzo de 2026
+**Estado actual**: Fase 0 (Contratos) + Fase 1 (API-First Tools) completadas | 156 test functions en 29 archivos
+**Versión actual del proyecto**: 2.1.0
 
 > ⚠️ **Documento de planificación (histórico por fases).**
 > Algunas secciones incluyen snapshots de implementación previos.

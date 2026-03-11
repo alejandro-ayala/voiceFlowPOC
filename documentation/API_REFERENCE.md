@@ -1,6 +1,6 @@
 # API Reference - VoiceFlow Tourism PoC
 
-**Actualizado**: 2 de Marzo de 2026
+**Actualizado**: 11 de Marzo de 2026
 **Base URL**: `http://localhost:8000/api/v1`
 
 ---
@@ -264,6 +264,24 @@ Limpia los mensajes de una conversacion sin eliminarla.
 #### `POST /api/v1/chat/analyze-transcription`
 Analiza un texto transcrito (delegado internamente a `/message`).
 
+#### `GET /api/v1/chat/demo/scenarios`
+Escenarios predefinidos para la demo UI con datos estructurados.
+
+**Response** (200):
+```json
+{
+  "success": true,
+  "scenarios": [
+    {
+      "id": "prado_wheelchair",
+      "title": "Museo del Prado accesible",
+      "icon": "bi-building",
+      "query": "Quiero visitar el Museo del Prado en silla de ruedas"
+    }
+  ]
+}
+```
+
 #### `GET /api/v1/chat/demo/responses`
 Respuestas de ejemplo para testing del frontend.
 
@@ -413,8 +431,25 @@ async def transcribe(
 |------------|---------|----------------|
 | `get_audio_processor()` | `AudioProcessorInterface` | `AudioService` |
 | `get_backend_adapter()` | `BackendInterface` | `LocalBackendAdapter` |
+| `get_ner_service()` | `NERServiceInterface` | `SpacyNERService` |
 | `get_nlu_service()` | `NLUServiceInterface \| None` | `OpenAINLUService` / `KeywordNLUService` |
 | `get_conversation_service()` | `ConversationInterface` | `ConversationService` |
+
+### Phase 1 Service Interfaces
+
+Definidas en `shared/interfaces/`:
+
+| Interface | Ubicacion | Implementaciones |
+|-----------|-----------|-----------------|
+| `PlacesServiceInterface` | `shared/interfaces/places_interface.py` | `GooglePlacesService`, `LocalPlacesService` |
+| `DirectionsServiceInterface` | `shared/interfaces/directions_interface.py` | `GoogleDirectionsService`, `OpenRouteDirectionsService`, `LocalDirectionsService` |
+| `AccessibilityServiceInterface` | `shared/interfaces/accessibility_interface.py` | `OverpassAccessibilityService`, `LocalAccessibilityService` |
+| `GeocodingServiceInterface` | `shared/interfaces/geocoding_interface.py` | `NominatimGeocodingService`, `CachedGeocodingService`, `LocalGeocodingService` |
+| `NERServiceInterface` | `shared/interfaces/ner_interface.py` | `SpacyNERService` |
+
+Seleccion de proveedor via `.env` (e.g., `VOICEFLOW_PLACES_PROVIDER=google|local`). Factories en `integration/external_apis/`.
+
+`get_backend_adapter()` crea internamente las factories de Phase 1 services (Places, Directions, Accessibility, Geocoding) y los inyecta en `TourismMultiAgent`.
 
 ### NLU runtime (Commit NLU-4)
 

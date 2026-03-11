@@ -1,7 +1,7 @@
 # Arquitectura Multi-Agente: LangChain + STT
 
-**Actualizado**: 5 de Marzo de 2026
-**Version**: 5.0 - Fase 0 (Contratos) + Fase 1 (API-First Tools) completadas
+**Actualizado**: 11 de Marzo de 2026
+**Version**: 5.1 - Fase 0 (Contratos) + Fase 1 (API-First Tools) completadas + auditoría documental
 
 ---
 
@@ -137,7 +137,7 @@ El sistema VoiceFlow Tourism PoC combina Speech-to-Text (STT) con un sistema mul
 **Hereda de**: `business/core/orchestrator.py` → `MultiAgentOrchestrator`
 **LLM**: ChatOpenAI GPT-4 (temperature=0.3, max_tokens=2500)
 
-El orquestador extiende `MultiAgentOrchestrator` (patron Template Method) e implementa `_execute_pipeline()` con NLU y NER en paralelo (`asyncio.gather`) y el resto de tools en secuencia. El algoritmo base (invoke LLM, gestionar historial, retornar `AgentResponse`) esta en `core/`.
+El orquestador extiende `MultiAgentOrchestrator` (patron Template Method) e implementa `_execute_pipeline()` con NLU y NER en paralelo (`asyncio.gather`), seguido de `EntityResolver` para merge de outputs, y luego el resto de tools en secuencia. El algoritmo base (invoke LLM, gestionar historial, retornar `AgentResponse`) esta en `core/`.
 
 ```python
 class TourismMultiAgent(MultiAgentOrchestrator):
@@ -165,16 +165,26 @@ class TourismMultiAgent(MultiAgentOrchestrator):
         self.tourism_info = TourismInfoTool()
 
     async def _execute_pipeline_async(self, user_input, profile_context=None):
-        ctx = ToolPipelineContext(user_input=user_input, profile_context=profile_context)
-        # Step 1: NLU + NER in parallel
-        ctx = await asyncio.gather(self.nlu.execute(ctx), self.location_ner.execute(ctx))
+        # Step 1: NLU + NER in parallel (native async)
+        nlu_raw, ner_raw = await asyncio.gather(
+            self.nlu._arun(user_input), self.location_ner._arun(user_input)
+        )
+        # Step 1b: EntityResolver merges NLU + NER outputs
+        nlu_result = self._parse_nlu_result(nlu_parsed)
+        ner_locations, ner_top = self._parse_ner_locations(ner_parsed)
+        resolved_entities = self.entity_resolver.resolve(nlu_result, ner_locations, ner_top)
+        # Step 1c: Build typed pipeline context
+        ctx = ToolPipelineContext(
+            user_input=user_input, profile_context=profile_context,
+            nlu_result=nlu_result, resolved_entities=resolved_entities, ...
+        )
         # Step 2: Domain tools (Phase 1 if available, otherwise legacy)
         if self._places_tool:
             ctx = await self._places_tool.execute(ctx)
             ctx = await self._accessibility_enrichment_tool.execute(ctx)
             ctx = await self._directions_tool.execute(ctx)
         else:
-            # Legacy sequential pipeline
+            # Legacy sequential pipeline (TourismInfoTool, AccessibilityTool, RouteTool)
             ...
         return tool_results, metadata
 ```
@@ -224,6 +234,9 @@ Los datos mock de Madrid están en `business/domains/tourism/data/` y son consum
 | Routing transit | Google Routes API v2 | `DirectionsServiceInterface` | `GoogleDirectionsService` |
 | Routing wheelchair | OpenRouteService | `DirectionsServiceInterface` | `OpenRouteDirectionsService` |
 | Accesibilidad | Overpass API (OSM) | `AccessibilityServiceInterface` | `OverpassAccessibilityService` |
+| Geocoding | Nominatim (OSM) | `GeocodingServiceInterface` | `NominatimGeocodingService` + `CachedGeocodingService` |
+
+Geocoding es un servicio compartido consumido por `DirectionsTool` y `AccessibilityEnrichmentTool` para resolver coordenadas desde nombres de lugar.
 
 Selección via `.env`: `VOICEFLOW_PLACES_PROVIDER=local|google`, etc. Factories en `integration/external_apis/`.
 
