@@ -37,7 +37,12 @@ class BackendInterface(ABC):
     """
 
     @abstractmethod
-    async def process_query(self, transcription: str, active_profile_id: Optional[str] = None) -> Dict[str, Any]:
+    async def process_query(
+        self,
+        transcription: str,
+        active_profile_id: Optional[str] = None,
+        runtime_context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """Process user query through multi-agent system"""
         pass
 

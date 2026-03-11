@@ -128,6 +128,14 @@ class Settings(BaseSettings):
         default=False,
         description="Expose full raw Overpass payload in tool outputs for temporary debugging",
     )
+    debug_location_override_enabled: bool = Field(
+        default=False,
+        description="Enable temporary mock location override for debugging/testing routes",
+    )
+    debug_location_override: Optional[str] = Field(
+        default=None,
+        description="Global mock user location (text address or 'lat,lng') used when debug override is enabled",
+    )
 
     # Azure deployment settings (future)
     azure_webapp_name: Optional[str] = Field(default=None, description="Azure Web App name")

@@ -8,8 +8,8 @@ from shared.utils.dependencies import get_backend_adapter, get_conversation_serv
 
 
 class FakeBackendService:
-    async def process_query(self, transcription: str, active_profile_id=None):
-        del transcription, active_profile_id
+    async def process_query(self, transcription: str, active_profile_id=None, runtime_context=None):
+        del transcription, active_profile_id, runtime_context
         return {
             "ai_response": "Encontré actividades accesibles para Valencia.",
             "intent": "event_search",

@@ -34,6 +34,25 @@
    # Editar .env con tus credenciales (Azure Speech, OpenAI)
    ```
 
+### Prueba A/B de rutas por geolocalizacion (real vs mock)
+
+Para comparar la misma consulta con origen real y origen mock:
+
+1. **Activar override debug (solo pruebas):**
+   ```bash
+   export VOICEFLOW_DEBUG_LOCATION_OVERRIDE_ENABLED=true
+   ```
+2. **Consulta con ubicacion real:** abrir la UI sin `mock_location`, aceptar permiso de geolocalizacion y lanzar la consulta.
+3. **Consulta con ubicacion mock:** repetir la misma consulta usando URL con parametro:
+   ```
+   http://localhost:8000/?mock_location=40.4168,-3.7038
+   ```
+4. **Comparar origen y rutas en metadata/logs:** `metadata.route_origin` indica si el origen usado fue `request_location`, `mock_request`, `mock_env`, `profile` o `default`.
+
+Notas:
+- Prioridad de origen: `mock (env/request)` > `ubicacion real del navegador` > `perfil` > `fallback`.
+- Si defines `VOICEFLOW_DEBUG_LOCATION_OVERRIDE`, tiene prioridad sobre `?mock_location=`.
+
 4. **Ejecutar la aplicacion con Docker (recomendado):**
    ```bash
    docker compose up --build

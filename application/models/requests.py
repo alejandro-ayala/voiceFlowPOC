@@ -6,7 +6,7 @@ Provides automatic validation and documentation.
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, validator
 
 
 class AudioUploadRequest(BaseModel):
@@ -52,6 +52,29 @@ class UserPreferences(BaseModel):
     )
 
 
+class RuntimeLocation(BaseModel):
+    """Runtime user location captured from browser geolocation."""
+
+    latitude: float = Field(..., description="Latitude in decimal degrees")
+    longitude: float = Field(..., description="Longitude in decimal degrees")
+    accuracy_meters: Optional[float] = Field(default=None, description="Estimated accuracy radius in meters")
+    source: Optional[str] = Field(default="browser_geolocation", description="Location source identifier")
+
+
+class ChatContext(BaseModel):
+    """Structured request context for runtime metadata and debug controls."""
+
+    model_config = ConfigDict(extra="allow")
+
+    timestamp: Optional[str] = Field(default=None, description="Client-side timestamp")
+    source: Optional[str] = Field(default=None, description="Client source identifier")
+    location: Optional[RuntimeLocation] = Field(default=None, description="Optional real-time user coordinates")
+    debug_mock_location: Optional[str] = Field(
+        default=None,
+        description="Optional debug-only mock location override",
+    )
+
+
 class ChatMessageRequest(BaseModel):
     """Request model for chat messages"""
 
@@ -59,7 +82,7 @@ class ChatMessageRequest(BaseModel):
     conversation_id: Optional[str] = Field(default=None, description="Conversation ID for chat tracking")
     session_id: Optional[str] = Field(default=None, description="Legacy field - use conversation_id instead")
     timestamp: Optional[datetime] = Field(default=None, description="Message timestamp")
-    context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context data")
+    context: Optional[ChatContext] = Field(default=None, description="Additional context data")
     user_preferences: Optional[UserPreferences] = Field(default=None, description="User preference profile selection")
 
     @validator("message")

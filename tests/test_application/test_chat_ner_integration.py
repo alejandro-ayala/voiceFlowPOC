@@ -8,7 +8,8 @@ from shared.utils.dependencies import get_backend_adapter, get_conversation_serv
 
 
 class FakeBackendService:
-    async def process_query(self, transcription: str, active_profile_id=None):
+    async def process_query(self, transcription: str, active_profile_id=None, runtime_context=None):
+        del runtime_context
         return {
             "ai_response": "Perfecto, encontré opciones accesibles en Barcelona.",
             "intent": "route_planning",

@@ -45,8 +45,8 @@ class GoogleDirectionsService(DirectionsServiceInterface):
 
         travel_mode = self._map_travel_mode(mode)
         body: dict = {
-            "origin": {"address": origin},
-            "destination": {"address": destination},
+            "origin": self._build_waypoint(origin),
+            "destination": self._build_waypoint(destination),
             "travelMode": travel_mode,
             "languageCode": language,
             "computeAlternativeRoutes": True,
@@ -100,6 +100,41 @@ class GoogleDirectionsService(DirectionsServiceInterface):
             "bicycling": "BICYCLE",
         }
         return mapping.get(mode.lower(), "TRANSIT")
+
+    @classmethod
+    def _build_waypoint(cls, value: str) -> dict:
+        coords = cls._parse_coordinate_pair(value)
+        if coords:
+            return {
+                "location": {
+                    "latLng": {
+                        "latitude": coords[0],
+                        "longitude": coords[1],
+                    }
+                }
+            }
+        return {"address": value}
+
+    @staticmethod
+    def _parse_coordinate_pair(value: str) -> Optional[tuple[float, float]]:
+        raw = (value or "").strip()
+        if not raw:
+            return None
+
+        parts = [p.strip() for p in raw.split(",")]
+        if len(parts) != 2:
+            return None
+
+        try:
+            latitude = float(parts[0])
+            longitude = float(parts[1])
+        except ValueError:
+            return None
+
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            return None
+
+        return latitude, longitude
 
     @staticmethod
     def _parse_route(route: dict, mode: str) -> RouteOption:

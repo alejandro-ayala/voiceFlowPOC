@@ -120,13 +120,23 @@ class ChatHandler {
             ? profileManager.getProfileForRequest()
             : { active_profile_id: null };
 
+        const debugMockLocation = this.getDebugMockLocation();
+        const runtimeLocation = await this.getRuntimeLocation();
+        const requestContext = {
+            timestamp: new Date().toISOString(),
+            source: 'web_ui'
+        };
+        if (runtimeLocation) {
+            requestContext.location = runtimeLocation;
+        }
+        if (debugMockLocation) {
+            requestContext.debug_mock_location = debugMockLocation;
+        }
+
         const requestData = {
             message: message,
             conversation_id: this.conversationId,
-            context: {
-                timestamp: new Date().toISOString(),
-                source: 'web_ui'
-            },
+            context: requestContext,
             user_preferences: userPreferences
         };
 
@@ -246,6 +256,62 @@ class ChatHandler {
         if (!loading && window.VoiceFlowApp?.audioHandler && !window.VoiceFlowApp.audioHandler.getLastTranscription()) {
             this.processAudioBtn.disabled = true;
         }
+    }
+
+    getDebugMockLocation() {
+        const urlParam = new URLSearchParams(window.location.search).get('mock_location');
+        if (urlParam && urlParam.trim()) {
+            return urlParam.trim();
+        }
+
+        const localMock = window.localStorage.getItem('voiceflow_debug_mock_location');
+        if (localMock && localMock.trim()) {
+            return localMock.trim();
+        }
+
+        return null;
+    }
+
+    async getRuntimeLocation() {
+        if (!navigator.geolocation) {
+            return null;
+        }
+
+        return new Promise((resolve) => {
+            const timeoutMs = 8000;
+            let settled = false;
+
+            const finish = (payload) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                resolve(payload);
+            };
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    finish({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy_meters: position.coords.accuracy,
+                        source: 'browser_geolocation'
+                    });
+                },
+                (error) => {
+                    console.warn('Geolocation unavailable for this request:', {
+                        code: error?.code,
+                        message: error?.message
+                    });
+                    finish(null);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: timeoutMs,
+                    maximumAge: 0
+                }
+            );
+        });
     }
 
     escapeHtml(text) {

@@ -230,5 +230,47 @@ async def test_simulate_ai_response_empty_directives():
     assert "Museo del Prado" in response
 
 
+def test_route_origin_priority_prefers_mock_over_real_location():
+    """When debug mock is enabled and provided, it should override real browser location."""
+    from application.orchestration.backend_adapter import LocalBackendAdapter
+
+    adapter = LocalBackendAdapter(use_real_agents=False)
+    adapter.settings.debug_location_override_enabled = True
+
+    profile_context = {"location": "Perfil original"}
+    runtime_context = {
+        "debug_mock_location": "40.4168,-3.7038",
+        "location": {"latitude": 41.3874, "longitude": 2.1686, "accuracy_meters": 10},
+    }
+
+    resolved_context, route_origin = adapter._apply_runtime_route_origin(profile_context, runtime_context)
+
+    assert resolved_context is not None
+    assert resolved_context["location"] == "40.4168,-3.7038"
+    assert route_origin["source"] == "mock_request"
+    assert route_origin["origin"] == "40.4168,-3.7038"
+
+
+def test_route_origin_uses_real_location_when_no_mock():
+    """When no debug mock is provided, runtime location should be used as route origin."""
+    from application.orchestration.backend_adapter import LocalBackendAdapter
+
+    adapter = LocalBackendAdapter(use_real_agents=False)
+    adapter.settings.debug_location_override_enabled = False
+
+    profile_context = {"location": "Perfil original"}
+    runtime_context = {
+        "location": {"latitude": 41.3874, "longitude": 2.1686, "accuracy_meters": 12},
+    }
+
+    resolved_context, route_origin = adapter._apply_runtime_route_origin(profile_context, runtime_context)
+
+    assert resolved_context is not None
+    assert resolved_context["location"] == "41.387400,2.168600"
+    assert resolved_context["location_coordinates"] == {"latitude": 41.3874, "longitude": 2.1686}
+    assert route_origin["source"] == "request_location"
+    assert route_origin["coordinates"] == {"latitude": 41.3874, "longitude": 2.1686}
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

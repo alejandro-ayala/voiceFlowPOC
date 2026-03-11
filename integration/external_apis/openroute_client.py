@@ -84,6 +84,10 @@ class OpenRouteDirectionsService(DirectionsServiceInterface):
         Falls back to Madrid city center when geocoding is unavailable or returns
         no results, preserving the original graceful-degradation behaviour.
         """
+        direct_coords = self._parse_coordinate_pair(address)
+        if direct_coords:
+            return [direct_coords[1], direct_coords[0]]
+
         if self._geocoding:
             try:
                 candidates = await self._geocoding.geocode(address, language=language)
@@ -103,6 +107,27 @@ class OpenRouteDirectionsService(DirectionsServiceInterface):
 
         logger.debug("openroute_coords_fallback", address=address)
         return _MADRID_CENTER
+
+    @staticmethod
+    def _parse_coordinate_pair(value: str) -> Optional[tuple[float, float]]:
+        raw = (value or "").strip()
+        if not raw:
+            return None
+
+        parts = [p.strip() for p in raw.split(",")]
+        if len(parts) != 2:
+            return None
+
+        try:
+            latitude = float(parts[0])
+            longitude = float(parts[1])
+        except ValueError:
+            return None
+
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            return None
+
+        return latitude, longitude
 
     def is_service_available(self) -> bool:
         # OpenRouteService has a free tier without key (lower limits)

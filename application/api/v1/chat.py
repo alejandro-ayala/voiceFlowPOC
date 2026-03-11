@@ -64,6 +64,7 @@ async def send_message(
         backend_response = await backend_service.process_query(
             transcription=request.message.strip(),
             active_profile_id=active_profile_id,
+            runtime_context=request.context.model_dump(exclude_none=True) if request.context else None,
         )
 
         # Add message pair to conversation service (for session management)

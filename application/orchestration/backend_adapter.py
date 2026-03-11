@@ -143,7 +143,12 @@ class LocalBackendAdapter(BackendInterface):
 
         return self._backend_instance
 
-    async def process_query(self, transcription: str, active_profile_id: Optional[str] = None) -> Dict[str, Any]:
+    async def process_query(
+        self,
+        transcription: str,
+        active_profile_id: Optional[str] = None,
+        runtime_context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """
         Process user query through REAL multi-agent system or SIMULATED for demo.
         Returns structured response with tourism information.
@@ -151,6 +156,7 @@ class LocalBackendAdapter(BackendInterface):
         try:
             # Resolve profile context from registry
             profile_context = self._profile_service.resolve_profile(active_profile_id)
+            profile_context, route_origin = self._apply_runtime_route_origin(profile_context, runtime_context)
 
             # Check if we should use real agents or simulation
             use_real_agents = getattr(self.settings, "use_real_agents", True)
@@ -160,6 +166,8 @@ class LocalBackendAdapter(BackendInterface):
                 query=transcription,
                 profile_id=active_profile_id or "none",
                 profile_resolved=profile_context is not None,
+                route_origin_source=route_origin.get("source"),
+                route_origin_value=route_origin.get("origin"),
                 backend_mode="real" if use_real_agents else "simulated",
             )
 
@@ -261,6 +269,7 @@ class LocalBackendAdapter(BackendInterface):
                     "timestamp": datetime.now().isoformat(),
                     "session_type": "production" if use_real_agents else "demo",
                     "language": "es-ES",
+                    "route_origin": route_origin,
                     "tool_outputs": stable_tool_outputs,
                 },
                 # Attempt to coerce/validate pipeline_steps and tourism_data
@@ -320,6 +329,139 @@ class LocalBackendAdapter(BackendInterface):
                     "error_type": type(e).__name__,
                 },
             )
+
+    def _apply_runtime_route_origin(
+        self,
+        profile_context: Optional[Dict[str, Any]],
+        runtime_context: Optional[Dict[str, Any]],
+    ) -> tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
+        """Resolve effective route origin and inject it into profile_context.
+
+        Priority:
+        1) debug mock override (env or request) when enabled
+        2) runtime real location (request.context.location)
+        3) profile location
+        4) tool default fallback
+        """
+        resolved_context: Dict[str, Any] = dict(profile_context) if isinstance(profile_context, dict) else {}
+
+        mock_location, mock_source = self._resolve_mock_location(runtime_context)
+        if mock_location:
+            coord = self._parse_coordinate_pair(mock_location)
+            resolved_context["location"] = mock_location
+            if coord:
+                resolved_context["location_coordinates"] = {
+                    "latitude": coord[0],
+                    "longitude": coord[1],
+                }
+            route_origin = {
+                "source": mock_source,
+                "origin": mock_location,
+                "coordinates": (
+                    {"latitude": coord[0], "longitude": coord[1]}
+                    if coord
+                    else None
+                ),
+            }
+            return resolved_context, route_origin
+
+        runtime_location = self._resolve_runtime_location(runtime_context)
+        if runtime_location:
+            lat = runtime_location["latitude"]
+            lng = runtime_location["longitude"]
+            origin_value = f"{lat:.6f},{lng:.6f}"
+            resolved_context["location"] = origin_value
+            resolved_context["location_coordinates"] = {
+                "latitude": lat,
+                "longitude": lng,
+            }
+            route_origin = {
+                "source": "request_location",
+                "origin": origin_value,
+                "coordinates": {"latitude": lat, "longitude": lng},
+                "accuracy_meters": runtime_location.get("accuracy_meters"),
+            }
+            return resolved_context, route_origin
+
+        profile_location = resolved_context.get("location")
+        if isinstance(profile_location, str) and profile_location.strip():
+            return resolved_context, {
+                "source": "profile",
+                "origin": profile_location.strip(),
+                "coordinates": resolved_context.get("location_coordinates"),
+            }
+
+        return resolved_context or profile_context, {
+            "source": "default",
+            "origin": "Madrid centro",
+            "coordinates": None,
+        }
+
+    def _resolve_mock_location(self, runtime_context: Optional[Dict[str, Any]]) -> tuple[Optional[str], Optional[str]]:
+        """Resolve optional debug mock location from env or request context."""
+        if not self.settings.debug_location_override_enabled:
+            return None, None
+
+        env_override = (self.settings.debug_location_override or "").strip()
+        if env_override:
+            return env_override, "mock_env"
+
+        if isinstance(runtime_context, dict):
+            context_override = runtime_context.get("debug_mock_location")
+            if isinstance(context_override, str):
+                context_override = context_override.strip()
+                if context_override:
+                    return context_override, "mock_request"
+
+        return None, None
+
+    @staticmethod
+    def _resolve_runtime_location(runtime_context: Optional[Dict[str, Any]]) -> Optional[Dict[str, float]]:
+        if not isinstance(runtime_context, dict):
+            return None
+
+        location = runtime_context.get("location")
+        if not isinstance(location, dict):
+            return None
+
+        lat = location.get("latitude")
+        lng = location.get("longitude")
+        try:
+            latitude = float(lat)
+            longitude = float(lng)
+        except (TypeError, ValueError):
+            return None
+
+        resolved: Dict[str, float] = {"latitude": latitude, "longitude": longitude}
+        accuracy = location.get("accuracy_meters")
+        try:
+            if accuracy is not None:
+                resolved["accuracy_meters"] = float(accuracy)
+        except (TypeError, ValueError):
+            pass
+
+        return resolved
+
+    @staticmethod
+    def _parse_coordinate_pair(value: str) -> Optional[tuple[float, float]]:
+        raw = (value or "").strip()
+        if not raw:
+            return None
+
+        parts = [p.strip() for p in raw.split(",")]
+        if len(parts) != 2:
+            return None
+
+        try:
+            latitude = float(parts[0])
+            longitude = float(parts[1])
+        except ValueError:
+            return None
+
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            return None
+
+        return latitude, longitude
 
     async def _process_real_query(self, transcription: str, profile_context: Optional[Dict[str, Any]] = None) -> str:
         """Process query through REAL LangChain agents with OpenAI."""

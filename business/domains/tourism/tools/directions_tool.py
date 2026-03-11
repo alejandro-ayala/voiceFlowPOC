@@ -65,7 +65,18 @@ class DirectionsTool:
     @staticmethod
     def _resolve_origin(ctx: ToolPipelineContext) -> str:
         if ctx.profile_context:
-            return ctx.profile_context.get("location", "Madrid centro")
+            coords = ctx.profile_context.get("location_coordinates")
+            if isinstance(coords, dict):
+                lat = coords.get("latitude")
+                lng = coords.get("longitude")
+                try:
+                    return f"{float(lat):.6f},{float(lng):.6f}"
+                except (TypeError, ValueError):
+                    pass
+
+            location = ctx.profile_context.get("location")
+            if isinstance(location, str) and location.strip():
+                return location.strip()
         return "Madrid centro"
 
     @staticmethod
