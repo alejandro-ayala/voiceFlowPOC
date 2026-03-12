@@ -1,7 +1,7 @@
 # Estado Actual del Sistema: Profile-Driven Tourism Recommendations
 
-**Fecha:** 11 de Marzo de 2026
-**Versión:** 2.1 (Post Fase 0 + Fase 1 + branch feature/real-tools-implementation)
+**Fecha:** 12 de Marzo de 2026
+**Versión:** 2.2 (Post Fase 0 + Fase 1 + Multi-Recommendation UI)
 **Objetivo:** Documentar claramente qué funciona y qué NO funciona en el sistema actual
 **Última auditoría:** [AUDIT_2026_03_11.md](Reviews/AUDIT_2026_03_11.md)
 
@@ -20,7 +20,8 @@
 | **Profile → LLM texto** | ⚠️ Parcial | ⚠️ **PARCIAL** | Solo afecta tono, no contenido estructurado |
 | **NLU Tool** | ✅ Provider-based | ✅ **SÍ** funciona | OpenAI (`gpt-4o-mini`) con fallback keyword y trazabilidad en metadata |
 | **JSON extraction** | ✅ Normalizada en adapter | ✅ **SÍ** funciona | Contrato estable en `metadata.tool_outputs` para NLU/NER |
-| **Contratos tipados** | ✅ Implementado | ✅ **SÍ** funciona | `ToolPipelineContext` con 6 modelos Pydantic (Fase 0) |
+| **Multi-Recommendation UI** | ✅ Implementado | ✅ **SÍ** funciona | Pipeline multi-place → ResponseTransformer → recommendations[] → UI cards |
+| **Contratos tipados** | ✅ Implementado | ✅ **SÍ** funciona | `ToolPipelineContext` con 6 modelos Pydantic (Fase 0) + multi-place fields |
 | **Pipeline async-native** | ✅ Implementado | ✅ **SÍ** funciona | `await asyncio.gather()` directo, sin `asyncio.run()` anidado |
 | **Resiliencia APIs** | ✅ Implementado | ✅ **SÍ** funciona | Circuit breaker + rate limiter + budget tracker |
 | **EntityResolver** | ✅ Implementado | ✅ **SÍ** funciona | Merge NLU + NER outputs con política explícita |
@@ -123,6 +124,11 @@ class ToolPipelineContext(BaseModel):
     venue_detail: Optional[VenueDetail] = None
     raw_tool_results: dict[str, str] = {}
     errors: list[ToolError] = []
+
+    # Multi-place support (Phase A: recommendations UI)
+    places: list[PlaceCandidate] = []             # top-N candidates from PlacesSearchTool
+    accessibility_map: dict[str, AccessibilityInfo] = {}  # place_id → enrichment
+    routes_map: dict[str, list[RouteOption]] = {}         # place_id → routes
 
 # Additional models (Fase 0+1):
 # - GeocodedLocation: latitude, longitude, formatted_address, confidence, source
@@ -251,12 +257,18 @@ metadata.tool_outputs = {
     "nlu": {...payload normalizado...},
     "location_ner": {...payload normalizado...}
 }
+
+# Multi-recommendation contract (Phase A-D)
+# metadata.pipeline_context serializado por agent.py
+# → ResponseTransformer transforma en recommendations[]
+# → ChatResponse incluye recommendations: List[Recommendation]
 ```
 
 **Resultado actual:**
 - NLU/NER quedan siempre normalizados para consumo API/UI en `metadata.tool_outputs`.
 - Se mantiene `metadata.tool_results_parsed` para diagnóstico interno sin romper contrato público.
-- `tourism_data` continúa condicionado por tools de dominio stub (gap de datos, no de extracción NLU/NER).
+- `recommendations[]` es el contrato principal para la UI (multi-place cards con venue + accessibility + routes).
+- `tourism_data` se mantiene por backward compatibility pero está **deprecated** — la UI prioriza `recommendations[]`.
 
 ---
 
@@ -273,7 +285,8 @@ metadata.tool_outputs = {
 7. **Pipeline async-native**: Sin `asyncio.run()` anidado, compatible con streaming/WebSockets
 8. **Contratos tipados**: `ToolPipelineContext` con Pydantic models entre todas las tools
 9. **Resiliencia**: Circuit breaker + rate limiter + budget tracker para APIs externas
-10. **156 test functions** en 29 archivos incluyendo tests para Fase 0 + Fase 1
+10. **180 test functions** en 30 archivos incluyendo tests para Fase 0 + Fase 1 + ResponseTransformer
+11. **Multi-recommendation UI**: Pipeline multi-place (N candidates) → ResponseTransformer → recommendations[] → CardRenderer cards
 
 ### ❌ Lo que NO funciona
 
@@ -340,7 +353,7 @@ El sistema ha evolucionado de prototipo arquitectónico a **PoC funcional**:
 - ✅ Fallback automático a datos mock sin errores
 - ✅ Pipeline async-native con contratos tipados (Pydantic)
 - ✅ Capa de resiliencia: circuit breaker + rate limiter + budget tracker
-- ✅ 128 tests pasan
+- ✅ 180 tests pasan
 
 **Pendiente:**
 - ⚠️ El perfil NO afecta ranking/filtrado de venues (solo tono + wheelchair routing)

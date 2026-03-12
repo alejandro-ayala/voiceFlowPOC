@@ -1,8 +1,8 @@
 # ROADMAP: VoiceFlow Tourism PoC
 
-**Fecha**: 11 de Marzo de 2026
-**Estado actual**: Fase 0 (Contratos) + Fase 1 (API-First Tools) completadas | 156 test functions en 29 archivos
-**Versión actual del proyecto**: 2.1.0
+**Fecha**: 12 de Marzo de 2026
+**Estado actual**: Fase 0 (Contratos) + Fase 1 (API-First Tools) + Multi-Recommendation UI completadas | 180 test functions en 30 archivos
+**Versión actual del proyecto**: 2.2.0
 
 > ⚠️ **Documento de planificación (histórico por fases).**
 > Algunas secciones incluyen snapshots de implementación previos.
@@ -22,6 +22,7 @@ Este roadmap define las fases de evolución del proyecto desde su estado actual 
 - ✅ Fase 2B: Descomposición de Business Layer
 - ✅ Fase 0 (Audit): Contratos tipados + Pipeline async-native (12 tests)
 - ✅ Fase 1 (Audit): Tools reales API-First con SOLID (42 tests)
+- ✅ Multi-Recommendation UI: Pipeline multi-place + ResponseTransformer + cards UI (24 tests)
 
 ### Proximas Fases
 ```

@@ -1,6 +1,6 @@
 # API Reference - VoiceFlow Tourism PoC
 
-**Actualizado**: 11 de Marzo de 2026
+**Actualizado**: 12 de Marzo de 2026
 **Base URL**: `http://localhost:8000/api/v1`
 
 ---
@@ -161,7 +161,46 @@ Envia un mensaje y obtiene respuesta del asistente de turismo.
       "language": "es"
     }
   },
+  "recommendations": [
+    {
+      "id": "ChIJ_zmTnWcqQg0R...",
+      "name": "Museo del Prado",
+      "type": "museum",
+      "summary": null,
+      "venue": {
+        "name": "Museo del Prado",
+        "type": "museum",
+        "accessibility_score": 4.7,
+        "facilities": []
+      },
+      "accessibility": {
+        "level": "good",
+        "score": 8.5,
+        "certification": null,
+        "facilities": ["wheelchair_ramps"],
+        "services": {
+          "Entrada accesible": "Sí",
+          "Parking accesible": "No",
+          "Aseo accesible": "Sí"
+        }
+      },
+      "routes": [
+        {
+          "transport": "metro",
+          "line": null,
+          "duration": "15 min",
+          "accessibility": "full",
+          "cost": "1.50€",
+          "steps": ["Camina 200m hasta Atocha", "Toma la línea 1"]
+        }
+      ],
+      "maps_url": "https://www.google.com/maps/place/?q=place_id:ChIJ_zmTnWcqQg0R...",
+      "source": "google_places",
+      "confidence": 0.94
+    }
+  ],
   "tourism_data": {
+    "_note": "DEPRECATED — use recommendations[] instead",
     "venue": {
       "name": "Museo del Prado",
       "type": "museum",
@@ -240,6 +279,13 @@ Envia un mensaje y obtiene respuesta del asistente de turismo.
   }
 }
 ```
+
+**Notas sobre recommendations[] (Phase A-D):**
+- `recommendations` es un array de objetos `Recommendation` con venue, accessibility y routes combinados por lugar.
+- Generado por `ResponseTransformer` a partir de `metadata.pipeline_context` (multi-place pipeline).
+- Ordenado por accessibility score descendente, luego confidence.
+- `tourism_data` se mantiene por backward compatibility pero está **deprecated** — los consumidores deben migrar a `recommendations[]`.
+- Si el pipeline no produce candidates, `recommendations` será `[]` y `tourism_data` se usará como fallback en la UI.
 
 **Notas de trazabilidad NLU/NER (Commit NLU-5):**
 - `pipeline_steps` mantiene un resumen de ejecución (`summary`) para visualización.
