@@ -516,6 +516,9 @@ class TourismMultiAgent(MultiAgentOrchestrator):
 
         metadata = self._build_metadata(pipeline_steps, parsed_tools, resolved_entities)
 
+        # Propagate multi-place pipeline context for ResponseTransformer
+        metadata["pipeline_context"] = self._serialize_pipeline_context(ctx)
+
         return tool_results, metadata
 
     # ------------------------------------------------------------------ #
@@ -546,6 +549,15 @@ class TourismMultiAgent(MultiAgentOrchestrator):
             tool_results=tool_results,
             profile_context=profile_context,
         )
+
+    @staticmethod
+    def _serialize_pipeline_context(ctx: ToolPipelineContext) -> dict:
+        """Serialize multi-place fields from ToolPipelineContext for the adapter layer."""
+        return {
+            "places": [p.model_dump() for p in ctx.places],
+            "accessibility_map": {k: v.model_dump() for k, v in ctx.accessibility_map.items()},
+            "routes_map": {k: [r.model_dump() for r in rs] for k, rs in ctx.routes_map.items()},
+        }
 
     def _extract_structured_data(self, llm_text: str, metadata: dict) -> tuple[str, dict]:
         """Extract JSON tourism_data block from LLM response and merge into metadata."""

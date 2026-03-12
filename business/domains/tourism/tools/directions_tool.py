@@ -40,6 +40,10 @@ class DirectionsTool:
                 ensure_ascii=False,
             )
 
+            # Map routes to the primary place in routes_map
+            if ctx.place and ctx.place.place_id and routes:
+                ctx.routes_map[ctx.place.place_id] = list(routes)
+
             logger.info(
                 "directions_complete",
                 destination=destination,

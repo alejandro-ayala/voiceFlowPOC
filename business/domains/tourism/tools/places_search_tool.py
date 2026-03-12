@@ -109,6 +109,7 @@ class PlacesSearchTool:
 
             if selected_candidates:
                 ctx.place = selected_candidates[0]
+                ctx.places = list(selected_candidates)
 
                 if selected_candidates[0].place_id:
                     detail = await self._service.place_details(

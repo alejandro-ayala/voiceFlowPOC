@@ -20,7 +20,10 @@ class AccessibilityEnrichmentTool:
         self._debug_raw_enabled = Settings().accessibility_debug_raw
 
     async def execute(self, ctx: ToolPipelineContext) -> ToolPipelineContext:
-        """Enrich ctx.place with accessibility data, populate ctx.accessibility."""
+        """Enrich ctx.place with accessibility data, populate ctx.accessibility.
+
+        Also enriches all candidates in ctx.places into ctx.accessibility_map.
+        """
         place_name = self._resolve_place_name(ctx)
         if not place_name:
             return ctx
@@ -75,6 +78,10 @@ class AccessibilityEnrichmentTool:
                 ensure_ascii=False,
             )
 
+            # Map top-1 result into accessibility_map
+            if ctx.place and ctx.place.place_id:
+                ctx.accessibility_map[ctx.place.place_id] = merged_info
+
             logger.info(
                 "accessibility_enrichment_complete",
                 place=place_name,
@@ -83,9 +90,7 @@ class AccessibilityEnrichmentTool:
                 has_google_accessibility=bool(google_accessibility),
                 debug_raw_enabled=self._debug_raw_enabled,
                 overpass_payload_keys=(
-                    list((provider_debug.get("response_raw") or {}).keys())
-                    if isinstance(provider_debug, dict)
-                    else []
+                    list((provider_debug.get("response_raw") or {}).keys()) if isinstance(provider_debug, dict) else []
                 ),
                 comparison_conflicts=len(comparison.get("conflicts") or []),
             )
@@ -99,7 +104,37 @@ class AccessibilityEnrichmentTool:
             )
             ctx.errors.append(ToolError(source="accessibility_enrichment", message=str(exc)))
 
+        # Enrich remaining places in ctx.places (skip top-1 already enriched above)
+        await self._enrich_remaining_places(ctx)
+
         return ctx
+
+    async def _enrich_remaining_places(self, ctx: ToolPipelineContext) -> None:
+        """Enrich accessibility for additional candidates beyond the primary place."""
+        top_place_id = ctx.place.place_id if ctx.place else None
+
+        for place in ctx.places:
+            pid = place.place_id
+            if not pid or pid == top_place_id or pid in ctx.accessibility_map:
+                continue
+            try:
+                info = await self._service.enrich_accessibility(
+                    place_name=place.name,
+                    place_id=pid,
+                    location=place.destination,
+                    latitude=place.location_lat,
+                    longitude=place.location_lng,
+                    language=ctx.language,
+                )
+                ctx.accessibility_map[pid] = info
+            except Exception as exc:
+                logger.warning(
+                    "accessibility_enrichment_secondary_failed",
+                    place=place.name,
+                    place_id=pid,
+                    error=str(exc),
+                )
+                ctx.errors.append(ToolError(source=f"accessibility_enrichment:{pid}", message=str(exc)))
 
     @staticmethod
     def _resolve_place_name(ctx: ToolPipelineContext) -> str:

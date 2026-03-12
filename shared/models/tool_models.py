@@ -106,6 +106,11 @@ class ToolPipelineContext(BaseModel):
     routes: list[RouteOption] = Field(default_factory=list)
     venue_detail: Optional[VenueDetail] = None
 
+    # Multi-place support (Phase A: recommendations UI)
+    places: list[PlaceCandidate] = Field(default_factory=list)
+    accessibility_map: dict[str, AccessibilityInfo] = Field(default_factory=dict)
+    routes_map: dict[str, list[RouteOption]] = Field(default_factory=dict)
+
     # Backward compat: raw JSON strings for prompt builder and metadata
     raw_tool_results: dict[str, str] = Field(default_factory=dict)
 
