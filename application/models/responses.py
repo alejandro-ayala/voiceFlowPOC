@@ -199,6 +199,23 @@ class TourismData(BaseModel):
         return values
 
 
+class Recommendation(BaseModel):
+    """A single recommendation card combining venue + accessibility + routes."""
+
+    id: str = Field(..., description="Place ID or generated UUID")
+    name: str = Field(..., description="Place name")
+    type: str = Field(default="venue", description="Place type (restaurant, museum, etc.)")
+    summary: Optional[str] = Field(default=None, description="Short description")
+
+    venue: Optional[Venue] = None
+    accessibility: Optional[Accessibility] = None
+    routes: List[Route] = Field(default_factory=list)
+
+    maps_url: Optional[str] = Field(default=None, description="Google Maps deep link")
+    source: Optional[str] = Field(default=None, description="Data provider (google_places, local)")
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Match relevance 0-1")
+
+
 class ChatResponse(BaseResponse):
     """Response model for chat interactions"""
 
@@ -206,7 +223,12 @@ class ChatResponse(BaseResponse):
     session_id: str = Field(..., description="Session identifier")
     processing_time: Optional[float] = Field(default=None, description="Processing time in seconds")
 
-    # Structured tourism data
+    # Multi-recommendation cards (Phase B)
+    recommendations: List[Recommendation] = Field(
+        default_factory=list, description="Recommendation cards for UI rendering"
+    )
+
+    # Structured tourism data (deprecated — use recommendations instead)
     tourism_data: Optional[TourismData] = Field(default=None, description="Structured tourism information")
     intent: Optional[str] = Field(default=None, description="Detected user intent")
     entities: Optional[Dict[str, Any]] = Field(default=None, description="Extracted entities")

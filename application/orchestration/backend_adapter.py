@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 import structlog
 
 from application.models.responses import PipelineStep, TourismData
+from application.orchestration.response_transformer import ResponseTransformer
 from application.services.profile_service import ProfileService
 from integration.configuration.settings import Settings
 from shared.exceptions.exceptions import BackendCommunicationException
@@ -248,6 +249,12 @@ class LocalBackendAdapter(BackendInterface):
             if nlu_payload:
                 stable_tool_outputs["nlu"] = nlu_payload
 
+            # Build recommendations from multi-place pipeline context
+            pipeline_context_data = raw_metadata.get("pipeline_context") if isinstance(raw_metadata, dict) else None
+            recommendations: list[dict[str, Any]] = []
+            if pipeline_context_data and pipeline_context_data.get("places"):
+                recommendations = ResponseTransformer.transform(pipeline_context_data, profile_context=profile_context)
+
             # Validate and structure the response for the UI
             structured_response = {
                 "success": True,
@@ -272,6 +279,7 @@ class LocalBackendAdapter(BackendInterface):
                     "route_origin": route_origin,
                     "tool_outputs": stable_tool_outputs,
                 },
+                "recommendations": recommendations,
                 # Attempt to coerce/validate pipeline_steps and tourism_data
                 "pipeline_steps": None,
                 "intent": response_intent,
@@ -357,11 +365,7 @@ class LocalBackendAdapter(BackendInterface):
             route_origin = {
                 "source": mock_source,
                 "origin": mock_location,
-                "coordinates": (
-                    {"latitude": coord[0], "longitude": coord[1]}
-                    if coord
-                    else None
-                ),
+                "coordinates": ({"latitude": coord[0], "longitude": coord[1]} if coord else None),
             }
             return resolved_context, route_origin
 
