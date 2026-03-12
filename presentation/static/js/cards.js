@@ -24,7 +24,137 @@ class CardRenderer {
     };
 
     /**
-     * Render all applicable cards from tourism_data.
+     * Render recommendation cards (Phase C: multi-place support).
+     * Falls back to legacy tourism_data render when recommendations are empty.
+     * @param {Array} recommendations - list of Recommendation objects
+     * @returns {string} HTML string
+     */
+    static renderRecommendations(recommendations) {
+        if (!recommendations || recommendations.length === 0) return '';
+
+        let html = '<div class="response-cards recommendations-list mt-3">';
+
+        recommendations.forEach((rec, index) => {
+            html += CardRenderer._renderRecommendationCard(rec, index);
+        });
+
+        html += '</div>';
+        return html;
+    }
+
+    /**
+     * Render a single combined recommendation card (venue + accessibility + routes).
+     */
+    static _renderRecommendationCard(rec, index) {
+        const name = CardRenderer.escapeHtml(rec.name || 'Recomendación');
+        const type = CardRenderer.escapeHtml(rec.type || 'venue');
+        const confidencePercent = rec.confidence != null ? Math.round(rec.confidence * 100) : null;
+        const confidenceBadge = confidencePercent != null
+            ? `<span class="badge bg-info"><i class="bi bi-bullseye"></i> ${confidencePercent}%</span>`
+            : '';
+        const mapsLink = rec.maps_url
+            ? `<a href="${CardRenderer.escapeHtml(rec.maps_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary ms-2"><i class="bi bi-geo-alt"></i> Maps</a>`
+            : '';
+        const sourceBadge = rec.source
+            ? `<span class="badge bg-light text-muted border ms-1">${CardRenderer.escapeHtml(rec.source)}</span>`
+            : '';
+
+        // Venue section
+        let venueHtml = '';
+        if (rec.venue) {
+            const v = rec.venue;
+            const score = v.accessibility_score || 0;
+            const scoreColor = score >= 8 ? 'success' : score >= 6 ? 'warning' : 'danger';
+            const facilitiesBadges = (v.facilities || []).map(f => {
+                const info = CardRenderer.FACILITY_ICONS[f] || { icon: 'bi-check-circle', label: f.replace(/_/g, ' ') };
+                return `<span class="badge facility-badge"><i class="bi ${info.icon}"></i> ${info.label}</span>`;
+            }).join('');
+
+            venueHtml = `
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="facilities-list">${facilitiesBadges}</div>
+                    <div class="accessibility-gauge">
+                        <div class="gauge-circle gauge-${scoreColor}">
+                            <span class="gauge-value">${score}</span>
+                            <span class="gauge-label">/10</span>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        // Accessibility section
+        let accHtml = '';
+        if (rec.accessibility) {
+            const a = rec.accessibility;
+            const aScore = a.score || 0;
+            const aPercent = (aScore / 10) * 100;
+            const aColor = aScore >= 8 ? 'success' : aScore >= 6 ? 'warning' : 'danger';
+            const servicesHtml = a.services
+                ? Object.entries(a.services).map(([k, v]) =>
+                    `<span class="badge bg-light text-dark border me-1 mb-1"><i class="bi bi-check2"></i> ${k}: ${v}</span>`
+                ).join('')
+                : '';
+
+            accHtml = `
+                <div class="rec-accessibility mt-2 pt-2 border-top">
+                    <div class="d-flex align-items-center mb-1">
+                        <small class="text-muted me-2"><i class="bi bi-universal-access"></i> Accesibilidad</small>
+                        <div class="score-bar-container flex-grow-1 me-2">
+                            <div class="score-bar"><div class="score-bar-fill bg-${aColor}" style="width: ${aPercent}%"></div></div>
+                        </div>
+                        <span class="badge bg-${aColor}">${aScore}/10</span>
+                    </div>
+                    ${a.level ? `<small class="text-muted">Nivel: <strong>${CardRenderer.escapeHtml(a.level.replace(/_/g, ' '))}</strong></small>` : ''}
+                    ${servicesHtml ? `<div class="mt-1">${servicesHtml}</div>` : ''}
+                </div>`;
+        }
+
+        // Routes section
+        let routesHtml = '';
+        if (rec.routes && rec.routes.length > 0) {
+            const routeItems = rec.routes.map(route => {
+                const icon = CardRenderer.TRANSPORT_ICONS[route.transport] || 'bi-signpost-2';
+                const accBadge = route.accessibility === 'full'
+                    ? '<i class="bi bi-universal-access text-success"></i>'
+                    : (route.accessibility === 'partial' ? '<i class="bi bi-universal-access text-warning"></i>' : '');
+                return `<span class="badge bg-light text-dark border me-1 mb-1">
+                    <i class="bi ${icon}"></i> ${CardRenderer.escapeHtml(route.line || route.transport || '')}
+                    ${route.duration ? `· ${CardRenderer.escapeHtml(route.duration)}` : ''}
+                    ${accBadge}
+                </span>`;
+            }).join('');
+
+            routesHtml = `
+                <div class="rec-routes mt-2 pt-2 border-top">
+                    <small class="text-muted"><i class="bi bi-signpost-split"></i> Rutas</small>
+                    <div class="mt-1">${routeItems}</div>
+                </div>`;
+        }
+
+        return `
+            <div class="card response-card recommendation-card mb-2" data-rec-id="${CardRenderer.escapeHtml(rec.id || '')}">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="card-title mb-0">
+                            <span class="badge bg-secondary rounded-pill me-1">${index + 1}</span>
+                            <i class="bi bi-building"></i> ${name}
+                            <small class="text-muted ms-1">${type}</small>
+                        </h6>
+                        <div>
+                            ${confidenceBadge}
+                            ${sourceBadge}
+                            ${mapsLink}
+                        </div>
+                    </div>
+                    ${venueHtml}
+                    ${accHtml}
+                    ${routesHtml}
+                </div>
+            </div>`;
+    }
+
+    /**
+     * Render all applicable cards from tourism_data (legacy).
      * @param {Object} tourismData
      * @returns {string} HTML string
      */

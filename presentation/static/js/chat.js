@@ -76,6 +76,7 @@ class ChatHandler {
                 // Add AI response with rich data
                 this.addMessage('assistant', response.ai_response, {
                     processingTime: response.processing_time,
+                    recommendations: response.recommendations,
                     tourismData: response.tourism_data,
                     pipelineSteps: response.pipeline_steps,
                 });
@@ -161,7 +162,8 @@ class ChatHandler {
         messageElement.className = `chat-message ${role}`;
 
         // Expand width for rich cards
-        if (role === 'assistant' && metadata.tourismData) {
+        const hasRecommendations = metadata.recommendations && metadata.recommendations.length > 0;
+        if (role === 'assistant' && (hasRecommendations || metadata.tourismData)) {
             messageElement.classList.add('has-cards');
         }
 
@@ -172,9 +174,11 @@ class ChatHandler {
 
         let messageHtml = '';
 
-        // If assistant message contains tourismData, render the rich cards prominently
-        if (role === 'assistant' && metadata.tourismData && typeof CardRenderer !== 'undefined') {
-            // Optionally include a short heading and hide the plain text to favour cards
+        // Prioritize recommendations[] over legacy tourism_data
+        if (role === 'assistant' && hasRecommendations && typeof CardRenderer !== 'undefined') {
+            messageHtml += `<div class="message-content mb-2">${this.escapeHtml(content)}</div>`;
+            messageHtml += CardRenderer.renderRecommendations(metadata.recommendations);
+        } else if (role === 'assistant' && metadata.tourismData && typeof CardRenderer !== 'undefined') {
             messageHtml += `<div class="assistant-cards-header small text-muted mb-2">Respuesta estructurada</div>`;
             messageHtml += CardRenderer.render(metadata.tourismData);
         } else {
