@@ -145,6 +145,7 @@ class Route(BaseModel):
     accessibility: Optional[str] = None
     cost: Optional[str] = None
     steps: Optional[List[str]] = None
+    directions_url: Optional[str] = Field(default=None, description="Google Maps Directions URL")
 
     @validator("steps", pre=True)
     def ensure_steps(cls, v):
@@ -204,14 +205,16 @@ class Recommendation(BaseModel):
 
     id: str = Field(..., description="Place ID or generated UUID")
     name: str = Field(..., description="Place name")
-    type: str = Field(default="venue", description="Place type (restaurant, museum, etc.)")
+    type: str = Field(default="venue", description="Primary place type")
+    types: List[str] = Field(default_factory=list, description="All place types from provider")
     summary: Optional[str] = Field(default=None, description="Short description")
 
     venue: Optional[Venue] = None
     accessibility: Optional[Accessibility] = None
     routes: List[Route] = Field(default_factory=list)
 
-    maps_url: Optional[str] = Field(default=None, description="Google Maps deep link")
+    maps_url: Optional[str] = Field(default=None, description="Google Maps deep link (deprecated)")
+    website_url: Optional[str] = Field(default=None, description="Official website of the place")
     source: Optional[str] = Field(default=None, description="Data provider (google_places, local)")
     confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="Match relevance 0-1")
 

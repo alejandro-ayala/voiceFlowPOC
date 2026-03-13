@@ -65,6 +65,7 @@ class PlaceCandidate(BaseModel):
     location_lng: Optional[float] = None
     rating: Optional[float] = None
     types: list[str] = Field(default_factory=list)
+    website_url: Optional[str] = None
     source: str = "nlu"
 
 

@@ -80,6 +80,7 @@ async def send_message(
             session_id=session_id,
             ai_response=backend_response["ai_response"],
             processing_time=backend_response.get("processing_time", 0.5),
+            recommendations=backend_response.get("recommendations", []),
             intent=backend_response.get("intent"),
             entities=backend_response.get("entities"),
             tourism_data=backend_response.get("tourism_data"),

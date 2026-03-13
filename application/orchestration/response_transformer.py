@@ -96,8 +96,10 @@ class ResponseTransformer:
         # Lookup accessibility from map
         accessibility = ResponseTransformer._build_accessibility(acc_map.get(place_id))
 
-        # Lookup routes from map
-        routes = ResponseTransformer._build_routes(routes_map.get(place_id))
+        # Lookup routes from map — pass place coords for directions URLs
+        dest_lat = place.get("location_lat")
+        dest_lng = place.get("location_lng")
+        routes = ResponseTransformer._build_routes(routes_map.get(place_id), dest_lat=dest_lat, dest_lng=dest_lng)
 
         # Merge accessibility score into venue if available
         if accessibility and venue:
@@ -109,11 +111,13 @@ class ResponseTransformer:
             "id": place_id,
             "name": place.get("name") or "Recomendación",
             "type": place_type,
+            "types": place_types,
             "summary": None,
             "venue": venue,
             "accessibility": accessibility,
             "routes": routes,
             "maps_url": ResponseTransformer._build_maps_url(place),
+            "website_url": place.get("website_url"),
             "source": place.get("source"),
             "confidence": ResponseTransformer._normalize_confidence(place),
         }
@@ -175,10 +179,25 @@ class ResponseTransformer:
         return result
 
     @staticmethod
-    def _build_routes(routes_data: Optional[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    def _build_routes(
+        routes_data: Optional[list[dict[str, Any]]],
+        dest_lat: Optional[float] = None,
+        dest_lng: Optional[float] = None,
+    ) -> list[dict[str, Any]]:
         """Build Route dicts from routes_map entry."""
         if not routes_data:
             return []
+
+        # Travel mode mapping for Google Maps Directions URLs
+        _GMAPS_MODES = {
+            "walking": "walking",
+            "bus": "transit",
+            "metro": "transit",
+            "transit": "transit",
+            "taxi": "driving",
+            "driving": "driving",
+            "bicycling": "bicycling",
+        }
 
         routes: list[dict[str, Any]] = []
         for r in routes_data:
@@ -194,14 +213,24 @@ class ResponseTransformer:
                 elif isinstance(s, dict):
                     steps.append(s.get("instruction") or s.get("description") or str(s))
 
+            # Build Google Maps Directions URL per route
+            transport = r.get("transport_type")
+            directions_url = None
+            if dest_lat is not None and dest_lng is not None:
+                mode = _GMAPS_MODES.get(transport or "", "transit")
+                directions_url = (
+                    f"https://www.google.com/maps/dir/?api=1&destination={dest_lat},{dest_lng}&travelmode={mode}"
+                )
+
             routes.append(
                 {
-                    "transport": r.get("transport_type"),
+                    "transport": transport,
                     "line": None,
                     "duration": duration_str,
                     "accessibility": "full" if (r.get("accessibility_score") or 0) >= 0.8 else "partial",
                     "cost": r.get("estimated_cost"),
                     "steps": steps or None,
+                    "directions_url": directions_url,
                 }
             )
 

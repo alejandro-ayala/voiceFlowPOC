@@ -23,6 +23,63 @@ class CardRenderer {
         'walking': 'bi-person-walking',
     };
 
+    /** Google Places type → Spanish label + icon */
+    static TYPE_LABELS = {
+        'restaurant': { label: 'Restaurante', icon: 'bi-cup-straw' },
+        'mediterranean_restaurant': { label: 'Mediterráneo', icon: 'bi-cup-straw' },
+        'italian_restaurant': { label: 'Italiano', icon: 'bi-cup-straw' },
+        'japanese_restaurant': { label: 'Japonés', icon: 'bi-cup-straw' },
+        'chinese_restaurant': { label: 'Chino', icon: 'bi-cup-straw' },
+        'indian_restaurant': { label: 'Indio', icon: 'bi-cup-straw' },
+        'mexican_restaurant': { label: 'Mexicano', icon: 'bi-cup-straw' },
+        'seafood_restaurant': { label: 'Marisquería', icon: 'bi-cup-straw' },
+        'fast_food_restaurant': { label: 'Comida rápida', icon: 'bi-cup-straw' },
+        'cafe': { label: 'Cafetería', icon: 'bi-cup-hot' },
+        'bar': { label: 'Bar', icon: 'bi-cup-straw' },
+        'museum': { label: 'Museo', icon: 'bi-bank' },
+        'art_gallery': { label: 'Galería de arte', icon: 'bi-palette' },
+        'tourist_attraction': { label: 'Atracción turística', icon: 'bi-camera' },
+        'park': { label: 'Parque', icon: 'bi-tree' },
+        'amusement_park': { label: 'Parque de atracciones', icon: 'bi-emoji-laughing' },
+        'theater': { label: 'Teatro', icon: 'bi-film' },
+        'movie_theater': { label: 'Cine', icon: 'bi-film' },
+        'shopping_mall': { label: 'Centro comercial', icon: 'bi-bag' },
+        'hotel': { label: 'Hotel', icon: 'bi-building' },
+        'church': { label: 'Iglesia', icon: 'bi-building' },
+        'zoo': { label: 'Zoo', icon: 'bi-bug' },
+        'aquarium': { label: 'Acuario', icon: 'bi-water' },
+        'spa': { label: 'Spa', icon: 'bi-droplet' },
+        'gym': { label: 'Gimnasio', icon: 'bi-bicycle' },
+        'night_club': { label: 'Discoteca', icon: 'bi-music-note-beamed' },
+        'library': { label: 'Biblioteca', icon: 'bi-book' },
+        'visitor_center': { label: 'Centro de visitantes', icon: 'bi-info-circle' },
+        'indoor_playground': { label: 'Parque infantil', icon: 'bi-emoji-smile' },
+        'historical_landmark': { label: 'Monumento histórico', icon: 'bi-landmark' },
+        'cultural_center': { label: 'Centro cultural', icon: 'bi-people' },
+        'stadium': { label: 'Estadio', icon: 'bi-trophy' },
+        'bakery': { label: 'Panadería', icon: 'bi-shop' },
+        'food': { label: 'Gastronomía', icon: 'bi-egg-fried' },
+        'point_of_interest': { label: 'Punto de interés', icon: 'bi-geo-alt' },
+        'establishment': { label: 'Establecimiento', icon: 'bi-shop-window' },
+    };
+
+    /**
+     * Convert raw Google Places types to readable Spanish badges.
+     * Shows up to maxTags types, skipping generic ones if specific ones exist.
+     */
+    static renderTypeBadges(types, maxTags = 3) {
+        if (!types || types.length === 0) return '';
+        // Filter out overly generic types if we have specific ones
+        const generic = new Set(['point_of_interest', 'establishment', 'food']);
+        const specific = types.filter(t => !generic.has(t));
+        const display = (specific.length > 0 ? specific : types).slice(0, maxTags);
+
+        return display.map(t => {
+            const info = CardRenderer.TYPE_LABELS[t] || { label: t.replace(/_/g, ' '), icon: 'bi-tag' };
+            return `<span class="badge bg-light text-dark border me-1"><i class="bi ${info.icon}"></i> ${info.label}</span>`;
+        }).join('');
+    }
+
     /**
      * Render recommendation cards (Phase C: multi-place support).
      * Falls back to legacy tourism_data render when recommendations are empty.
@@ -47,17 +104,13 @@ class CardRenderer {
      */
     static _renderRecommendationCard(rec, index) {
         const name = CardRenderer.escapeHtml(rec.name || 'Recomendación');
-        const type = CardRenderer.escapeHtml(rec.type || 'venue');
+        const typeBadges = CardRenderer.renderTypeBadges(rec.types || [rec.type]);
         const confidencePercent = rec.confidence != null ? Math.round(rec.confidence * 100) : null;
         const confidenceBadge = confidencePercent != null
-            ? `<span class="badge bg-info"><i class="bi bi-bullseye"></i> ${confidencePercent}%</span>`
+            ? `<span class="badge bg-info" title="Relevancia de la recomendación"><i class="bi bi-bullseye"></i> Relevancia: ${confidencePercent}%</span>`
             : '';
-        const mapsLink = rec.maps_url
-            ? `<a href="${CardRenderer.escapeHtml(rec.maps_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary ms-2"><i class="bi bi-geo-alt"></i> Maps</a>`
-            : '';
-        const sourceBadge = rec.source
-            ? `<span class="badge bg-light text-muted border ms-1">${CardRenderer.escapeHtml(rec.source)}</span>`
-            : '';
+        // maps_url removed from header — directions links are per-route now
+        // source badge removed — not user-facing value
 
         // Venue section
         let venueHtml = '';
@@ -82,31 +135,55 @@ class CardRenderer {
                 </div>`;
         }
 
-        // Accessibility section
+        // Accessibility section — only show if there is meaningful data
         let accHtml = '';
         if (rec.accessibility) {
             const a = rec.accessibility;
             const aScore = a.score || 0;
-            const aPercent = (aScore / 10) * 100;
-            const aColor = aScore >= 8 ? 'success' : aScore >= 6 ? 'warning' : 'danger';
-            const servicesHtml = a.services
-                ? Object.entries(a.services).map(([k, v]) =>
-                    `<span class="badge bg-light text-dark border me-1 mb-1"><i class="bi bi-check2"></i> ${k}: ${v}</span>`
-                ).join('')
-                : '';
+            const hasServices = a.services && Object.keys(a.services).length > 0;
+            const hasFacilities = a.facilities && a.facilities.length > 0;
+            const hasLevel = a.level && a.level !== 'unknown' && a.level !== 'Unknown';
+            const hasMeaningfulData = aScore > 0 || hasServices || hasFacilities || hasLevel;
 
-            accHtml = `
-                <div class="rec-accessibility mt-2 pt-2 border-top">
+            if (hasMeaningfulData) {
+                const aPercent = (aScore / 10) * 100;
+                const aColor = aScore >= 8 ? 'success' : aScore >= 6 ? 'warning' : 'danger';
+
+                const servicesHtml = hasServices
+                    ? Object.entries(a.services).map(([k, v]) => {
+                        const icon = v === 'Sí' ? 'bi-check-circle-fill text-success' : 'bi-x-circle text-danger';
+                        return `<span class="badge bg-light text-dark border me-1 mb-1"><i class="bi ${icon}"></i> ${k}</span>`;
+                    }).join('')
+                    : '';
+
+                const facilitiesHtml = hasFacilities
+                    ? a.facilities.map(f => {
+                        const info = CardRenderer.FACILITY_ICONS[f] || { icon: 'bi-check-circle', label: f.replace(/_/g, ' ') };
+                        return `<span class="badge facility-badge me-1 mb-1"><i class="bi ${info.icon}"></i> ${info.label}</span>`;
+                    }).join('')
+                    : '';
+
+                // Score bar only if score > 0
+                const scoreBarHtml = aScore > 0 ? `
                     <div class="d-flex align-items-center mb-1">
                         <small class="text-muted me-2"><i class="bi bi-universal-access"></i> Accesibilidad</small>
                         <div class="score-bar-container flex-grow-1 me-2">
                             <div class="score-bar"><div class="score-bar-fill bg-${aColor}" style="width: ${aPercent}%"></div></div>
                         </div>
                         <span class="badge bg-${aColor}">${aScore}/10</span>
-                    </div>
-                    ${a.level ? `<small class="text-muted">Nivel: <strong>${CardRenderer.escapeHtml(a.level.replace(/_/g, ' '))}</strong></small>` : ''}
-                    ${servicesHtml ? `<div class="mt-1">${servicesHtml}</div>` : ''}
-                </div>`;
+                    </div>` : `
+                    <div class="mb-1">
+                        <small class="text-muted"><i class="bi bi-universal-access"></i> Accesibilidad</small>
+                    </div>`;
+
+                accHtml = `
+                    <div class="rec-accessibility mt-2 pt-2 border-top">
+                        ${scoreBarHtml}
+                        ${hasLevel ? `<small class="text-muted">Nivel: <strong>${CardRenderer.escapeHtml(a.level.replace(/_/g, ' '))}</strong></small>` : ''}
+                        ${servicesHtml ? `<div class="mt-1">${servicesHtml}</div>` : ''}
+                        ${facilitiesHtml ? `<div class="mt-1">${facilitiesHtml}</div>` : ''}
+                    </div>`;
+            }
         }
 
         // Routes section
@@ -117,11 +194,16 @@ class CardRenderer {
                 const accBadge = route.accessibility === 'full'
                     ? '<i class="bi bi-universal-access text-success"></i>'
                     : (route.accessibility === 'partial' ? '<i class="bi bi-universal-access text-warning"></i>' : '');
-                return `<span class="badge bg-light text-dark border me-1 mb-1">
-                    <i class="bi ${icon}"></i> ${CardRenderer.escapeHtml(route.line || route.transport || '')}
+                const label = `<i class="bi ${icon}"></i> ${CardRenderer.escapeHtml(route.line || route.transport || '')}
                     ${route.duration ? `· ${CardRenderer.escapeHtml(route.duration)}` : ''}
-                    ${accBadge}
-                </span>`;
+                    ${accBadge}`;
+                // Wrap in link if directions_url available
+                if (route.directions_url) {
+                    return `<a href="${CardRenderer.escapeHtml(route.directions_url)}" target="_blank" rel="noopener"
+                        class="badge bg-light text-dark border me-1 mb-1 text-decoration-none"
+                        title="Ver ruta en Google Maps">${label} <i class="bi bi-box-arrow-up-right small"></i></a>`;
+                }
+                return `<span class="badge bg-light text-dark border me-1 mb-1">${label}</span>`;
             }).join('');
 
             routesHtml = `
@@ -137,13 +219,14 @@ class CardRenderer {
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h6 class="card-title mb-0">
                             <span class="badge bg-secondary rounded-pill me-1">${index + 1}</span>
-                            <i class="bi bi-building"></i> ${name}
-                            <small class="text-muted ms-1">${type}</small>
+                            <i class="bi bi-building"></i>
+                            ${rec.website_url
+                                ? `<a href="${CardRenderer.escapeHtml(rec.website_url)}" target="_blank" rel="noopener" class="text-decoration-none">${name} <i class="bi bi-box-arrow-up-right small"></i></a>`
+                                : name}
                         </h6>
+                        <div class="mt-1">${typeBadges}</div>
                         <div>
                             ${confidenceBadge}
-                            ${sourceBadge}
-                            ${mapsLink}
                         </div>
                     </div>
                     ${venueHtml}

@@ -19,7 +19,7 @@ _BASE_URL = "https://places.googleapis.com/v1"
 _SEARCH_FIELD_MASK = (
     "places.id,places.displayName,places.formattedAddress,"
     "places.location,places.rating,places.types,"
-    "places.accessibilityOptions"
+    "places.accessibilityOptions,places.websiteUri"
 )
 _DETAILS_FIELD_MASK = (
     "id,displayName,formattedAddress,location,rating,types,"
@@ -144,6 +144,7 @@ class GooglePlacesService(PlacesServiceInterface):
             location_lng=loc.get("longitude"),
             rating=place.get("rating"),
             types=place.get("types", []),
+            website_url=place.get("websiteUri"),
             source="google_places",
         )
 
